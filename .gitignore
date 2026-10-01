@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env*
+*.pem
+*.tsbuildinfo
+coach-loop-backup-*.json
+coach-loop-training-*.csv
+coach-loop-history-*.txt
+.DS_Store
