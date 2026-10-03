@@ -20,23 +20,27 @@ const dateDaysEarlier = (date: string, days: number) => {
   return localDate(value);
 };
 
-const recentBestPoints = (points: TrendPoint[]) => points.map((point) => {
-  const windowStart = dateDaysEarlier(point.date, RECENT_STRENGTH_WINDOW_DAYS - 1);
-  const best = points
-    .filter((candidate) => candidate.date >= windowStart && candidate.date <= point.date)
-    .reduce((current, candidate) => !current || candidate.value > current.value ? candidate : current, null as TrendPoint | null);
-  if (!best || best === point) return point;
-  return { ...point, value: best.value, setLabel: `Recent best: ${best.setLabel} (${best.date})`, effort: best.effort };
-});
+const recentBestPoints = (points: TrendPoint[]) => {
+  const deque: TrendPoint[] = []; let head = 0;
+  return points.map(point => {
+    const start = dateDaysEarlier(point.date, RECENT_STRENGTH_WINDOW_DAYS - 1);
+    while (head < deque.length && deque[head].date < start) head++;
+    while (deque.length > head && deque.at(-1)!.value < point.value) deque.pop();
+    deque.push(point);
+    const best = deque[head];
+    return best === point ? point : { ...point, value: best.value, setLabel: `Recent best: ${best.setLabel} (${best.date})`, effort: best.effort };
+  });
+};
 
 export function dateInWindow(date: string, days: number, today = localDate()) {
   return date >= localDateDaysEarlier(Math.max(0, days - 1), today) && date <= today;
 }
 
 /** Every set is classified independently: added load never replaces bodyweight reps. */
-export function buildExerciseTrends(state: TrainingState): TrendSeries[] {
+export function buildExerciseTrends(state: TrainingState, today = localDate()): TrendSeries[] {
   const series = new Map<string, TrendSeries>();
-  const completed = state.workouts.filter((workout) => workout.status === "completed" && workout.date <= localDate());
+  const dayIndices = new Map<string, Map<string, number>>();
+  const completed = state.workouts.filter((workout) => workout.status === "completed" && workout.date <= today);
   const names = new Map<string, string>();
   completed.forEach((workout) => workout.exercises.forEach((exercise) => {
     const key = exerciseIdentity(exercise.name, state.exerciseAliases);
@@ -71,8 +75,10 @@ export function buildExerciseTrends(state: TrainingState): TrendSeries[] {
       const current = series.get(seriesKey) ?? { key: seriesKey, name: seriesName, metric, points: [] };
       const label = set.loadType === "bodyweight" ? `${reps} reps` : `${formatLoad(set.loadType, performedWeight(set), set.unit, set.weightMode)} × ${reps}`;
       const point = { date: workout.date, value, setLabel: label, effort: set.rpe ? `RPE ${set.rpe}` : set.rir ? `RIR ${set.rir}` : "" };
-      const existing = current.points.findIndex((item) => item.date === workout.date);
-      if (existing < 0) current.points.push(point);
+      const days = dayIndices.get(seriesKey) ?? new Map<string, number>();
+      dayIndices.set(seriesKey, days);
+      const existing = days.get(workout.date);
+      if (existing === undefined) { days.set(workout.date, current.points.length); current.points.push(point); }
       else if (point.value > current.points[existing].value) current.points[existing] = point;
       series.set(seriesKey, current);
     });

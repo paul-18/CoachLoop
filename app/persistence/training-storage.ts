@@ -1,14 +1,14 @@
 import { uid, type TrainingState } from "../domain/training-types";
 
 import { validateSyncedState } from "./training-validation";
-const DB_NAME = "coach-loop";
+import { localScopeSuffix } from "./local-scope";
+const DB_NAME = `coach-loop${localScopeSuffix()}`;
 const DB_VERSION = 3;
 const STATE_STORE = "app";
 const SNAPSHOT_STORE = "snapshots";
 const SYNC_STORE = "sync";
 const DEVICE_STORE = "device";
 const STATE_KEY = "training-state";
-const SYNC_KEY = "cloud-sync";
 
 export interface SyncMeta {
   revision: number;
@@ -78,83 +78,21 @@ export const loadTrainingState = async (): Promise<TrainingState | null> => {
 };
 
 let pendingSave: Promise<unknown> = Promise.resolve();
-export const saveTrainingState = (state: TrainingState) => {
-  validateSyncedState(state);
-  const snapshot = structuredClone(state);
-  // Keep rapid edits in order, and do not report success before the transaction commits.
-  const saved = pendingSave.catch(() => undefined).then(() =>
-    transact(STATE_STORE, "readwrite", (store) => store.put(snapshot, STATE_KEY)),
-  );
-  pendingSave = saved;
-  return saved;
-};
-
-export const loadSyncMeta = async (): Promise<SyncMeta> => {
-  try {
-    return (await transact<SyncMeta | undefined>(SYNC_STORE, "readonly", (store) =>
-      store.get(SYNC_KEY),
-    )) ?? { revision: 0, lastSyncedHash: null, lastSyncedAt: null };
-  } catch {
-    return { revision: 0, lastSyncedHash: null, lastSyncedAt: null };
+let queuedState: TrainingState | null = null;
+let draining: Promise<void> | null = null;
+export const saveTrainingState = (state: TrainingState): Promise<void> => {
+  queuedState = structuredClone(validateSyncedState(state));
+  if (!draining) {
+    draining = pendingSave.catch(() => undefined).then(async () => {
+      while (queuedState) {
+        const snapshot = queuedState;
+        queuedState = null;
+        await transact(STATE_STORE, "readwrite", store => store.put(snapshot, STATE_KEY));
+      }
+    }).finally(() => { draining = null; });
+    pendingSave = draining;
   }
-};
-
-export const saveSyncMeta = async (meta: SyncMeta) => {
-  await transact(SYNC_STORE, "readwrite", (store) =>
-    store.put(structuredClone(meta), SYNC_KEY),
-  );
-};
-
-/** State and its acknowledged cloud revision become visible in one transaction. */
-export const saveStateAndSyncMeta = (state: TrainingState, meta: SyncMeta): Promise<void> => {
-  validateSyncedState(state);
-  const snapshot = structuredClone(state);
-  const metadata = structuredClone(meta);
-  const saved = pendingSave.catch(() => undefined).then(async () => {
-    const database = await openDatabase();
-    await new Promise<void>((resolve, reject) => {
-      try {
-        const transaction = database.transaction([STATE_STORE, SYNC_STORE], "readwrite");
-        transaction.objectStore(STATE_STORE).put(snapshot, STATE_KEY);
-        transaction.objectStore(SYNC_STORE).put(metadata, SYNC_KEY);
-        transaction.oncomplete = () => { database.close(); resolve(); };
-        const fail = () => { database.close(); reject(transaction.error ?? new Error("Sync checkpoint aborted")); };
-        transaction.onerror = fail;
-        transaction.onabort = fail;
-      } catch (error) { database.close(); reject(error); }
-    });
-  });
-  pendingSave = saved;
-  return saved;
-};
-
-export const getDeviceId = async (): Promise<string> => {
-  const existing = await transact<string | undefined>(DEVICE_STORE, "readonly", (store) => store.get("id"));
-  if (existing) return existing;
-  const id = uid("device");
-  await transact(DEVICE_STORE, "readwrite", (store) => store.put(id, "id"));
-  return id;
-};
-
-export const loadConflictOverrides = async (): Promise<Record<string, unknown>> =>
-  (await transact<Record<string, unknown> | undefined>(DEVICE_STORE, "readonly", (store) => store.get("conflict-overrides"))) ?? {};
-
-let pendingOverrideSave: Promise<unknown> = Promise.resolve();
-export const saveConflictOverrides = (overrides: Record<string, unknown>): Promise<void> => {
-  const snapshot = structuredClone(overrides);
-  const saved = pendingOverrideSave.catch(() => undefined).then(async () => {
-    await transact(DEVICE_STORE, "readwrite", (store) => store.put(snapshot, "conflict-overrides"));
-  });
-  pendingOverrideSave = saved;
-  return saved;
-};
-
-export const reconcileConflictOverrides = async (pendingIds: string[]): Promise<Record<string, unknown>> => {
-  const previous = await loadConflictOverrides();
-  const allowed = new Set(pendingIds);
-  const next = Object.fromEntries(Object.entries(previous).filter(([id]) => allowed.has(id)));
-  if (Object.keys(next).length !== Object.keys(previous).length) await saveConflictOverrides(next);
-  return next;
+  return draining;
 };
 
 export const saveSnapshot = async (state: TrainingState, reason: string) => {
@@ -191,19 +129,23 @@ export const resetTrainingData = (nextState: TrainingState, meta?: SyncMeta): Pr
   const reset = pendingSave.catch(() => undefined).then(async () => {
     const database = await openDatabase();
     await new Promise<void>((resolve, reject) => {
+      let transaction: IDBTransaction | undefined;
       try {
-        const transaction = database.transaction([STATE_STORE, SNAPSHOT_STORE, SYNC_STORE, DEVICE_STORE], "readwrite");
+        transaction = database.transaction([STATE_STORE, SNAPSHOT_STORE, SYNC_STORE, DEVICE_STORE], "readwrite");
         transaction.objectStore(STATE_STORE).clear();
         transaction.objectStore(STATE_STORE).put(snapshot, STATE_KEY);
         transaction.objectStore(SNAPSHOT_STORE).clear();
         transaction.objectStore(SYNC_STORE).clear();
-        if (meta) transaction.objectStore(SYNC_STORE).put(structuredClone(meta), SYNC_KEY);
+        if (meta) transaction.objectStore(SYNC_STORE).put(structuredClone(meta), "cloud-sync");
         transaction.objectStore(DEVICE_STORE).delete("conflict-overrides");
         transaction.oncomplete = () => { database.close(); resolve(); };
-        const fail = () => { database.close(); reject(transaction.error ?? new Error("Local reset failed")); };
+        const fail = () => { database.close(); reject(transaction?.error ?? new Error("Local reset failed")); };
         transaction.onerror = fail;
         transaction.onabort = fail;
-      } catch (error) { database.close(); reject(error); }
+      } catch (error) {
+        try { transaction?.abort(); } catch { /* Already inactive. */ }
+        database.close(); reject(error);
+      }
     });
   });
   pendingSave = reset;

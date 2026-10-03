@@ -112,14 +112,20 @@ export const downloadText = (text: string, filename: string, type: string) => {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
+
+export async function shareTextFile(text: string, filename: string, type: string) {
+  const file = new File([text], filename, { type });
+  if (!navigator.canShare?.({ files: [file] }) || !navigator.share) throw new Error("File sharing is unavailable; use Download full backup");
+  await navigator.share({ files: [file], title: "Coach Loop backup" });
+}
 
 export const formatDate = (date: string) =>
   new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
-    year: new Date(date).getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+    year: new Date(`${date}T12:00:00`).getFullYear() === new Date().getFullYear() ? undefined : "numeric",
   }).format(new Date(`${date}T12:00:00`));
 
 export const formatDuration = (seconds: number) => {
@@ -174,7 +180,7 @@ export const orderedWorkoutBlocks = (workout: WorkoutSession): OrderedWorkoutBlo
 export function AppMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="app-mark flex items-center gap-3">
-      <span className="grid size-10 place-items-center rounded-[14px] bg-[var(--lime)] text-[#11140d] shadow-[0_0_24px_rgba(198,255,74,.18)]">
+      <span className="grid size-10 place-items-center rounded-[14px] bg-[var(--lime)] text-[#11140d] shadow-[0_0_24px_rgba(var(--theme-accent-rgb),.18)]">
         <Dumbbell className="size-5" strokeWidth={2.4} />
       </span>
       {!compact && (
@@ -233,7 +239,7 @@ export function EmptyPanel({
 export const syncCopy: Record<SyncStatus, string> = {
   connecting: "Connecting…",
   saving: "Saving…",
-  synced: "Synced across devices",
+  synced: "Saved on this device",
   offline: "Offline · saved here",
   error: "Sync needs attention",
 };

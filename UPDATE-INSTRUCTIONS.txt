@@ -1,24 +1,25 @@
-COACH LOOP v79 GITHUB UPDATE
+COACH LOOP v80 RELIABILITY UPDATE — SAME EXISTING APP
 
-This ZIP is an update package for paul-18/CoachLoop at commit
-97a10f4c26660854f4674ba36cce4ad2e6be06b0 (the onboarding update).
-It replaces matching source files and adds new ones in the existing app.
-It has no extra enclosing folder and does not create another app.
+This cumulative ZIP contains source files at the repository root, with no extra
+app folder. It includes the previous v79/v80 updates. It targets the onboarding
+commit 97a10f4c26660854f4674ba36cce4ad2e6be06b0 and the supplied v79/v80 editions.
+Matching files are overwritten, not duplicated. If you made other source edits,
+review those changes before extracting. It is not published yet.
 
-1. In the live app, download a full JSON backup and save it somewhere private.
-   Do not upload that backup to the public GitHub repository.
-2. Upload CoachLoop-v79-GitHub-Update.zip to the repository's main folder
-   (the folder containing package.json and README.md), and commit the upload.
-3. Open the existing Codespace terminal in /workspaces/CoachLoop.
-4. Run each command below separately. Wait for it to finish.
+1. In the live app, download a full JSON backup and save it privately in Files.
+   Never upload your personal backup to this public GitHub repository.
+2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
+   Upload CoachLoop-v80-Reliability-Update.zip in the main folder containing
+   package.json. Commit the upload. Upload the ZIP itself; don't upload dist.
+3. Open your existing Codespace terminal in /workspaces/CoachLoop.
+   Run each command separately. Wait for it to finish; stop on any error.
 
    git status --short
 
-   If this lists changed files, preserve that work before continuing.
-   If it prints nothing:
+   If this lists changes, preserve them before continuing. If it prints nothing:
 
    git pull --ff-only
-   unzip -o CoachLoop-v79-GitHub-Update.zip
+   unzip -o CoachLoop-v80-Reliability-Update.zip
    npx --yes pnpm@11.25.0 install --frozen-lockfile
    npx --yes pnpm@11.25.0 exec tsc --noEmit
    npx --yes pnpm@11.25.0 run lint
@@ -26,27 +27,32 @@ It has no extra enclosing folder and does not create another app.
    npx --yes pnpm@11.25.0 run build
    node scripts/check-pwa.mjs
 
-5. Only after every check succeeds, run these separately:
+   The large-chunk build warning is non-blocking if the build completes.
+   Do not use --no-frozen-lockfile to conceal a failure of this shipped lockfile.
 
-   rm CoachLoop-v79-GitHub-Update.zip
-   git add app tests scripts .github/workflows/pages.yml package.json eslint.config.mjs README.md UPDATE-INSTRUCTIONS.txt V79-UPDATE-NOTES.md CoachLoop-v79-GitHub-Update.zip
+4. Only after ALL checks pass, run each separately:
+
+   git rm CoachLoop-v80-Reliability-Update.zip
+   git add app components tests scripts public .github/workflows/pages.yml main.tsx package.json pnpm-lock.yaml pnpm-workspace.yaml eslint.config.mjs README.md UPDATE-INSTRUCTIONS.txt V79-UPDATE-NOTES.md V80-UPDATE-NOTES.md V80-RELIABILITY-NOTES.md IPHONE-QC.md
    git diff --cached --stat
-   git commit -m "Port Coach Loop v79 and add customizable coverage and quick log"
+   git commit -m "Fix Coach Loop v80 navigation, updates and data reliability"
    git push
 
-6. In GitHub, open Actions and check the newest Publish Coach Loop PWA run.
-   It now checks types, lint, tests, the build, and offline assets before deploying.
-7. Open the live app online. Finish any workout and wait for local saving.
-   Close all Coach Loop Safari/PWA windows, then reopen. Settings shows v79.
-8. Settings -> Appearance & quick log:
-   - Select the male or corrected female strength-coverage visual.
-   - Show/hide quick-log activities, including Water polo.
-   - Use the arrows to change their order. Restore default shortcuts resets them.
-   Profile/goals editing uses Save/Cancel. Ranked goals remain visible in Coach.
+   Review the staged file list before committing. It must not contain a personal
+   backup, node_modules, dist or credentials. Source stays on the same main branch.
+5. GitHub -> Actions -> newest Publish Coach Loop PWA run. Wait for green success.
+   Settings -> Pages must use GitHub Actions. The live website address stays the same.
+6. First upgrade only: finish your workout, back up, wait for saving, close ALL
+   Coach Loop Safari tabs/Home Screen windows, then reopen ONLINE. An older app
+   may need another close/reopen after it downloads this release. Do not clear
+   Safari website data. Verify the top status row says v80 with a build identifier
+   and has Check updates; Settings has Share backup / Save to Files.
+7. Future updates: return online -> Check updates -> finish active workouts and
+   close the editor -> wait for Saved on this device -> Restart to update.
+   Close another Coach Loop window if requested. One deliberate restart applies
+   the waiting release; nothing automatically restarts during a workout.
+8. Follow IPHONE-QC.md, especially tabs offline, actual-vs-planned exports,
+   preserving old dates, backup recovery and background timer behavior.
 
-The same live URL is used. GitHub Pages stays local-only, with no Sites database
-or automatic cross-device sync. Your existing on-device log should remain;
-keep its backup. Do not clear Safari storage to refresh the app.
-
-Large-chunk warnings are non-blocking if the command completes successfully.
-If any command fails, stop before committing and share its error output.
+Your existing local log should remain. Keep the external backup. The GitHub
+edition remains local-only, with no automatic sync between devices/browsers.

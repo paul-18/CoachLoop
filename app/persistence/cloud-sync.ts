@@ -1,43 +1,5 @@
 import type { CardioEntry, ExerciseBlock, ExerciseMuscleTarget, TrainingSet, TrainingState, WorkoutSession } from "../domain/training-types";
-import { saveTrainingState } from "./training-storage";
-import { z } from "zod";
-import { validateLocalState } from "./training-validation";
-
 export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error";
-
-export const statusAfterCloudCheck = (local: TrainingState, lastSyncedHash: string | null): SyncStatus =>
-  stateHash(local) === lastSyncedHash ? "synced" : "saving";
-
-export type CloudSnapshot = {
-  state: TrainingState | null;
-  revision: number;
-  updatedAt: string | null;
-  conflict?: boolean;
-  generation: string | null;
-};
-
-export class SyncError extends Error {
-  constructor(message: string, readonly status: number, readonly code?: string) { super(message); }
-  get retryable() { return this.status === 429 || this.status >= 500; }
-}
-
-const envelope = z.object({
-  state: z.unknown().optional(), revision: z.number().int().nonnegative(),
-  updatedAt: z.string().nullable(), generation: z.string().nullable(),
-});
-const readResponse = async (response: Response): Promise<CloudSnapshot> => {
-  const parsed = envelope.parse(await response.json());
-  return { state: parsed.state == null ? null : validateLocalState(parsed.state), revision: parsed.revision, updatedAt: parsed.updatedAt, generation: parsed.generation };
-};
-const errorResponse = async (response: Response) => {
-  let detail: { error?: string; code?: string } = {};
-  try { detail = await response.json() as typeof detail; } catch { /* A proxy may return HTML. */ }
-  return new SyncError(detail.error ?? `Sync failed (${response.status})`, response.status, detail.code);
-};
-
-export const stateHash = (state: TrainingState) => {
-  return JSON.stringify(state);
-};
 
 const workoutTime = (workout: WorkoutSession) =>
   workout.updatedAt ??
@@ -169,7 +131,11 @@ export const mergeTrainingStates = (
       const left = local.benchmarks?.find((entry) => entry.id === item.id);
       const right = remote.benchmarks?.find((entry) => entry.id === item.id);
       const legacy = [left, right].flatMap((entry) => entry?.result && entry.testedOn && !(entry.attempts ?? []).some((attempt) => attempt.date === entry.testedOn && attempt.result === entry.result) ? [{ id: `legacy-${entry.id}-${entry.testedOn}`, date: entry.testedOn, result: entry.result, protocol: entry.protocol, updatedAt: entry.updatedAt }] : []);
-      const attempts = new Map([...legacy, ...(left?.attempts ?? []), ...(right?.attempts ?? [])].map((attempt) => [attempt.id, attempt]));
+      const attempts = new Map<string, NonNullable<typeof item.attempts>[number]>();
+      for (const attempt of [...legacy, ...(left?.attempts ?? []), ...(right?.attempts ?? [])]) {
+        const prior = attempts.get(attempt.id);
+        if (!prior || attempt.updatedAt >= prior.updatedAt) attempts.set(attempt.id, attempt);
+      }
       const ordered = [...attempts.values()].sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt));
       const latest = ordered.at(-1);
       return { ...item, result: latest?.result ?? item.result, testedOn: latest?.date ?? item.testedOn, attempts: ordered };
@@ -193,47 +159,3 @@ export const mergeTrainingStates = (
 export const mergeRestoredState = (current: TrainingState, backup: TrainingState): TrainingState =>
   mergeTrainingStates(current, backup);
 
-export const getCloudSnapshot = async (): Promise<CloudSnapshot> => {
-  const response = await fetch("/api/sync", { cache: "no-store", signal: AbortSignal.timeout(15_000) });
-  if (!response.ok) throw await errorResponse(response);
-  return readResponse(response);
-};
-
-export const putCloudSnapshot = async (
-  state: TrainingState,
-  expectedRevision: number,
-  generation: string,
-): Promise<CloudSnapshot> => {
-  const response = await fetch("/api/sync", {
-    method: "PUT",
-    signal: AbortSignal.timeout(15_000),
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ state, expectedRevision, generation }),
-  });
-  if (response.status === 409) {
-    const detail = await response.clone().json() as { code?: string };
-    if (detail.code === "DATASET_RESET") throw new SyncError("This log was reset on another device.", 409, "DATASET_RESET");
-    return { ...await readResponse(response), conflict: true };
-  }
-  if (!response.ok) throw await errorResponse(response);
-  const result = await response.json() as { revision: number; updatedAt: string; generation: string };
-  return { state, revision: result.revision, updatedAt: result.updatedAt, generation: result.generation };
-};
-
-/** Persist local evidence before uploading. A background merge may upload an older candidate,
- * but must persist the latest local edits rather than overwrite them with that candidate. */
-export async function persistThenUpload(state: TrainingState, expectedRevision: number, generation: string, persistLocal?: () => Promise<unknown>): Promise<CloudSnapshot> {
-  const candidate = structuredClone(state);
-  await (persistLocal ? persistLocal() : saveTrainingState(candidate));
-  return putCloudSnapshot(candidate, expectedRevision, generation);
-}
-
-export async function resetCloudSnapshot(state: TrainingState, expectedRevision: number, generation: string): Promise<CloudSnapshot> {
-  const response = await fetch("/api/sync", {
-    method: "POST", signal: AbortSignal.timeout(15_000),
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ state, expectedRevision, generation }),
-  });
-  if (!response.ok) throw await errorResponse(response);
-  return readResponse(response);
-}

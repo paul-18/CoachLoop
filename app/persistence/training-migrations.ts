@@ -20,6 +20,8 @@ export function materializeAcceptedActivity(activity: CardioEntry): CardioEntry 
 
 /** Explicit one-time repair of recorded "completed as planned" legacy results. */
 export function migrateAcceptedEvidence(state: TrainingState): TrainingState {
+  const version = (state as { evidenceVersion?: number }).evidenceVersion;
+  if (version !== undefined && version !== 1 && version !== 2) throw new Error("This backup requires a newer Coach Loop version");
   if (state.evidenceVersion === 2) return state;
   return {
     ...state,

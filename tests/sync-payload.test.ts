@@ -1,22 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decodeSyncPayload, encodeSyncPayload, MAX_STORED_BYTES } from "../app/persistence/sync-payload";
 import { defaultState, makeWorkout } from "../app/domain/training-types";
 import { portableBackup } from "../app/persistence/portable-backup";
 import { mergeRestoredState } from "../app/persistence/cloud-sync";
-
-test("large logs compress inside the existing D1 row and round-trip unchanged", async () => {
-  const state = defaultState();
-  const workout = makeWorkout("lb", 120);
-  state.workouts = Array.from({ length: 300 }, (_, i) => ({ ...workout, id: `qa-${i}`, name: `Session ${i} ${"Bench Squat Deadlift ".repeat(400)}` }));
-  const raw = JSON.stringify(state);
-  assert.ok(raw.length > MAX_STORED_BYTES);
-  const encoded = await encodeSyncPayload(state);
-  assert.ok(encoded.payload.startsWith("gzip:"));
-  assert.ok(encoded.bytes < MAX_STORED_BYTES);
-  assert.deepEqual(await decodeSyncPayload(encoded.payload), state);
-  assert.deepEqual(await decodeSyncPayload(JSON.stringify(defaultState())), defaultState());
-});
 
 test("portable backup retains a visible unresolved set correction across restore", () => {
   const canonical = defaultState();

@@ -1,3 +1,4 @@
+import { performedDuration, performedDistance } from "../domain/completion";
 import { hyroxExport } from "../domain/hyrox";
 import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
@@ -84,7 +85,8 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
     const activity = activityById.get(block.id);
     if (!activity) return;
     lines.push(`\n${activity.name}:`);
-    if (activity.efforts?.length) {
+    if (activity.completed && activity.efforts?.length) lines.push(`- Efforts: ${activity.efforts.map((effort) => effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "done" : "not completed").join("; ")}`);
+    if (!activity.completed && activity.efforts?.length) {
       lines.push(...activity.efforts.map((effort, index) => `- Effort ${index + 1}: ${effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "completed; measures unrecorded" : "NOT COMPLETED"}`));
     }
     if (!activity.completed) {
@@ -97,17 +99,16 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       if (activity.mobilityMoves?.length) lines.push(`- Movements: ${activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` ${move.prescription}` : ""}`).join("; ")}`);
       if (activity.efforts?.length) lines.push(`- Prescribed efforts: ${activity.efforts.map((effort) => [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : ""].filter(Boolean).join(" · ")).join("; ")}`);
     } else {
-      const duration = activity.completedAsPlanned ? activity.plannedDurationMin : activity.actualDurationMin;
-      const distance = activity.completedAsPlanned ? activity.plannedDistanceKm : activity.actualDistanceKm;
+      const duration = performedDuration(activity);
+      const distance = performedDistance(activity);
       if (activity.completedAsPlanned) lines.push("- Completed as prescribed");
       if (duration !== null) lines.push(`- Duration: ${duration} min`);
       if (distance !== null) lines.push(`- Distance: ${distance} km`);
-      if (activity.intensity) lines.push(`- Intensity: ${activity.intensity}`);
+      if (activity.intensity) lines.push(`- Target intensity (not reported effort): ${activity.intensity}`);
       if (activity.pace) lines.push(`- Pace: ${activity.pace}`);
       if (activity.averageHr !== null) lines.push(`- Average HR: ${activity.averageHr} bpm`);
       if (activity.elevationM !== null) lines.push(`- Elevation: ${activity.elevationM} m`);
       if (activity.activityType === "ruck" && activity.ruckLoad !== null) lines.push(`- Ruck load: ${activity.ruckLoad} ${activity.ruckLoadUnit}`);
-      if (activity.efforts?.length) lines.push(`- Efforts: ${activity.efforts.map((effort) => effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "done" : "not completed").join("; ")}`);
       if (activity.mobilityMoves?.length) lines.push(`- Movements: ${activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` ${move.prescription}` : ""}`).join("; ")}`);
       else if (activity.intervals) lines.push(`- Intervals: ${activity.intervals}`);
       if (activity.effort) lines.push(`- Effort: ${activity.effort}/10`);

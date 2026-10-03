@@ -1,3 +1,4 @@
+import { validRepTarget } from "../domain/rep-target";
 import { z } from "zod";
 import { validateSyncedState } from "../persistence/training-validation";
 import {
@@ -274,7 +275,7 @@ export const parseFitlog = (
           throw new Error("A SET line appeared before an EXERCISE line.");
         }
         const reps = parts[0] || "";
-        if (!reps.trim()) throw new Error("SET: enter a rep target, such as 6 or 6-8.");
+        if (!validRepTarget(reps)) throw new Error("SET: enter a rep target with positive whole reps or an increasing range, such as 6 or 6-8.");
         const repRange = /^(\d+)\s*-\s*(\d+)$/.exec(reps);
         if (repRange && (Number(repRange[1]) < 1 || Number(repRange[2]) < Number(repRange[1]))) throw new Error("SET: use an increasing positive rep range, such as 6-8.");
         if (parts.length > 4 || (parts[3] && !/^warm\s*up$/i.test(parts[3]))) throw new Error("SET: use reps|load|RPE or RIR|optional WARMUP. Put instructions on a NOTES line.");
@@ -315,7 +316,7 @@ export const parseFitlog = (
             loadType: isBodyweight ? "bodyweight" : numericWeight === null ? "unrecorded" : "weighted",
             weightMode,
             ...effortTarget,
-            warmup: parts.some((part) => /warm\s*up/i.test(part)),
+            warmup: !!parts[3] && /^warm\s*up$/i.test(parts[3]),
           }),
         );
       } else if (command === "REST" && currentExercise) {
@@ -352,13 +353,18 @@ export const parseFitlog = (
         blockOrder.push({ type: "activity", id: currentCardio.id });
         currentExercise = null;
       } else if (command === "TYPE" && currentCardio) {
-        currentCardio.activityType = normalizeType(value);
+        const type = value.toLowerCase().replace(/[ -]/g, "_");
+        const allowed = ["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"];
+        if (!allowed.includes(type)) throw new Error("TYPE: choose a supported activity such as run, water_polo, circuit, or ruck");
+        if (currentCardio.ruckLoad !== null && type !== "ruck") throw new Error("TYPE conflicts with RUCKLOAD; use ruck");
+        currentCardio.activityType = type as CardioEntry["activityType"];
         currentCardio.loggingStyle = makeCardio(currentCardio.activityType).loggingStyle;
       } else if (command === "DURATION" && currentCardio) {
         currentCardio.plannedDurationMin = parseNonNegativeNumber(value, "DURATION");
       } else if (command === "DISTANCE" && currentCardio) {
         currentCardio.plannedDistanceKm = parseNonNegativeNumber(value, "DISTANCE");
       } else if (command === "RUCKLOAD" && currentCardio) {
+        if (currentCardio.activityType !== "ruck" && currentCardio.activityType !== "other") throw new Error("RUCKLOAD is only valid for a ruck activity");
         const load = value ? ruckLoadPattern.exec(value) : null;
         if (value && !load) throw new Error("RUCKLOAD: use a non-negative number with lb or kg, such as 45 lb.");
         currentCardio.ruckLoad = load ? Number(load[1]) : null;

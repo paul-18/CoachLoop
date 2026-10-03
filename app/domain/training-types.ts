@@ -1,3 +1,4 @@
+import type { ColorTheme, WeeklyCard, ProgressSection } from "./display-preferences";
 import type { HyroxSession } from "./hyrox";
 export type Unit = "lb" | "kg";
 export type LoadType = "weighted" | "bodyweight" | "unrecorded";
@@ -175,6 +176,9 @@ export type QuickLogActivityType = (typeof QUICK_LOG_OPTIONS)[number]["type"];
 export const DEFAULT_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = QUICK_LOG_OPTIONS.map(option => option.type);
 
 export interface AppSettings {
+  colorTheme?: ColorTheme;
+  weeklyCards?: WeeklyCard[];
+  progressSections?: ProgressSection[];
   bodyDiagram?: "male" | "female";
   quickLogActivities?: QuickLogActivityType[];
   defaultUnit: Unit;

@@ -23,5 +23,5 @@ test("strength profile uses only comparable completed sets and respects correcte
   assert.equal(Math.round(strengthProfile(state, "lb").get("Bench press")!.value), 222);
   assert.equal(strengthProfile(state, "lb").has("Squat"), false);
   squat.date = localDate();
-  assert.equal(Math.round(strengthProfile(state, "lb").get("Squat")!.value), 284);
+  assert.equal(Math.round(strengthProfile(state, "lb").get("Squat")!.value), 275);
 });

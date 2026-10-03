@@ -100,5 +100,9 @@ const normalizeLoadedState = (state: TrainingState): TrainingState => ({
   },
 });
 
-export const prepareLoadedState = (raw: unknown): TrainingState =>
-  validateSyncedState(normalizeLoadedState(migrateAcceptedEvidence(validateLocalState(raw))));
+export const prepareLoadedState = (raw: unknown): TrainingState => {
+  const accepted = validateLocalState(raw);
+  if (accepted.bodyweightEntries?.some(e => !e || !Number.isFinite(e.weight) || e.weight <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid bodyweight record");
+  if (accepted.waistEntries?.some(e => !e || !Number.isFinite(e.cm) || e.cm <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid waist record");
+  return validateSyncedState(normalizeLoadedState(migrateAcceptedEvidence(accepted)));
+};

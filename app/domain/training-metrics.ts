@@ -37,7 +37,7 @@ export const convertWeight = (weight: number, from: Unit, to: Unit) => {
  * not used for high-rep accessories or bodyweight conditioning.
  */
 export const estimatedOneRepMax = (weight: number, reps: number) =>
-  reps > 0 && reps <= 10 ? weight * (1 + reps / 30) : null;
+  reps > 0 && reps <= 10 ? reps === 1 ? weight : weight * (1 + reps / 30) : null;
 
 export const isPrimaryStrengthExercise = (name: string) => {
   const value = name.trim().toLowerCase().replace(/\s+/g, " ");

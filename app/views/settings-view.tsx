@@ -1,3 +1,6 @@
+import { useStorageHealth } from "../pwa/use-storage-health";
+import { parseBackup, recoverDeleted, backupChanges, MAX_BACKUP_BYTES } from "../persistence/backup-tools";
+import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
@@ -20,19 +23,18 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 import { MuscleMappingSettings } from "./muscle-mapping-settings";
 import { BenchmarkSettings } from "./benchmark-settings";
+import { DisplayPreferences } from "./display-preferences";
 import { APP_RELEASE } from "../app-release";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 
 import { mergeRestoredState, type SyncStatus } from "../persistence/cloud-sync";
 
-import { toCsv, csvSetEffort } from "../interchange/csv-export";
 
 import { listSnapshots, loadSnapshot, type TrainingSnapshot } from "../persistence/training-storage";
 import { DEFAULT_QUICK_LOG_ACTIVITIES, QUICK_LOG_OPTIONS, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
 
-import { DecimalInput, downloadText } from "./shared";
+import { DecimalInput, shareTextFile, downloadText } from "./shared";
 import { validMeasurementDate } from "../domain/training-workflow";
-import { prepareLoadedState } from "../persistence/migrations";
 import { portableBackup } from "../persistence/portable-backup";
 import { TextEditorDialog } from "./text-editor-dialog";
 
@@ -56,13 +58,13 @@ function ConflictReviewItem({ conflict, onResolve }: { conflict: FieldConflict; 
   };
   return <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.035] p-3">
     <p className="break-words font-semibold">{conflict.fieldPath}</p>
-    <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2"><div className="break-words"><span className="text-white/65">Saved in cloud</span><p>{format(conflict.remoteValue)}</p></div><div className="break-words"><span className="text-white/65">Other edit</span><p>{format(conflict.raisingDeviceValue)}</p></div></div>
-    <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.remoteValue)}>Keep cloud</Button><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.raisingDeviceValue)}>Use other edit</Button>{freeText && typeof conflict.remoteValue === "string" && typeof conflict.raisingDeviceValue === "string" && <Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, `${conflict.remoteValue}\n${conflict.raisingDeviceValue}`)}>Keep both</Button>}</div>
+    <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2"><div className="break-words"><span className="text-white/65">Saved value</span><p>{format(conflict.remoteValue)}</p></div><div className="break-words"><span className="text-white/65">Other edit</span><p>{format(conflict.raisingDeviceValue)}</p></div></div>
+    <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.remoteValue)}>Keep saved</Button><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.raisingDeviceValue)}>Use other edit</Button>{freeText && typeof conflict.remoteValue === "string" && typeof conflict.raisingDeviceValue === "string" && <Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, `${conflict.remoteValue}\n${conflict.raisingDeviceValue}`)}>Keep both</Button>}</div>
     <div className="mt-2 flex gap-2">{choices ? <NativeSelect aria-label={`New value for ${field}`} value={fresh} onChange={(e) => setFresh(e.target.value)}><NativeSelectOption value="">Choose a value</NativeSelectOption>{choices.map((v) => <NativeSelectOption key={v} value={v}>{v}</NativeSelectOption>)}</NativeSelect> : <Input aria-label={`New value for ${field}`} type={/^(date|start|end|testedOn)$/.test(field) ? "date" : "text"} inputMode={numeric ? "decimal" : "text"} value={fresh} onChange={(e) => setFresh(e.target.value)} placeholder={numeric ? "Number, or blank to clear" : "Or enter a new value"} className="min-w-0 border-white/10 bg-black/20" />}<Button type="button" size="sm" disabled={!numeric && !fresh.trim()} onClick={resolveFresh}>Use new</Button></div>
   </div>;
 }
 
-export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean }) {
+export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean }) {
   useEffect(() => {
     if (!openSection) return;
     const target = document.getElementById(openSection);
@@ -70,6 +72,9 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     target?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
     onSectionOpened?.();
   }, [openSection, onSectionOpened]);
+  const { health } = useStorageHealth();
+  const [recover, setRecover] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [snapshots, setSnapshots] = useState<TrainingSnapshot[]>([]);
   const [installed, setInstalled] = useState(false);
@@ -94,40 +99,35 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     toast("Backup download requested");
   };
   const exportCsv = () => {
-    const recordStatus = (completed: boolean, skipped = false) => completed ? "completed" : skipped ? "skipped" : "incomplete";
-    const rows = [["date", "workout", "record_status", "type", "exercise_or_activity", "set", "load_type", "weight_mode", "planned_weight", "actual_weight", "unit", "planned_reps", "actual_reps", "completed_as_planned", "rpe_or_effort", "duration_min", "distance_km", "ruck_load", "average_hr", "elevation_m", "pace", "notes", "skip_reason", "efforts"]];
-    state.workouts.filter((workout) => workout.status === "completed").forEach((workout) => {
-      workout.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => rows.push([workout.date, workout.name, recordStatus(set.completed, set.skipped), "strength", exercise.name, String(index + 1), set.loadType, set.weightMode, set.plannedWeight?.toString() ?? "", set.actualWeight?.toString() ?? "", set.unit, set.plannedReps, set.actualReps, String(set.completedAsPlanned), csvSetEffort(set), "", "", "", "", "", "", `${exercise.notes} ${set.notes}`.trim(), "", ""])));
-      workout.cardio.forEach((item) => rows.push([workout.date, workout.name, recordStatus(item.completed), item.activityType, item.name, "", "", "", "", "", "", "", "", String(item.completedAsPlanned), item.effort, item.actualDurationMin?.toString() ?? "", item.actualDistanceKm?.toString() ?? "", item.ruckLoad !== null ? `${item.ruckLoad} ${item.ruckLoadUnit}` : "", item.averageHr?.toString() ?? "", item.elevationM?.toString() ?? "", item.pace, item.notes, "", (item.efforts ?? []).map((effort, index) => `${index + 1}: ${effort.completed ? "done" : "not done"}${effort.actualDistanceM !== null ? ` ${effort.actualDistanceM} m` : ""}${effort.actualLoad !== null ? ` ${effort.actualLoad} ${item.effortLoadUnit ?? "lb"}` : ""}${effort.actualDurationSec !== null ? ` ${effort.actualDurationSec} sec` : ""}`).join("; ")]));
-    });
-    state.workouts.filter((workout) => workout.status === "skipped").forEach((workout) => rows.push([workout.date, workout.name, "skipped", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", workout.notes, workout.skipReason, ""]));
-    const csv = toCsv(rows);
-    downloadText(`\uFEFF${csv}`, `coach-loop-training-${localDate()}.csv`, "text/csv;charset=utf-8");
-    toast.success("CSV downloaded");
+    downloadText(`\uFEFF${exportTrainingCsv(state)}`, `coach-loop-training-${localDate()}.csv`, "text/csv;charset=utf-8");
+    toast("CSV download requested");
   };
   const restore = async (file: File) => {
     try {
-      const raw: unknown = JSON.parse(await file.text());
-      setRestoreCandidate(prepareLoadedState(raw));
-    } catch {
-      toast.error("That file is not a valid Coach Loop backup");
+      if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 10 MB limit");
+      setRestoreCandidate(parseBackup(await file.text()));
+      setRecover(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
     }
   };
-  const restorePreview = restoreCandidate ? mergeRestoredState(canonicalState, restoreCandidate) : null;
+  const restorePreview = restoreCandidate ? mergeRestoredState(canonicalState, recover ? recoverDeleted(canonicalState, restoreCandidate) : restoreCandidate) : null;
   const restoreAdditions = restorePreview?.workouts.filter((workout) => !canonicalState.workouts.some((item) => item.id === workout.id)).length ?? 0;
   const restoreRemovals = canonicalState.workouts.filter((workout) => !restorePreview?.workouts.some((item) => item.id === workout.id)).length;
+  const changes = restorePreview ? backupChanges(canonicalState, restorePreview) : null;
   return (
     <div className="page-stack">
       <section className="topline"><div><h1>Settings</h1></div></section>
-      <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open) setRestoreCandidate(null); }}><DialogContent className="border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Adds {restoreAdditions} workouts; removes {restoreRemovals} workouts according to backup deletion records. Current data is snapshotted before applying.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button onClick={async () => { if (!restoreCandidate) return; try { await onRestoreBackup(restoreCandidate); setRestoreCandidate(null); toast.success("Backup merged"); } catch { toast.error("Restore could not be saved"); } }}>Merge backup</Button></DialogFooter></DialogContent></Dialog>
-      {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">Other changes continue syncing. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
+      <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open) setRestoreCandidate(null); }}><DialogContent className="border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Adds {restoreAdditions} workouts; removes {restoreRemovals} workouts according to backup deletion records. Changes {changes?.changed ?? 0} existing workouts. Other changed sections: {changes?.sections.join(", ") || "none"}. Current data is snapshotted before applying.</DialogDescription></DialogHeader><label className="flex min-h-11 items-center gap-3"><Checkbox checked={recover} onCheckedChange={value => setRecover(value === true)} />Recover deleted records with new IDs</label><p className="text-sm text-white/60">Use recovery only for accidental deletions. Ordinary merge keeps deletion protection.</p><DialogFooter><Button disabled={restoring} variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button disabled={restoring} onClick={async () => { if (!restoreCandidate) return; setRestoring(true); try { await onRestoreBackup(restoreCandidate, recover); setRestoreCandidate(null); toast.success("Backup merged and saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Restore could not be saved; original log retained"); } finally { setRestoring(false); } }}>{restoring ? "Saving…" : "Merge backup"}</Button></DialogFooter></DialogContent></Dialog>
+      {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">This backup contains unresolved edits. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
       <section className="settings-panel">
         <div className="settings-title"><div><h2>On this device</h2></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <p className="text-sm text-white/65">Workouts save to this phone’s browser storage. Download a JSON backup regularly from below; this edition does not sync between devices.</p>
-        <details className="settings-sync-details"><summary>Offline files</summary><p>{offlineReady === "ready" ? "Ready for offline use" : offlineReady === "failed" ? "Could not be prepared yet; open while online and try again" : "Preparing…"}</p></details>
-        {updateReady && <div role="status" className="mt-3 rounded-xl border border-sky-300/15 bg-sky-300/[0.045] px-4 py-3"><p className="text-sm font-bold text-sky-100">Update downloaded</p><p className="mt-1 text-sm text-white/65">Finish your workout and wait for local saving to complete. Close all Coach Loop windows, then reopen the app.</p></div>}
+        <p className="mt-2 text-sm text-white/60">Storage protection: {health.persisted === true ? "Persistent storage granted" : health.persisted === false ? "Best-effort storage; keep an external backup" : "Status unavailable; keep an external backup"}{health.usage !== undefined && health.quota ? ` · ${(health.usage / 1048576).toFixed(1)} MB used of ${(health.quota / 1048576).toFixed(0)} MB estimated quota` : ""}</p><details className="settings-sync-details"><summary>Offline files</summary><p>{offlineReady === "ready" ? "Ready for offline use" : offlineReady === "failed" ? "Could not be prepared yet; open while online and try again" : "Preparing…"}</p></details>
+        {updateReady && <div role="status" className="mt-3 rounded-xl border border-sky-300/15 bg-sky-300/[0.045] px-4 py-3"><p className="text-sm font-bold text-sky-100">Update downloaded</p><p className="mt-1 text-sm text-white/65">Finish your workout and wait for local saving to complete. Use Restart to update in the status bar. If another window is open, close it first.</p></div>}
       </section>
-      <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Choose your body diagram and Today shortcuts</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">
+      <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Colors, shortcuts, and Progress layout</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">
+        <DisplayPreferences settings={state.settings} onUpdate={updateSettings} />
         <label className="field-label block">Strength coverage visual<NativeSelect aria-label="Strength coverage visual" value={state.settings.bodyDiagram ?? "male"} onChange={event => updateSettings(settings => ({ ...settings, bodyDiagram: event.target.value as "male" | "female" }))} className="mt-2 w-full"><NativeSelectOption value="male">Male</NativeSelectOption><NativeSelectOption value="female">Female</NativeSelectOption></NativeSelect><small className="mt-2 block text-white/55">Changes the diagram only. Your logged sets, coverage calculations, profile, and goals stay the same.</small></label>
         <div><h3 className="font-bold">Quick-log activities</h3><p className="mt-1 text-sm text-white/60">Select the buttons you want on Today. Hiding a button keeps its history and import support.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{QUICK_LOG_OPTIONS.map(option => {
           const selected = state.settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
@@ -138,7 +138,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       <section className="settings-panel">
         <div className="settings-title"><div><h2>Backup & export</h2><p>Save a JSON backup for recovery. Export CSV to view your training in a spreadsheet. Restoring merges data; newer changes are kept.</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><Button onClick={exportBackup} className="h-12 bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"><FileJson /> Download full backup</Button><Button variant="outline" onClick={exportCsv} className="h-12 border-white/10 bg-white/[0.025] text-white"><Download /> Export CSV</Button><Button variant="outline" onClick={() => fileRef.current?.click()} className="h-12 border-white/10 bg-white/[0.025] text-white sm:col-span-2"><Import /> Restore JSON backup</Button><input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></div>
-        <p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
+        <Button variant="outline" className="mt-3 min-h-11" onClick={() => { void shareTextFile(JSON.stringify(portableBackup(canonicalState, state), null, 2), `coach-loop-backup-${localDate()}.json`, "application/json").then(() => { updateSettings(settings => ({ ...settings, lastBackupAt: new Date().toISOString() })); toast("Backup shared; confirm it is saved in Files"); }).catch(error => { if (error?.name !== "AbortError") toast.error(error.message ?? "Use Download full backup"); }); }}>Share backup / Save to Files</Button><p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
       </section>
       <details className="page-disclosure"><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">
@@ -200,7 +200,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <summary><span><strong>Reset & erase data</strong><small>Destructive actions · backup first</small></span><ChevronDown /></summary>
         <div className="pt-4">
         <div className="settings-title"><div><h2>Reset Coach Loop</h2><p>Download a backup first. This removes the log saved on this device.</p></div></div>
-        <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive"><Trash2 /> Erase this device’s data</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Erase every workout on this device?</AlertDialogTitle><AlertDialogDescription className="text-white/45">Goals, aliases, history, and the active workout will be removed from this browser. Download a backup first.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void onReset()}>Erase everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+        <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive"><Trash2 /> Erase this device’s data</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Erase every workout on this device?</AlertDialogTitle><AlertDialogDescription className="text-white/45">Goals, aliases, history, and the active workout will be removed from this browser. Download a backup first. Automatic recovery copies are also permanently erased.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void onReset()}>Erase everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </div>
       </details>
       {textEdit && <TextEditorDialog title={textEdit.kind === "profile" ? "Edit coach profile" : textEdit.kind === "new-goal" ? "Add training goal" : "Edit training goal"} description="Changes apply when you tap Save." value={textEdit.value} allowEmpty={textEdit.kind === "profile"} onChange={(value) => setTextEdit((current) => current ? { ...current, value } : current)} onClose={() => setTextEdit(null)} onSave={() => {

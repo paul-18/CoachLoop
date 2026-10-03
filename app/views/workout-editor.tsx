@@ -524,7 +524,7 @@ function CardioEditor({
             return <div key={effort.id} className={`activity-effort ${effort.completed ? "is-done" : ""}`}>
               <span className="activity-effort-number">{index + 1}</span>
               <label className="field-label">Metres<DecimalInput min={0} max={1000000} value={effort.actualDistanceM} onValueChange={(actualDistanceM) => changeEffort({ actualDistanceM })} placeholder={effort.plannedDistanceM?.toString() ?? "—"} /></label>
-              <label className="field-label">Load <span className="text-white/40">{activity.effortLoadUnit ?? "lb"}</span><DecimalInput min={0} max={10000} value={effort.actualLoad} onValueChange={(actualLoad) => changeEffort({ actualLoad })} placeholder={effort.plannedLoad?.toString() ?? "—"} /></label>
+              <label className="field-label">Load <span className="text-white/40">{activity.effortLoadUnit ?? "lb"}</span><DecimalInput min={0} max={5000} value={effort.actualLoad} onValueChange={(actualLoad) => changeEffort({ actualLoad })} placeholder={effort.plannedLoad?.toString() ?? "—"} /></label>
               <label className="field-label">Seconds<DecimalInput min={0} max={86400} value={effort.actualDurationSec} onValueChange={(actualDurationSec) => changeEffort({ actualDurationSec })} placeholder={effort.plannedDurationSec?.toString() ?? "—"} /></label>
               <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}`} onClick={() => {
                 const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
@@ -706,25 +706,26 @@ export function WorkoutEditor({
     if (item.status !== "completed" || item.id === workout.id) return false;
     const currentStartedAt = workout.startedAt ?? workout.createdAt;
     const itemFinishedAt = item.completedAt ?? item.updatedAt ?? item.createdAt;
-    return itemFinishedAt <= currentStartedAt;
+    return item.date < workout.date || (item.date === workout.date && itemFinishedAt <= currentStartedAt);
   };
   const previousFor = (name: string) => {
     const priorWorkout = [...state.workouts]
       .filter(completedBeforeThisWorkout)
-      .sort((a, b) => (b.completedAt ?? b.updatedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.updatedAt ?? a.createdAt))
+      .sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.updatedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.updatedAt ?? a.createdAt))
       .find((item) => item.exercises.some((exercise) => exerciseIdentity(exercise.name, state.exerciseAliases) === exerciseIdentity(name, state.exerciseAliases)));
     const prior = priorWorkout?.exercises.find((exercise) => exerciseIdentity(exercise.name, state.exerciseAliases) === exerciseIdentity(name, state.exerciseAliases));
     if (!prior || !priorWorkout) return null;
-    const work = prior.sets.filter((set) => set.completed && !set.warmup);
-    const best = [...work].sort((a, b) => (performedWeight(b) ?? 0) - (performedWeight(a) ?? 0) || (Number(performedReps(b)) || 0) - (Number(performedReps(a)) || 0))[0];
+    const target = workout.exercises.find(e => exerciseIdentity(e.name, state.exerciseAliases) === exerciseIdentity(name, state.exerciseAliases))?.sets.find(s => !s.warmup);
+    const work = prior.sets.filter(set => set.completed && !set.warmup && (!target || target.loadType === "unrecorded" || (set.loadType === target.loadType && set.weightMode === target.weightMode)));
+    const best = [...work].sort((a, b) => convertWeight(performedWeight(b) ?? 0, b.unit, state.settings.defaultUnit) - convertWeight(performedWeight(a) ?? 0, a.unit, state.settings.defaultUnit) || (Number(performedReps(b)) || 0) - (Number(performedReps(a)) || 0))[0];
     return best ? compactSetSummary([best]) : null;
   };
   const recentHistoryFor = (name: string) => [...state.workouts]
     .filter(completedBeforeThisWorkout)
-    .sort((a, b) => (b.completedAt ?? b.updatedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.updatedAt ?? a.createdAt))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.updatedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.updatedAt ?? a.createdAt))
     .flatMap((item) => {
       const exercise = item.exercises.find((entry) => exerciseIdentity(entry.name, state.exerciseAliases) === exerciseIdentity(name, state.exerciseAliases));
-      const sets = exercise?.sets.filter((set) => set.completed).map((set) => `${set.warmup ? "Warm-up: " : ""}${formatLoad(set.loadType, performedWeight(set), set.unit, set.weightMode)} × ${performedReps(set) || "reps unrecorded"}${set.rpe ? ` @ RPE ${set.rpe}` : ""}`) ?? [];
+      const sets = exercise?.sets.filter((set) => set.completed).map((set) => `${set.warmup ? "Warm-up: " : ""}${formatLoad(set.loadType, performedWeight(set), set.unit, set.weightMode)} × ${performedReps(set) || "reps unrecorded"}${set.rpe ? ` @ RPE ${set.rpe}` : set.rir ? ` @ RIR ${set.rir}` : ""}`) ?? [];
       return sets.length ? [{ date: item.date, sets }] : [];
     }).slice(0, 2);
 
@@ -734,8 +735,10 @@ export function WorkoutEditor({
     latestWorkout.current = next;
     onUpdate(next);
   };
-  const updateCardio = (activity: CardioEntry) =>
-    onUpdate({ ...latestWorkout.current, cardio: latestWorkout.current.cardio.map((item) => item.id === activity.id ? activity : item) });
+  const updateCardio = (activity: CardioEntry) => {
+    const next = { ...latestWorkout.current, cardio: latestWorkout.current.cardio.map(item => item.id === activity.id ? activity : item) };
+    latestWorkout.current = next; onUpdate(next);
+  };
 
   const removeExercise = (id: string) => {
     const removed = workout.exercises.find((item) => item.id === id);

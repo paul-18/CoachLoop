@@ -29,6 +29,8 @@ export const performedWeight = (set: TrainingSet) =>
 // reps/load when the user checks the set, including when they only edited RPE.
 export const completedSetValues = (set: TrainingSet) => {
   const enteredReps = set.actualReps.trim();
+  if (enteredReps && !/^[1-9]\d*$/.test(enteredReps)) throw new Error("Enter the reps you performed as a positive whole number");
+  if (!enteredReps && !/^[1-9]\d*$/.test(set.plannedReps.trim())) throw new Error("Enter the reps you performed for this target");
   if (/^\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?$/.test(set.plannedReps.trim()) && !/^[1-9]\d*$/.test(enteredReps)) {
     throw new Error(`Enter the reps you performed for the ${set.plannedReps} rep target.`);
   }

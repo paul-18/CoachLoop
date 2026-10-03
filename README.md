@@ -192,6 +192,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 - **Strength profile**: compares recent completed bench, squat, deadlift, and overhead press results, with pull-ups shown separately. These are loose training guides, and the underlying sets and dates stay visible. Missing data does not mean a weakness.
 - **Strength coverage**: shows which muscle groups received logged lifting work. It reflects training coverage, not recovery or physique.
 - **Benchmarks**: pin repeatable tests, record dated attempts and protocols, and set optional re-test intervals (**Settings → Pinned benchmarks**).
+- **Choose your display**: select Coach Loop lime, Rally peach, sky blue, or soft violet in **Settings → Appearance & quick log**. Pick which **Last 7 days** cards you want to see; these choices are separate from quick-log activities. At the bottom of **Progress**, tap **Modify Progress** to hide or show sections such as Lift balance. Hiding a section keeps its saved data.
 - **Personalize Today**: choose and reorder quick-log activities in Settings → Appearance & quick log. Select the male or corrected female strength-coverage diagram there; the choice changes the illustration only.
 - **Weekly streak**: five distinct completed training days in a Monday–Sunday week qualify. Tap the streak to open the training calendar.
 
@@ -268,7 +269,7 @@ Open the installed app while online, then check **Settings → On this device �
 <details>
 <summary><b>I lost my data.</b></summary>
 
-If you have a JSON backup, use **Settings → Restore JSON backup**. Without one, data cleared from browser storage cannot be recovered, so back up regularly.
+If you have a JSON backup, use **Settings → Restore JSON backup**. If a workout was accidentally deleted, enable **Recover deleted records with new IDs** in the restore preview. Ordinary restore preserves deletion protection. Without an external backup, data cleared from browser storage cannot be recovered, so back up regularly.
 </details>
 
 <details>
@@ -281,11 +282,11 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-Open the app online now and then to receive updates. If Settings shows **Update downloaded**:
+Open the app online periodically. Updates are checked on return to the foreground, or tap **Check updates** above the tabs.
 
-1. Finish your workout and wait for saving to complete.
-2. Close all Coach Loop windows.
-3. Reopen the app.
+When **Restart to update** appears, finish any active workout, close the editor and wait for **Saved on this device**. Tap it for one intentional restart. Another open Coach Loop window must be closed first. The app does not automatically restart during a workout.
+
+The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
 Keep a current backup before moving to a different app address.
 

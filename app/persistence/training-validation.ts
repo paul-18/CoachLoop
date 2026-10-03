@@ -3,7 +3,7 @@ import type { TrainingState } from "../domain/training-types";
 
 import { safeConflictPath } from "./conflict-path";
 const finite = z.number().finite();
-const nullableNumber = finite.nullable();
+const nullableNumber = finite.nonnegative().nullable();
 const loadNumber = finite.min(0).max(5000).nullable();
 const identifier = z.string().min(1);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
@@ -14,7 +14,7 @@ const unit = z.enum(["lb", "kg"]);
 const loadType = z.enum(["weighted", "bodyweight", "unrecorded"]);
 const weightMode = z.enum(["total", "per_hand", "added"]);
 const stringArray = z.array(z.string());
-const timestamp = z.string();
+const timestamp = z.string().datetime({ offset: true }).transform(value => new Date(value).toISOString());
 
 const setSchema = z.object({
   id: identifier, plannedReps: z.string(), plannedWeight: loadNumber,
@@ -84,7 +84,7 @@ const conflictSchema = z.object({
 
 /** The complete schema used at the cloud boundary and after legacy migration. */
 export const storedStateBoundary = z.object({
-  version: z.literal(1), workouts: z.array(workoutSchema),
+  version: z.literal(1), evidenceVersion: z.literal(2).optional(), workouts: z.array(workoutSchema),
   bodyweightEntries: z.array(z.object({ id: identifier, date, weight: finite.positive(), unit, updatedAt: timestamp })),
   benchmarks: z.array(z.object({ id: identifier, name: z.string().min(1), protocol: z.string(), result: z.string(), testedOn: date.nullable(), attempts: z.array(z.object({ id: identifier, date, result: z.string().min(1), protocol: z.string(), updatedAt: timestamp })).optional(), retestDays: finite.int().min(7).max(365).nullable(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   waistEntries: z.array(z.object({ id: identifier, date, cm: finite.positive(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
@@ -100,6 +100,9 @@ export const storedStateBoundary = z.object({
     phases: z.array(z.object({ id: identifier, start: date, end: date, label: z.string(), updatedAt: timestamp.optional(), deletedAt: timestamp.optional() })),
   }),
   settings: z.object({
+    colorTheme: z.enum(["lime", "peach", "sky", "violet"]).optional(),
+    weeklyCards: z.array(z.enum(["strength", "run", "ruck", "water_polo", "circuit", "swim", "bike", "row", "walk", "hike", "soccer", "grappling", "yoga", "mobility", "force", "other"])).refine(values => new Set(values).size === values.length).optional(),
+    progressSections: z.array(z.enum(["weekly", "coverage", "balance", "bodyweight", "trends", "benchmarks", "activities", "waist", "monthly", "calendar", "records"])).refine(values => new Set(values).size === values.length).optional(),
     bodyDiagram: z.enum(["male", "female"]).optional(),
     quickLogActivities: z.array(z.enum(["run", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
@@ -112,7 +115,7 @@ export const storedStateBoundary = z.object({
 
 /** Before normalization, allow missing legacy optional fields, but never malformed nesting. */
 const legacyStateBoundary = z.object({
-  version: z.literal(1), goals: stringArray,
+  version: z.literal(1), evidenceVersion: z.union([z.literal(1), z.literal(2)]).optional(), goals: stringArray,
   workouts: z.array(z.object({
     id: identifier, date, exercises: z.array(z.object({
       id: identifier, name: z.string(), sets: z.array(z.object({
@@ -128,5 +131,26 @@ const legacyStateBoundary = z.object({
 export const validateLocalState = (raw: unknown): TrainingState =>
   legacyStateBoundary.parse(raw) as unknown as TrainingState;
 
-export const validateSyncedState = (raw: unknown): TrainingState =>
-  storedStateBoundary.parse(raw) as TrainingState;
+export const validateSyncedState = (raw: unknown): TrainingState => {
+  const state = storedStateBoundary.parse(raw) as TrainingState;
+  const unique = (ids: string[], label: string) => { if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ${label} IDs`); };
+  unique(state.workouts.map(w => w.id), "workout");
+  unique(state.bodyweightEntries.map(e => e.id), "bodyweight");
+  unique(state.bodyweightEntries.map(e => e.date), "bodyweight date");
+  unique((state.waistEntries ?? []).map(e => e.id), "waist");
+  unique((state.benchmarks ?? []).map(e => e.id), "benchmark");
+  for (const b of state.benchmarks ?? []) unique((b.attempts ?? []).map(a => a.id), "benchmark attempt");
+  for (const w of state.workouts) {
+    unique([...w.exercises, ...w.cardio].map(b => b.id), "block");
+    const blocks = new Set([...w.exercises, ...w.cardio].map(b => b.id));
+    unique(w.blockOrder.map(b => b.id), "block order");
+    if (w.blockOrder.some(b => !blocks.has(b.id) || !(b.type === "exercise" ? w.exercises : w.cardio).some(x => x.id === b.id))) throw new Error("Invalid workout block reference");
+    for (const exercise of w.exercises) {
+      unique(exercise.sets.map(s => s.id), "set");
+      if (exercise.sets.some(s => s.completed && s.skipped)) throw new Error("A set cannot be completed and skipped");
+    }
+    for (const activity of w.cardio) unique((activity.efforts ?? []).map(e => e.id), "effort");
+  }
+  if (state.activeWorkoutId && !state.workouts.some(w => w.id === state.activeWorkoutId && w.status === "active")) throw new Error("Active workout reference is invalid");
+  return state;
+};

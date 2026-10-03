@@ -52,7 +52,7 @@ test("weekly facts only report actual run/lift overlap", () => {
   const state = defaultState();
   const run = makeWorkout("lb", 90, "Tempo run");
   run.date = "2026-09-23"; run.status = "completed"; run.exercises = [];
-  run.cardio = [{ ...makeCardio("run"), completed: true, intensity: "tempo" }];
+  run.cardio = [{ ...makeCardio("run"), completed: true, intensity: "tempo", effort: "8" }];
   const lift = makeWorkout("lb", 90, "Squat");
   lift.date = "2026-09-24"; lift.status = "completed";
   lift.exercises[0].name = "Barbell Squat";

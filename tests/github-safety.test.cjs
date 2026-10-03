@@ -1,5 +1,4 @@
 /* CommonJS VM harness deliberately loads transpiled app modules and isolates browser mocks. */
-/* eslint-disable @typescript-eslint/no-require-imports, @next/next/no-assign-module-variable */
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
@@ -27,7 +26,7 @@ function hooks() {
 }
 function moduleUnderTest(relative,mocks={},extra='') {
   const filename=root+'/'+relative;
-  const source=fs.readFileSync(filename,'utf8').replaceAll('import.meta.env.PROD', 'true').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/CoachLoop/'))+extra;
+  const source=fs.readFileSync(filename,'utf8').replaceAll('import.meta.env?.PROD', 'true').replaceAll('import.meta.env.PROD', 'true').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/CoachLoop/'))+extra;
   const code=ts.transpileModule(source,{fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
   const local=createRequire(filename);
   const module={exports:{}};
@@ -88,9 +87,9 @@ test('variants and unspecified pull-up protocols stay out of strength comparison
 test('first offline installation stays checking until activation and then becomes ready', async () => {
   const h=hooks();let activate;
   const ready=new Promise(resolve=>activate=resolve);
-  const listeners={};const registration={waiting:null,active:null,installing:{state:'installing',addEventListener(){},removeEventListener(){}},addEventListener(){},removeEventListener(){}};
+  const listeners={};const registration={update:async()=>registration,waiting:null,active:null,installing:{state:'installing',addEventListener(){},removeEventListener(){}},addEventListener(){},removeEventListener(){}};
   global.window={setTimeout,clearTimeout,addEventListener(){},removeEventListener(){}};
-  global.document={readyState:'complete'};
+  global.document={readyState:'complete',visibilityState:'visible',addEventListener(){},removeEventListener(){}};
   Object.defineProperty(global,'navigator',{value:{serviceWorker:{register:async(url)=>{assert.equal(url,"/CoachLoop/sw.js");return registration;},ready,controller:null,addEventListener:(k,f)=>listeners[k]=f,removeEventListener(){}}},configurable:true});
   const prior=process.env.NODE_ENV;process.env.NODE_ENV='production';
   try {
@@ -149,4 +148,33 @@ test('failed local saves are visible and returning to foreground retries the lat
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};
   render();await settle(h,render);assert.equal(api.localSaveStatus,'error');
   fail=false;listeners.focus();render();await settle(h,render);assert.equal(api.localSaveStatus,'saved');
+});
+
+test('failed restore leaves displayed and latest state unchanged', async () => {
+  localEnvironment();const h=hooks();let rejectWrite=false;
+  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>types.defaultState(),saveTrainingState:async(state)=>{if(rejectWrite && state.goals.includes('Restored goal'))throw new Error('Storage full');},saveSnapshot:async()=>{}}});
+  let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};render();await settle(h,render);
+  const original=structuredClone(api.state),backup=types.defaultState();backup.goals=['Restored goal'];backup.goalsUpdatedAt='2026-10-03T12:00:00.000Z';
+  // Pre-restore checkpoint succeeds; only the new state write fails.
+  rejectWrite=false;
+  rejectWrite=true;await assert.rejects(api.restoreBackup(backup),/Storage full/);render();
+  assert.deepEqual(api.state,original);assert.deepEqual(api.latestStateRef.current,original);assert.equal(api.busy,false);
+});
+
+test('deliberate update saves first, rejects another window and reloads exactly once after activation', async () => {
+  const h=hooks(), listeners=new Map();let commands=0,reloads=0,allow=false;
+  const active={postMessage:(_msg,ports)=>ports[0].postMessage({ready:true,release:'current'})};
+  const waiting={postMessage:(_msg,ports)=>{commands++;ports[0].postMessage({applied:allow,reason:'Close another Coach Loop window'});if(allow)setTimeout(()=>{for(const fn of [...(listeners.get('controllerchange')??[])])fn();},5);}};
+  const registration={active,waiting,update:async()=>{},addEventListener(){},removeEventListener(){}};
+  global.window={location:{reload:()=>reloads++},addEventListener(){},removeEventListener(){}};
+  global.document={readyState:'complete',visibilityState:'visible',addEventListener(){},removeEventListener(){}};
+  Object.defineProperty(global,'navigator',{value:{onLine:false,serviceWorker:{controller:active,register:async()=>registration,ready:Promise.resolve(registration),addEventListener:(key,fn)=>listeners.set(key,[...(listeners.get(key)??[]),fn]),removeEventListener:(key,fn)=>listeners.set(key,(listeners.get(key)??[]).filter(f=>f!==fn))}},configurable:true});
+  const module=moduleUnderTest('app/pwa/use-offline-status.ts',{react:h.react});let api;
+  const render=()=>{api=h.render(()=>module.useOfflineStatus());h.effects();};render();
+  for(let i=0;i<8;i++){await new Promise(setImmediate);if(h.dirty)render();}
+  assert.equal(api.updateReady,true);assert.equal(api.offlineReady,'ready');assert.equal(api.release,'current');
+  await assert.rejects(api.applyUpdate(async()=>{throw new Error('Save failed');}),/Save failed/);assert.equal(commands,0);assert.equal(reloads,0);
+  await assert.rejects(api.applyUpdate(async()=>{}),/another Coach Loop window/);assert.equal(reloads,0);
+  allow=true;let saved=false;await api.applyUpdate(async()=>{saved=true;});assert.equal(saved,true);assert.equal(reloads,1);
+  for(const fn of [...(listeners.get('controllerchange')??[])])fn();assert.equal(reloads,1);
 });

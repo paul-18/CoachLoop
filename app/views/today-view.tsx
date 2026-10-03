@@ -1,6 +1,7 @@
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
+import { useLocalDay } from "../pwa/use-local-day";
 import { QuickLogButtons } from "./quick-log-buttons";
 import { APP_RELEASE } from "../app-release";
 
@@ -161,7 +162,7 @@ export function ImportWorkoutDialog({
                   <div className="mt-3 flex flex-wrap gap-2">
                     {block.exercise.sets.map((set) => (
                       <span key={set.id} className="rounded-lg bg-black/25 px-2.5 py-1.5 text-xs text-white/65">
-                        {formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps}
+                        {formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps}{set.warmup ? " · Warm-up" : ""}{set.plannedRpe ? ` · target RPE ${set.plannedRpe}` : set.plannedRir ? ` · target RIR ${set.plannedRir}` : ""}
                       </span>
                     ))}
                   </div>
@@ -374,7 +375,7 @@ export function CoachDialog({
               <NativeSelectOption value="14">Last 14 days</NativeSelectOption>
               <NativeSelectOption value="30">Last 30 days</NativeSelectOption>
             </NativeSelect>
-            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt?.slice(0, 10) ?? null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/42 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(state.settings.lastCoachBriefAt.slice(0, 10))})</button>}
+            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/42 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
           </label>
           <label className="field-label">
             Energy (1–10)
@@ -512,7 +513,7 @@ export function TodayView({
   syncStatus: SyncStatus;
 }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [dismissedNudge, setDismissedNudge] = useState<string | null>(() => typeof window === "undefined" ? null : localStorage.getItem("coach-loop-bodyweight-nudge"));
+  const [dismissedNudge, setDismissedNudge] = useState<string | null>(() => typeof window === "undefined" ? null : safeNudge());
   const active = state.workouts.find((workout) => workout.id === state.activeWorkoutId);
   const nextActiveBlock = active && orderedWorkoutBlocks(active).find((block) => block.type === "exercise"
     ? block.exercise.sets.some((set) => !set.completed && !set.skipped)
@@ -521,7 +522,7 @@ export function TodayView({
   const planned = [...state.workouts]
     .filter((workout) => workout.status === "planned")
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
-  const today = localDate();
+  const today = useLocalDay();
   const todayEntries = state.workouts.filter((workout) => workout.date === today && workout.status === "completed");
   const streak = trainingWeekStreak(state, today);
   const upcomingEvents = state.scheduleContext.events.filter((event) => !event.deletedAt && event.date >= today && event.label.trim()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
@@ -544,7 +545,7 @@ export function TodayView({
 
       {!active && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}
       {!active && <button type="button" className="today-context-line today-streak-link" onClick={onTrainingCalendar} title="A week counts when you complete training on five different days, Monday through Sunday. Rest days do not break it. Open training calendar."><span className="font-semibold text-[var(--lime)]">{streak.weeks > 0 ? `${streak.weeks}-week training streak` : "Build a training streak"}</span> · {streak.daysThisWeek}/{streak.targetDays} days this week <ChevronRight aria-hidden="true" size={15} /></button>}
-      {!active && weightAge >= 7 && dismissedNudge !== nudgeKey && <div className="today-bodyweight-nudge"><button type="button" onClick={onBodyweightLog}>Haven’t logged bodyweight in a while — log now?</button><button type="button" aria-label="Dismiss bodyweight reminder" onClick={() => { localStorage.setItem("coach-loop-bodyweight-nudge", nudgeKey); setDismissedNudge(nudgeKey); }}><X size={16} /></button></div>}
+      {!active && weightAge >= 7 && dismissedNudge !== nudgeKey && <div className="today-bodyweight-nudge"><button type="button" onClick={onBodyweightLog}>Haven’t logged bodyweight in a while — log now?</button><button type="button" aria-label="Dismiss bodyweight reminder" onClick={() => { try { localStorage.setItem("coach-loop-bodyweight-nudge", nudgeKey); } catch { /* Optional preference. */ } setDismissedNudge(nudgeKey); }}><X size={16} /></button></div>}
 
       {active && (
         <button type="button" onClick={onResume} className="active-workout-card group">
@@ -634,3 +635,5 @@ export function TodayView({
     </div>
   );
 }
+
+function safeNudge() { try { return localStorage.getItem("coach-loop-bodyweight-nudge"); } catch { return null; } }

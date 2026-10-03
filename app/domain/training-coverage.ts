@@ -1,3 +1,4 @@
+import { canonicalExerciseName } from "./exercise-identity";
 import { convertWeight, parseExactReps, performedReps } from "./training-metrics";
 import type { CoverageMuscle, ExerciseMuscleTarget, TrainingState, Unit } from "./training-types";
 import { dateInWindow } from "./training-insights";
@@ -51,7 +52,7 @@ export const coverageForLastDays = (state: TrainingState, days = 7): MuscleCover
   state.workouts
     .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days))
     .forEach((workout) => workout.exercises.forEach((exercise) => {
-      const targets = targetForCoverage(exercise.name, state.exerciseMuscleOverrides);
+      const targets = targetForCoverage(canonicalExerciseName(exercise.name, state.exerciseAliases), state.exerciseMuscleOverrides) ?? targetForCoverage(exercise.name, state.exerciseMuscleOverrides);
       if (!targets) return;
       const workingSets = exercise.sets.filter((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null);
       if (!workingSets.length) return;
@@ -73,7 +74,7 @@ export const unmappedExerciseNamesLastDays = (state: TrainingState, days = 7) =>
   return [...new Set(state.workouts
     .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days))
     .flatMap((workout) => workout.exercises)
-    .filter((exercise) => exercise.sets.some((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null) && !targetForCoverage(exercise.name, state.exerciseMuscleOverrides))
+    .filter((exercise) => exercise.sets.some((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null) && !(targetForCoverage(canonicalExerciseName(exercise.name, state.exerciseAliases), state.exerciseMuscleOverrides) ?? targetForCoverage(exercise.name, state.exerciseMuscleOverrides)))
     .map((exercise) => exercise.name))];
 };
 

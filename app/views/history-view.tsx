@@ -29,7 +29,7 @@ import { localDate, type TrainingState, type Unit, type WorkoutSession } from ".
 
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
 
-import { hasCompletedActivityWork } from "../domain/completion";
+import { performedDuration, performedDistance, hasCompletedActivityWork } from "../domain/completion";
 
 import { WorkoutVolume } from "./workout-editor";
 
@@ -80,8 +80,8 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
           );
         }
         const item = block.activity;
-        const duration = !item.completed || item.completedAsPlanned ? item.plannedDurationMin : item.actualDurationMin;
-        const distance = !item.completed || item.completedAsPlanned ? item.plannedDistanceKm : item.actualDistanceKm;
+        const duration = !hasCompletedActivityWork(item) ? item.plannedDurationMin : performedDuration(item);
+        const distance = !hasCompletedActivityWork(item) ? item.plannedDistanceKm : performedDistance(item);
         return (
           <section key={item.id} className={`history-exercise ${item.completed ? "" : "history-activity-incomplete"}`}>
             <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{item.completed ? item.completedAsPlanned ? "As prescribed" : "Completed" : hasCompletedActivityWork(item) ? "Partly completed" : "Not completed"}</Badge></div>

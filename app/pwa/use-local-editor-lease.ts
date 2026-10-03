@@ -13,7 +13,7 @@ export function useLocalEditorLease(): Lease {
       // Production keeps the single-editor guard; this only permits local QA.
       // Resolve browser capability after mounting in a client environment.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLease(import.meta.env.PROD ? "unsupported" : "owner");
+      setLease(import.meta.env?.PROD ? "unsupported" : "owner");
       return;
     }
     // A reload may race the previous document releasing its lock. Stay queued

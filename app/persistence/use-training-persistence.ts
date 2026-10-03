@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { defaultState, type TrainingState } from "../domain/training-types";
+import { recoverDeleted } from "./backup-tools";
 import { prepareLoadedState } from "./migrations";
 import { mergeRestoredState } from "./cloud-sync";
 import { resolveFieldConflict } from "./field-conflicts";
@@ -12,16 +13,20 @@ import { loadTrainingState, resetTrainingData, saveSnapshot, saveTrainingState }
 export function useTrainingPersistence() {
   const [state, setReactState] = useState<TrainingState>(defaultState);
   const latestStateRef = useRef(state);
+  const [busy, setBusy] = useState(false);
+  const operation = useRef(false);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [localSaveStatus, setLocalSaveStatus] = useState<"saving" | "saved" | "error">("saved");
   const [localSaveRetry, setLocalSaveRetry] = useState(0);
 
   const setState = useCallback((update: SetStateAction<TrainingState>) => {
-    const next = typeof update === "function" ? update(latestStateRef.current) : update;
-    try { validateSyncedState(next); }
+    if (operation.current) { toast.error("Wait for recovery to finish"); return; }
+    let next = typeof update === "function" ? update(latestStateRef.current) : update;
+    try { next = validateSyncedState(next); }
     catch { toast.error("This change is invalid; your saved log was kept"); return; }
     latestStateRef.current = next;
+    setLocalSaveStatus("saving");
     setReactState(next);
   }, []);
 
@@ -48,7 +53,7 @@ export function useTrainingPersistence() {
     // IndexedDB status follows the start and completion of an external save.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSaveStatus("saving");
-    void saveTrainingState(state).then(
+    void Promise.resolve().then(() => saveTrainingState(state)).then(
       () => { if (current) setLocalSaveStatus("saved"); },
       () => { if (current) setLocalSaveStatus("error"); },
     );
@@ -73,20 +78,36 @@ export function useTrainingPersistence() {
   }, [ready, localSaveStatus]);
 
   const resetAll = async () => {
+    if (operation.current) return;
+    operation.current = true; setBusy(true);
     const cleared = defaultState();
     try {
       await resetTrainingData(cleared);
-      setState(cleared);
-      toast.success("This device's log erased");
+      latestStateRef.current = cleared; setReactState(cleared); setLocalSaveStatus("saved");
+      toast.success("This device's log and recovery copies erased");
     } catch { toast.error("Reset failed; your local log was retained"); }
+    finally { operation.current = false; setBusy(false); }
   };
-  const restoreBackup = async (backup: TrainingState) => {
-    validateSyncedState(backup);
-    await saveSnapshot(latestStateRef.current, "before-restore");
-    const next = mergeRestoredState(latestStateRef.current, backup);
-    validateSyncedState(next);
-    setState(next);
-    await saveTrainingState(next);
+  const flushLatest = async () => {
+    if (operation.current) throw new Error("Recovery is still running");
+    let candidate: TrainingState;
+    do { candidate = latestStateRef.current; await saveTrainingState(candidate); } while (candidate !== latestStateRef.current);
+    setLocalSaveStatus("saved");
+  };
+  const restoreBackup = async (backup: TrainingState, recover = false) => {
+    if (operation.current) throw new Error("Recovery is already running");
+    operation.current = true; setBusy(true);
+    try {
+      validateSyncedState(backup);
+      await saveTrainingState(latestStateRef.current);
+      await saveSnapshot(latestStateRef.current, "before-restore");
+      const candidate = recover ? recoverDeleted(latestStateRef.current, backup) : backup;
+      const next = validateSyncedState(mergeRestoredState(latestStateRef.current, candidate));
+      await saveTrainingState(next);
+      latestStateRef.current = next;
+      setReactState(next);
+      setLocalSaveStatus("saved");
+    } finally { operation.current = false; setBusy(false); }
   };
   const saveRecoveryCopy = (snapshot: TrainingState, reason: string) =>
     void saveSnapshot(snapshot, reason).catch(() => toast.error("Recovery copy could not be saved"));
@@ -95,7 +116,7 @@ export function useTrainingPersistence() {
   };
 
   return {
-    state, setState, displayedState: state, applyProjectedUpdate: setState,
+    state, setState, busy, flushLatest, displayedState: state, applyProjectedUpdate: setState,
     resolveConflict, restoreBackup, saveRecoveryCopy,
     loadError, ready, syncFailure: null, localSaveStatus, setLocalSaveRetry,
     syncStatus: "synced" as const, lastSyncedAt: null, resetMismatch: false,
