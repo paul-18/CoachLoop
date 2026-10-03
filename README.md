@@ -232,6 +232,8 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 - To move to another device, open Coach Loop there and choose **Restore JSON backup**, then review the preview.
 - **Merge** combines records and keeps newer revisions. An older backup may therefore leave newer local goals, profile or measurements unchanged.
 - **Complete restore** makes workouts, goals, coach profile, measurements and settings match the backup. Current-only records are removed, so download a current backup first. A local recovery copy is also saved before the restore.
+- Full JSON backup export and restore use the same **50 MB** limit. Larger-than-10-MB backups are supported, but allow extra time on a phone. If your log exceeds 50 MB, the app refuses to create a file labelled a restorable full backup; keep the log and request a split-backup solution rather than clearing storage.
+- If the saved log cannot open, the error screen offers **individual recovery checkpoint JSON files**, plus a diagnostic bundle containing the saved raw data and all readable checkpoints. Restore an individual checkpoint on a working installation; the diagnostic bundle is not a normal backup. Keep both kinds of file private.
 - Neither restore option creates ongoing sync between devices.
 - Local recovery copies live on the same device, so they don't replace an external backup.
 - Clearing browser site data or losing your device can erase locally stored training.
@@ -302,7 +304,9 @@ When **Restart to update** appears, finish any active workout, close the editor 
 
 The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
-Keep a current backup before moving to a different app address. The app release is shown in Settings. v84 adds eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
+Keep a current backup before moving to a different app address. The app release is shown in Settings. v85 improves unfinished-workout recovery, checkpoint downloads, release-verified offline cache repair and header sizing on rotation. Coverage totals and explanations use the same aliases and refresh with the local day. v84 added eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
+
+For a release, check both a fresh install and an update from the previous version, with synthetic data first. Pull requests now run non-deploying checks; publishing from main still runs typecheck, lint, tests, build and PWA checks. See [v85 release notes](V85-UPDATE-NOTES.md) and [iPhone QC](V85-IPHONE-QC.md). Do not use your live log for destructive failure testing.
 
 For repository owners, see [upload and cleanup instructions](UPDATE-INSTRUCTIONS.txt).
 

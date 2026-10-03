@@ -1,42 +1,70 @@
-COACH LOOP v84 — EIGHT THEMES AND COMPACT EXERCISE TRENDS
+COACH LOOP v85 — FOCUSED RELIABILITY UPDATE
 
-Apply over your current v83 repository, including the cleanup that is now on GitHub.
-This ZIP replaces matching files in the same app; no duplicate app folder.
+Prepared against paul-18/CoachLoop main at
+03662d113caaf36febf6d3d0e657a03427e5bd5d (v84).
+This is an overlay: matching files are replaced in the same app, with no
+duplicate app folder. No repository files need deletion for this update.
+Keep your eight themes, gold coverage scale, Coach goals and local-only design.
 
-1. Save a full JSON backup privately in Files. Never upload personal backups to GitHub.
-2. GitHub → paul-18/CoachLoop → Code → main → Add file → Upload files.
-   Upload CoachLoop-v84-GitHub-Update.zip beside package.json and commit the upload.
-3. Open the existing Codespace terminal in /workspaces/CoachLoop.
-   Run each command separately, waiting for completion. Stop on any failure.
+BEFORE STARTING
+1. In the app, finish your workout and wait for Saved.
+2. Settings -> Download full backup / Save to Files.
+   Confirm the file is saved privately. Never upload it to this public repo.
+3. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
+   Upload CoachLoop-v85-Reliability-Update.zip beside package.json and commit.
+   The publishing run for this ZIP-only commit still uses the OLD source.
+   v85 is published only after extracting and committing the code below.
 
-   git status --short
+IN YOUR EXISTING CODESPACE
+Use /workspaces/CoachLoop. Run ONE command at a time; wait for its prompt to
+return. Stop on any failure. Keep a copy of this ZIP outside GitHub as well.
 
-   If this lists local changes, preserve them before continuing. If empty:
+git status --short
 
-   git pull --ff-only
-   unzip -o CoachLoop-v84-GitHub-Update.zip
-   npx --yes pnpm@11.25.0 install --frozen-lockfile
-   npx --yes pnpm@11.25.0 exec tsc --noEmit
-   npx --yes pnpm@11.25.0 run lint
-   npx --yes pnpm@11.25.0 run test
-   npx --yes pnpm@11.25.0 run build
-   node scripts/check-pwa.mjs
+If there are local changes, stop and preserve them before continuing.
+If the output is empty:
 
-4. Only after all checks pass:
+git pull --ff-only
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-   git rm CoachLoop-v84-GitHub-Update.zip
-   git add app tests README.md UPDATE-INSTRUCTIONS.txt V84-UPDATE-NOTES.md
-   git --no-pager diff --cached --stat
-   git commit -m "Add v84 accent themes and contain long exercise trend names"
-   git push
+This should show v84. If it shows a newer version, stop: this update was
+prepared for v84 and should be reconciled with the newer source first.
 
-   Review the staged files: no personal backups, dist or node_modules.
-5. GitHub → Actions → newest Publish Coach Loop PWA run: wait for green success.
-6. Open the installed app online. Finish any workout and wait for Saved.
-   Settings → Check updates → Restart to update. Close another Coach Loop window
-   if requested. Confirm v84. Do not clear website data to update.
-7. Use the iPhone checks in V84-UPDATE-NOTES.md, especially long exercise names,
-   three selected exercises, history dialog layout and new theme persistence.
+unzip -l CoachLoop-v85-Reliability-Update.zip
+unzip -o CoachLoop-v85-Reliability-Update.zip
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 exec tsc --noEmit
+npx --yes pnpm@11.25.0 run lint
+npx --yes pnpm@11.25.0 run test
+npx --yes pnpm@11.25.0 run build
+node scripts/check-pwa.mjs
 
-The JavaScript chunk-size warning is non-blocking if the build succeeds.
-All eight themes keep the dark background; the coverage map retains its gold scale.
+The chunk-size warning is non-blocking when the build completes successfully.
+Do not disable frozen-lockfile or update pnpm to resolve an unrelated warning.
+
+ONLY AFTER ALL CHECKS PASS
+
+git rm CoachLoop-v85-Reliability-Update.zip
+git add app tests scripts .github/workflows/checks.yml README.md UPDATE-INSTRUCTIONS.txt V85-UPDATE-NOTES.md V85-IPHONE-QC.md
+git --no-pager diff --cached --stat
+
+Review the staged list. No personal JSON backups, dist or node_modules should
+be included. The ZIP deletion is deliberate: source remains, and your
+downloaded ZIP can be kept outside the repo.
+
+git commit -m "Improve v85 workout recovery, backups and offline reliability"
+git push
+
+AFTER PUBLISHING
+1. GitHub -> Actions -> newest Publish Coach Loop PWA run: wait for green.
+2. Open the installed app online. Finish any workout and wait for Saved.
+3. Settings -> Check updates -> Restart to update.
+   Close the other Coach Loop window if asked. This is a deliberate restart;
+   there is no forced reload in the middle of training.
+4. Confirm v85 in Settings, then follow V85-IPHONE-QC.md.
+5. Do not clear website data or uninstall the app just to get this update.
+
+TEST LIMITS
+Automated tests use synthetic data. React DOM tests are not iOS Safari tests.
+Header rotation, keyboard behavior and Save to Files still need your iPhone QC.
+No cloud services, API credentials or real training backups are in this ZIP.

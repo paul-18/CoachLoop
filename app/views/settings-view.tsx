@@ -1,6 +1,6 @@
 import { orderedQuickLogOptions } from "../domain/quick-log-order";
 import { useStorageHealth } from "../pwa/use-storage-health";
-import { parseBackup, restoredState, backupChanges, MAX_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
+import { parseBackup, serializeBackup, restoredState, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
 import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -97,9 +97,23 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const updateCoachProfile = (coachProfile: string) =>
     setState((current) => ({ ...current, coachProfile, coachProfileUpdatedAt: new Date().toISOString() }));
   const exportBackup = () => {
-    downloadText(JSON.stringify(portableBackup(canonicalState, state), null, 2), `coach-loop-backup-${localDate()}.json`, "application/json");
-    updateSettings((settings) => ({ ...settings, lastBackupAt: new Date().toISOString() }));
-    toast("Backup download requested");
+    try {
+      const text = serializeBackup(portableBackup(canonicalState, state));
+      downloadText(text, `coach-loop-backup-${localDate()}.json`, "application/json");
+      updateSettings((settings) => ({ ...settings, lastBackupAt: new Date().toISOString() }));
+      toast(new Blob([text]).size > LARGE_BACKUP_BYTES ? "Large backup requested. Allow time to save it and confirm it is in Files." : "Backup download requested");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Backup could not be prepared; keep your log"); }
+  };
+  const shareBackup = async () => {
+    try {
+      const text = serializeBackup(portableBackup(canonicalState, state));
+      await shareTextFile(text, `coach-loop-backup-${localDate()}.json`, "application/json");
+      updateSettings(settings => ({ ...settings, lastBackupAt: new Date().toISOString() }));
+      toast("Backup shared; confirm it is saved in Files");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast.error(error instanceof Error ? error.message : "Use Download full backup");
+    }
   };
   const exportCsv = () => {
     downloadText(`\uFEFF${exportTrainingCsv(state)}`, `coach-loop-training-${localDate()}.csv`, "text/csv;charset=utf-8");
@@ -107,7 +121,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   };
   const restore = async (file: File) => {
     try {
-      if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 10 MB limit");
+      if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 50 MB limit; keep the file and your existing log");
       setRestoreMode("merge"); setRecover(false); setRestoreCandidate(parseBackup(await file.text()));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
@@ -147,9 +161,9 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         })}</div><Button variant="outline" className="mt-3" onClick={() => updateSettings(settings => ({ ...settings, quickLogActivities: [...DEFAULT_QUICK_LOG_ACTIVITIES] }))}>Restore default shortcuts</Button></div>
       </div></details>
       <section className="settings-panel">
-        <div className="settings-title"><div><h2>Backup & export</h2><p>Save a JSON backup for recovery. Export CSV to view your training in a spreadsheet. Restoring merges data; newer changes are kept.</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
+        <div className="settings-title"><div><h2>Backup & export</h2><p>Save a JSON backup for recovery. Merge keeps newer revisions; Complete restore replaces the current log with the backup. Full JSON backup export and restore support up to 50 MB. Export CSV to view your training in a spreadsheet.</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><Button onClick={exportBackup} className="h-12 bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"><FileJson /> Download full backup</Button><Button variant="outline" onClick={exportCsv} className="h-12 border-white/10 bg-white/[0.025] text-white"><Download /> Export CSV</Button><Button variant="outline" onClick={() => fileRef.current?.click()} className="h-12 border-white/10 bg-white/[0.025] text-white sm:col-span-2"><Import /> Restore JSON backup</Button><input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></div>
-        <Button variant="outline" className="mt-3 min-h-11" onClick={() => { void shareTextFile(JSON.stringify(portableBackup(canonicalState, state), null, 2), `coach-loop-backup-${localDate()}.json`, "application/json").then(() => { updateSettings(settings => ({ ...settings, lastBackupAt: new Date().toISOString() })); toast("Backup shared; confirm it is saved in Files"); }).catch(error => { if (error?.name !== "AbortError") toast.error(error.message ?? "Use Download full backup"); }); }}>Share backup / Save to Files</Button><p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
+        <Button variant="outline" className="mt-3 min-h-11" onClick={() => void shareBackup()}>Share backup / Save to Files</Button><p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
       </section>
       <details className="page-disclosure"><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">

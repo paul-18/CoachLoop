@@ -14,13 +14,20 @@ const html = await readFile(join(dist, "index.html"), "utf8");
 const entry = /<script[^>]+src="([^"]+)"/.exec(html)?.[1];
 if (!entry) throw new Error("Build is missing its entry script");
 const digest = createHash("sha256");
-for (const file of files) { digest.update(relative(dist, file)); digest.update(await readFile(file)); }
+const assetHashes = {};
+for (const file of files) {
+  const bytes = await readFile(file);
+  const path = relative(dist, file).replaceAll("\\", "/");
+  digest.update(path); digest.update(bytes);
+  assetHashes[path === "index.html" ? "./" : `./${path}`] = createHash("sha256").update(bytes).digest("hex");
+}
 digest.update(await readFile(fileURLToPath(import.meta.url)));
 const release = digest.digest("hex").slice(0, 20);
 const worker = `const ROOT = new URL("./", self.registration.scope);
 const PREFIX = "coach-loop-pages:" + encodeURIComponent(ROOT.pathname) + ":";
 const CACHE = PREFIX + ${JSON.stringify(release)};
 const ASSETS = ${JSON.stringify(["./", ...assets.map(path => `./${path}`)])};
+const HASHES = ${JSON.stringify(assetHashes)};
 const ENTRY = ${JSON.stringify(entry)};
 self.addEventListener("install", event => event.waitUntil((async () => {
   const cache = await caches.open(CACHE);
@@ -28,6 +35,11 @@ self.addEventListener("install", event => event.waitUntil((async () => {
     await cache.addAll(ASSETS.map(path => new Request(new URL(path, ROOT), { cache: "reload" })));
     const shell = await cache.match(ROOT);
     if (!shell || !(await shell.text()).includes(ENTRY)) throw new Error("Release shell does not match its assets");
+    for (const path of ASSETS) {
+      const request = new Request(new URL(path, ROOT));
+      const response = await cache.match(request);
+      if (!response || !await responseMatchesRelease(request, response)) throw new Error("Release files do not match their expected hashes");
+    }
   } catch (error) { await caches.delete(CACHE); throw error; }
 })()));
 self.addEventListener("activate", event => event.waitUntil((async () => {
@@ -40,6 +52,13 @@ self.addEventListener("activate", event => event.waitUntil((async () => {
 self.addEventListener("message", event => {
   if (event.data?.type === "COACH_LOOP_CHECK_OFFLINE") event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
+    // Repair only absent files from THIS release. An older worker must never
+    // combine a newer document or same-name icons with its old hashed assets.
+    if (event.data.repair === true) await Promise.all(ASSETS.map(async path => {
+      const request = new Request(new URL(path, ROOT), { cache: "reload" });
+      if (await cache.match(request)) return;
+      try { await cacheCurrentResponse(cache, request, await fetch(request)); } catch { /* Offline, evicted or no longer hosted: leave readiness false. */ }
+    }));
     const ready = (await Promise.all(ASSETS.map(path => cache.match(new URL(path, ROOT))))).every(Boolean);
     event.ports[0]?.postMessage({ ready, release: CACHE });
   })());
@@ -51,6 +70,19 @@ self.addEventListener("message", event => {
     await self.skipWaiting();
   })());
 });
+async function responseMatchesRelease(request, response) {
+  if (!response.ok) return false;
+  const path = ASSETS.find(path => new URL(path, ROOT).href === request.url);
+  if (!path) return false;
+  const bytes = await response.clone().arrayBuffer();
+  const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), byte => byte.toString(16).padStart(2, "0")).join("");
+  return hash === HASHES[path];
+}
+async function cacheCurrentResponse(cache, request, response) {
+  if (!await responseMatchesRelease(request, response)) return false;
+  await cache.put(request, response.clone());
+  return true;
+}
 async function assetResponse(request) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
@@ -58,11 +90,7 @@ async function assetResponse(request) {
   const prior = (await caches.keys()).filter(name => name.startsWith(PREFIX) && name !== CACHE).reverse();
   for (const name of prior) { const response = await (await caches.open(name)).match(request); if (response) return response; }
   const response = await fetch(request);
-  const url = new URL(request.url);
-  if (response.ok && ASSETS.some(path => new URL(path, ROOT).href === url.href) && /\\.(js|css|png|svg)$/.test(url.pathname)) {
-    const type = response.headers.get("content-type") ?? "";
-    if (!type.includes("text/html")) await cache.put(request, response.clone()).catch(() => undefined);
-  }
+  await cacheCurrentResponse(cache, request, response).catch(() => undefined);
   return response;
 }
 self.addEventListener("fetch", event => {
@@ -70,7 +98,15 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== ROOT.origin) return;
   if (request.mode === "navigate" && (url.pathname === ROOT.pathname || url.pathname === ROOT.pathname + "index.html")) {
-    event.respondWith((async () => (await (await caches.open(CACHE)).match(ROOT)) ?? fetch(request))());
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(ROOT);
+      if (cached) return cached;
+      const freshRequest = new Request(ROOT, { cache: "reload" });
+      const response = await fetch(freshRequest);
+      await cacheCurrentResponse(cache, freshRequest, response).catch(() => undefined);
+      return response;
+    })());
   } else if (url.pathname.startsWith(ROOT.pathname + "assets/") || ASSETS.some(path => new URL(path, ROOT).href === url.href)) {
     event.respondWith(assetResponse(request));
   }

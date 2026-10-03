@@ -13,6 +13,8 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { validMeasurementDate } from "./domain/training-workflow";
 import { reschedulePlannedWorkout } from "./domain/plan-review";
+import { selectedActiveWorkout, startWorkoutState, resumeWorkoutState, finishWorkoutState, discardWorkoutState } from "./domain/workout-transitions";
+import { RecoveryDownloads } from "./views/recovery-downloads";
 import { HyroxSetup, HyroxWorkout } from "./views/hyrox-ui";
 import { makeHyroxWorkout } from "./domain/hyrox";
 
@@ -34,7 +36,7 @@ import { ProgressView } from "./views/progress-view";
 import { SettingsView } from "./views/settings-view";
 import { FirstSteps, sampleWorkout } from "./views/first-steps";
 import { useOfflineStatus } from "./pwa/use-offline-status";
-import { loadTrainingState, listSnapshots } from "./persistence/training-storage";
+import { loadTrainingState } from "./persistence/training-storage";
 import { useTrainingPersistence } from "./persistence/use-training-persistence";
 
 class ViewErrorBoundary extends Component<{ label: string; resetKey: string; children: ReactNode; onReload?: () => Promise<void> }, { failed: boolean }> {
@@ -102,7 +104,7 @@ function WorkoutApp() {
     return () => { delete document.documentElement.dataset.coachTheme; };
   }, [ready, state.settings.colorTheme]);
 
-  const activeWorkout = displayedState.workouts.find((workout) => workout.id === state.activeWorkoutId) ?? null;
+  const activeWorkout = selectedActiveWorkout(displayedState);
   const activeChoices = displayedState.workouts.filter((workout) => workout.status === "active");
   const editingWorkout = displayedState.workouts.find((workout) => workout.id === editingWorkoutId && workout.status === "completed") ?? null;
   const displayedWorkout = editingWorkout ?? activeWorkout;
@@ -112,31 +114,10 @@ function WorkoutApp() {
     applyProjectedUpdate((current) => ({ ...current, workouts: current.workouts.map((item) => item.id === workout.id ? { ...workout, updatedAt: new Date().toISOString() } : item) }));
 
   const startWorkout = (workout: WorkoutSession) => {
-    if (state.workouts.some((item) => item.status === "active" && item.id !== workout.id)) {
-      toast.error("Finish or discard the active workout first");
-      return;
-    }
-    const active = {
-      ...workout,
-      date: workout.status === "planned" ? localDate() : workout.date,
-      timezone: workout.status === "planned" ? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC") : workout.timezone,
-      status: "active" as const,
-      startedAt: workout.startedAt ?? new Date().toISOString(),
-      completedAt: null,
-      skippedAt: null,
-      skipReason: "",
-      updatedAt: new Date().toISOString(),
-    };
-    setState((current) => {
-      const alreadySaved = current.workouts.some((item) => item.id === active.id);
-      return {
-        ...current,
-        workouts: alreadySaved
-          ? current.workouts.map((item) => item.id === active.id ? active : item)
-          : [active, ...current.workouts],
-        activeWorkoutId: active.id,
-      };
-    });
+    let next;
+    try { next = startWorkoutState(state, workout); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Could not start this workout"); return; }
+    setState(next);
     setWorkoutOpen(true);
     saveRecoveryCopy(state, "before-start");
   };
@@ -195,9 +176,7 @@ function WorkoutApp() {
   const finishWorkout = (updatedWorkout?: WorkoutSession) => {
     const finishingWorkout = updatedWorkout ?? activeWorkout;
     if (!finishingWorkout) return;
-    const completedAt = finishingWorkout.completedAt ?? new Date().toISOString();
-    const completed: WorkoutSession = { ...finishingWorkout, status: "completed", completedAt, skippedAt: null, skipReason: "", updatedAt: new Date().toISOString() };
-    const next = { ...state, workouts: state.workouts.map((item) => item.id === completed.id ? completed : item), activeWorkoutId: null };
+    const next = finishWorkoutState(state, finishingWorkout);
     setState(next);
     saveRecoveryCopy(next, "workout-complete");
     setWorkoutOpen(false);
@@ -207,7 +186,7 @@ function WorkoutApp() {
 
   const discardWorkout = () => {
     if (!activeWorkout) return;
-    setState((current) => ({ ...current, workouts: current.workouts.filter((item) => item.id !== activeWorkout.id), deletedWorkoutIds: [...new Set([...current.deletedWorkoutIds, activeWorkout.id])], activeWorkoutId: null }));
+    setState((current) => discardWorkoutState(current, activeWorkout.id));
     setWorkoutOpen(false);
     toast.success("Workout discarded");
   };
@@ -341,7 +320,7 @@ function WorkoutApp() {
   };
 
   if (!ready) {
-    if (loadError) return <main className="grid min-h-dvh place-items-center bg-[#10120f] p-6 text-white"><div className="max-w-md space-y-4"><h1 className="text-xl font-black">Your local log could not be opened</h1><p className="text-sm leading-6 text-white/60">No data has been reset or uploaded. Close other Coach Loop tabs and try again. Don’t clear browser storage; use your other device or backup if this continues.</p><Button onClick={() => window.location.reload()}>Try again</Button><Button variant="outline" onClick={() => void (async () => { try { const raw = await loadTrainingState(); const copies = await listSnapshots(); downloadText(JSON.stringify(raw ?? { rawState: raw, recoveryCopies: copies }, null, 2), `coach-loop-recovery-${localDate()}.json`, "application/json"); } catch { toast.error("Recovery data could not be read. Keep browser storage and try your other device."); } })()}>Download recovery data</Button><Toaster position="top-center" /></div></main>;
+    if (loadError) return <main className="grid min-h-dvh place-items-center bg-[#10120f] p-6 text-white"><div className="max-w-md space-y-4"><h1 className="text-xl font-black">Your local log could not be opened</h1><p className="text-sm leading-6 text-white/60">No data has been reset or uploaded. Close other Coach Loop tabs and try again. Don’t clear browser storage; download your recovery data first.</p><Button onClick={() => window.location.reload()}>Try again</Button><RecoveryDownloads /><Toaster position="top-center" /></div></main>;
     return <main className="grid min-h-dvh place-items-center bg-[#10120f] text-white"><div className="flex items-center gap-4"><AppMark compact /><div><p className="font-black">Opening Coach Loop</p><p className="text-sm text-white/35">Loading your local training log…</p></div></div></main>;
   }
 
@@ -376,7 +355,7 @@ function WorkoutApp() {
 
           {view !== "settings" && !displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onSetup={openSettingsSection} onCoach={() => setCoachOpen(true)} onSample={() => { setImportDraft(sampleWorkout()); setImportOpen(true); }} />}
           
-          {activeChoices.length > 1 && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { setState((current) => ({ ...current, activeWorkoutId: choice.id })); setWorkoutOpen(true); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
+          {(activeChoices.length > 1 || (activeChoices.length > 0 && !state.activeWorkoutId)) && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { setState((current) => resumeWorkoutState(current, choice.id)); setWorkoutOpen(true); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
           {localSaveStatus === "error" && <div role="alert" className="m-3 rounded-xl border border-red-300/30 bg-red-950/30 p-3 text-sm">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}
           <TabsContent id="panel-today" aria-labelledby="mobile-tab-today desktop-tab-today" value="today"><ViewErrorBoundary onReload={async () => { await flushLatest(); window.location.reload(); }} label="Today" resetKey={view}><TodayView state={displayedState} onHyrox={() => setHyroxOpen(true)} onStartBlank={startBlank} onQuickCardio={quickCardio} onImport={() => setImportOpen(true)} onCoach={() => setCoachOpen(true)} onResume={() => setWorkoutOpen(true)} onStartPlan={startPlannedWorkout} onReschedulePlan={reschedulePlan} onSkipPlan={setSkipWorkoutId} onHistory={() => setView("history")} onTrainingCalendar={() => { setCalendarRequest((value) => value + 1); setView("progress"); }} onBodyweightLog={() => { setBodyweightPromptOpen(true); setView("progress"); }} syncStatus={syncStatus} /></ViewErrorBoundary></TabsContent>
           <TabsContent id="panel-history" aria-labelledby="mobile-tab-history desktop-tab-history" value="history"><ViewErrorBoundary onReload={async () => { await flushLatest(); window.location.reload(); }} label="History" resetKey={view}><HistoryView state={displayedState} onEdit={editWorkout} onRepeat={repeatWorkout} onReplan={replanWorkout} onDelete={deleteWorkout} /></ViewErrorBoundary></TabsContent>

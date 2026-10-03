@@ -2,13 +2,24 @@ import { uid, type TrainingState } from "../domain/training-types";
 import { mergeRestoredState } from "./cloud-sync";
 import { validateSyncedState } from "./training-validation";
 import { prepareLoadedState } from "./migrations";
-export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
+export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
+export const LARGE_BACKUP_BYTES = 10 * 1024 * 1024;
+const checkBackupSize = (text: string) => {
+  if (new Blob([text]).size > MAX_BACKUP_BYTES) throw new Error("Backup is too large (maximum 50 MB). Keep your log; do not reset or clear storage. A split-backup export is needed for logs this large.");
+};
+/** The same size boundary applies on export and restore: never label an unusable file a full backup. */
+export function serializeBackup(state: TrainingState): string {
+  const text = JSON.stringify(validateSyncedState(state), null, 2);
+  checkBackupSize(text);
+  return text;
+}
 export function parseBackup(text: string): TrainingState {
-  if (new Blob([text]).size > MAX_BACKUP_BYTES) throw new Error("Backup is too large (maximum 10 MB)");
+  checkBackupSize(text);
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw new Error("This JSON file is incomplete or corrupt"); }
   if (!raw || typeof raw !== "object" || !("version" in raw)) throw new Error("Choose a Coach Loop JSON backup");
   const obj = raw as { version?: unknown; evidenceVersion?: unknown };
+  if ("format" in raw && raw.format === "coach-loop-recovery") throw new Error("Choose an individual checkpoint JSON, not the diagnostic recovery bundle");
   if (obj.version !== 1 || (obj.evidenceVersion !== undefined && obj.evidenceVersion !== 1 && obj.evidenceVersion !== 2)) throw new Error("This backup requires a different or newer Coach Loop version");
   try { return prepareLoadedState(raw); } catch (error) { throw new Error(`Backup contains invalid data: ${error instanceof Error ? error.message.slice(0, 220) : "check its records"}`); }
 }

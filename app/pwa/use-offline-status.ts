@@ -58,7 +58,7 @@ export function useOfflineStatus() {
         return await new Promise<{ ready: boolean; release: string | null }>((resolve, reject) => {
           timeout = setTimeout(() => reject(new Error("Offline check timed out")), 5_000);
           channel.port1.onmessage = event => resolve({ ready: event.data?.ready === true, release: typeof event.data?.release === "string" ? event.data.release : null });
-          worker!.postMessage({ type: "COACH_LOOP_CHECK_OFFLINE" }, [channel.port2]);
+          worker!.postMessage({ type: "COACH_LOOP_CHECK_OFFLINE", repair: navigator.onLine !== false }, [channel.port2]);
         });
       } finally { if (timeout) clearTimeout(timeout); channel.port1.close(); channel.port2.close(); }
     };

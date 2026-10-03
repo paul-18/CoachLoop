@@ -4,6 +4,7 @@ import { normalizeExerciseMuscleOverrides } from "../domain/training-coverage";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { migrateAcceptedEvidence } from "./training-migrations";
 import { validateLocalState, validateSyncedState } from "./training-validation";
+import { selectedActiveWorkout } from "../domain/workout-transitions";
 
 const inferredLoadType = (exerciseName: string, set: TrainingSet): LoadType => {
   if (set.loadType === "weighted" || set.loadType === "bodyweight" || set.loadType === "unrecorded") return set.loadType;
@@ -104,5 +105,6 @@ export const prepareLoadedState = (raw: unknown): TrainingState => {
   const accepted = validateLocalState(raw);
   if (accepted.bodyweightEntries?.some(e => !e || !Number.isFinite(e.weight) || e.weight <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid bodyweight record");
   if (accepted.waistEntries?.some(e => !e || !Number.isFinite(e.cm) || e.cm <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid waist record");
-  return validateSyncedState(normalizeLoadedState(migrateAcceptedEvidence(accepted)));
+  const normalized = normalizeLoadedState(migrateAcceptedEvidence(accepted));
+  return validateSyncedState({ ...normalized, activeWorkoutId: selectedActiveWorkout(normalized)?.id ?? null });
 };

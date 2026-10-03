@@ -1,6 +1,6 @@
 import { canonicalExerciseName } from "./exercise-identity";
 import { convertWeight, parseExactReps, performedReps } from "./training-metrics";
-import type { CoverageMuscle, ExerciseMuscleTarget, TrainingState, Unit } from "./training-types";
+import { localDate, type CoverageMuscle, type ExerciseMuscleTarget, type TrainingState, type Unit } from "./training-types";
 import { dateInWindow } from "./training-insights";
 
 export type MuscleGroup = CoverageMuscle;
@@ -47,12 +47,25 @@ export const targetForCoverage = (exerciseName: string, overrides: Record<string
   return null;
 };
 
-export const coverageForLastDays = (state: TrainingState, days = 7): MuscleCoverage[] => {
+/** Use the same matching rules in totals, source explanations and unmapped lists. */
+export const coverageTarget = (state: TrainingState, name: string) =>
+  targetForCoverage(canonicalExerciseName(name, state.exerciseAliases), state.exerciseMuscleOverrides) ?? targetForCoverage(name, state.exerciseMuscleOverrides);
+
+export const coverageSources = (state: TrainingState, selected: MuscleGroup, days = 7, today = localDate()) => state.workouts
+  .filter(workout => workout.status === "completed" && dateInWindow(workout.date, days, today))
+  .flatMap(workout => workout.exercises.flatMap(exercise => {
+    const target = coverageTarget(state, exercise.name);
+    const credit = target?.primary.includes(selected) ? 1 : target?.secondary?.includes(selected) ? 0.5 : 0;
+    const sets = exercise.sets.filter(set => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null).length;
+    return credit && sets ? [{ id: `${workout.id}:${exercise.id}`, date: workout.date, exercise: exercise.name, sets, effective: sets * credit }] : [];
+  })).sort((a, b) => b.date.localeCompare(a.date));
+
+export const coverageForLastDays = (state: TrainingState, days = 7, today = localDate()): MuscleCoverage[] => {
   const totals = new Map<MuscleGroup, { effectiveSets: number; dates: Set<string> }>(groups.map((muscle) => [muscle, { effectiveSets: 0, dates: new Set() }]));
   state.workouts
-    .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days))
+    .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days, today))
     .forEach((workout) => workout.exercises.forEach((exercise) => {
-      const targets = targetForCoverage(canonicalExerciseName(exercise.name, state.exerciseAliases), state.exerciseMuscleOverrides) ?? targetForCoverage(exercise.name, state.exerciseMuscleOverrides);
+      const targets = coverageTarget(state, exercise.name);
       if (!targets) return;
       const workingSets = exercise.sets.filter((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null);
       if (!workingSets.length) return;
@@ -70,11 +83,11 @@ export const coverageForLastDays = (state: TrainingState, days = 7): MuscleCover
   return groups.map((muscle) => ({ muscle, effectiveSets: totals.get(muscle)!.effectiveSets, days: totals.get(muscle)!.dates.size }));
 };
 
-export const unmappedExerciseNamesLastDays = (state: TrainingState, days = 7) => {
+export const unmappedExerciseNamesLastDays = (state: TrainingState, days = 7, today = localDate()) => {
   return [...new Set(state.workouts
-    .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days))
+    .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days, today))
     .flatMap((workout) => workout.exercises)
-    .filter((exercise) => exercise.sets.some((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null) && !(targetForCoverage(canonicalExerciseName(exercise.name, state.exerciseAliases), state.exerciseMuscleOverrides) ?? targetForCoverage(exercise.name, state.exerciseMuscleOverrides)))
+    .filter((exercise) => exercise.sets.some((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null) && !coverageTarget(state, exercise.name))
     .map((exercise) => exercise.name))];
 };
 

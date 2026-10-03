@@ -689,7 +689,9 @@ export function WorkoutEditor({
     const header = headerRef.current;
     if (!shell || !header) return;
     const updateOffsets = () => {
-      shell.style.setProperty("--live-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+      // Measure content offsets, never the CSS variable sizing the header itself.
+      // Otherwise the first orientation's pixel height freezes its safe-area sizing.
+      shell.style.setProperty("--measured-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
       shell.style.setProperty("--live-rest-height", `${Math.ceil(restTimerRef.current?.getBoundingClientRect().height ?? 0)}px`);
     };
     updateOffsets();

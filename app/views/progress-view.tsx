@@ -18,9 +18,9 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { ActivityHistory, WaistTracking, MonthlyReview } from "./training-review";
 
 import { BodyCoverageMap, coverageColor, COVERAGE_LEVELS } from "./body-coverage-map";
-import { convertWeight, parseExactReps, performedReps, strengthRecords } from "../domain/training-metrics";
-import { buildExerciseTrends, dateInWindow, localDateDaysEarlier, RECENT_STRENGTH_WINDOW_DAYS, type TrendPoint, type TrendSeries } from "../domain/training-insights";
-import { coverageForLastDays, targetForCoverage, unmappedExerciseNamesLastDays, type MuscleGroup } from "../domain/training-coverage";
+import { convertWeight, strengthRecords } from "../domain/training-metrics";
+import { buildExerciseTrends, localDateDaysEarlier, RECENT_STRENGTH_WINDOW_DAYS, type TrendPoint, type TrendSeries } from "../domain/training-insights";
+import { coverageForLastDays, coverageSources, unmappedExerciseNamesLastDays, type MuscleGroup } from "../domain/training-coverage";
 import { weeklyTrainingSignals } from "../domain/training-snapshot";
 import { benchmarkAttempts, benchmarkDueDate } from "../domain/benchmarks";
 import { strengthComparisons, strengthProfile } from "../domain/strength-profile";
@@ -39,24 +39,17 @@ function dateLabel(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(`${value}T12:00:00`));
 }
 
-function StrengthCoverageCard({ state }: { state: TrainingState }) {
-  const coverage = useMemo(() => coverageForLastDays(state), [state]);
+function StrengthCoverageCard({ state, today }: { state: TrainingState; today: string }) {
+  const coverage = useMemo(() => coverageForLastDays(state, 7, today), [state, today]);
   const [selected, setSelected] = useState<MuscleGroup | null>(null);
   const active = selected ? coverage.find((entry) => entry.muscle === selected) : undefined;
-  const sources = useMemo(() => state.workouts
-    .filter((workout) => workout.status === "completed" && dateInWindow(workout.date, 7))
-    .flatMap((workout) => workout.exercises.flatMap((exercise) => {
-      const target = targetForCoverage(exercise.name, state.exerciseMuscleOverrides);
-      const credit = selected && target?.primary.includes(selected) ? 1 : selected && target?.secondary?.includes(selected) ? 0.5 : 0;
-      const sets = exercise.sets.filter((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null).length;
-      return credit && sets ? [{ date: workout.date, exercise: exercise.name, sets, effective: sets * credit }] : [];
-    })).sort((a, b) => b.date.localeCompare(a.date)), [state.workouts, state.exerciseMuscleOverrides, selected]);
-  const unmappedExercises = unmappedExerciseNamesLastDays(state);
+  const sources = useMemo(() => selected ? coverageSources(state, selected, 7, today) : [], [state, selected, today]);
+  const unmappedExercises = unmappedExerciseNamesLastDays(state, 7, today);
   return <section className="progress-panel coverage-panel">
     <div className="coverage-heading"><div><p className="eyebrow">Last 7 days</p><h2>Strength coverage</h2></div><div className="coverage-scale" aria-label="Coverage: charcoal is none; bronze through pale gold means more completed set credit"><span>Less</span><div className="coverage-swatches">{COVERAGE_LEVELS.map(level => <i key={level.label} style={{ background: level.color }} title={`${level.label} effective sets`} />)}</div><span>More</span></div></div>
     <p className="coverage-scale-note">Charcoal → gold: 0 · under 4 · 4–&lt;7 · 7–&lt;10 · 10+ effective sets. Coverage counts completed working sets, not effort intensity.</p><div className="coverage-illustration"><BodyCoverageMap bodyDiagram={state.settings.bodyDiagram ?? "male"} coverage={coverage} selected={selected} onSelect={setSelected} /></div>
     {active ? <><div className="coverage-detail"><div><span className="coverage-selected-label">Selected muscle</span><h3>{active.muscle}</h3><p>{active.days} training day{active.days === 1 ? "" : "s"}</p></div><strong>{active.effectiveSets % 1 ? active.effectiveSets.toFixed(1) : active.effectiveSets}<small> effective sets</small></strong></div>
-    <details className="coverage-method"><summary>Where {active.muscle.toLowerCase()} credit came from</summary>{sources.length ? <div className="mt-2 space-y-1">{sources.map((item) => <p key={`${item.date}-${item.exercise}`} className="text-xs text-white/50">{formatDate(item.date)} · {item.exercise} · {item.sets} sets = {item.effective} credited</p>)}</div> : <p>No completed working sets were counted this week.</p>}</details></> : <p className="coverage-scale-note">Tap a muscle to see its effective sets and contributing exercises.</p>}
+    <details className="coverage-method"><summary>Where {active.muscle.toLowerCase()} credit came from</summary>{sources.length ? <div className="mt-2 space-y-1">{sources.map((item) => <p key={item.id} className="text-xs text-white/50">{formatDate(item.date)} · {item.exercise} · {item.sets} sets = {item.effective} credited</p>)}</div> : <p>No completed working sets were counted this week.</p>}</details></> : <p className="coverage-scale-note">Tap a muscle to see its effective sets and contributing exercises.</p>}
     <details className="coverage-list-disclosure"><summary>View all muscle totals</summary><div className="coverage-list">{coverage.map((entry) => <button type="button" key={entry.muscle} onClick={() => setSelected(entry.muscle)} className={entry.muscle === selected ? "active" : ""} aria-pressed={entry.muscle === selected}><i style={{ background: coverageColor(entry) }} /><span>{entry.muscle}</span><em>{entry.effectiveSets % 1 ? entry.effectiveSets.toFixed(1) : entry.effectiveSets}</em></button>)}</div></details>
     <details className="coverage-method"><summary>How exercises are matched</summary><p>The app uses built-in name rules—not ChatGPT—and your custom mappings from Settings. For example, bench press counts toward chest; rows count toward upper back. A completed working set adds 1 set to its primary muscle and 0.5 to an optional secondary muscle. Warm-ups and cardio are excluded. {unmappedExercises.length ? `${unmappedExercises.length} recent exercise name${unmappedExercises.length === 1 ? " is" : "s are"} still unmapped: ${unmappedExercises.join(", ")}.` : "Names the app cannot match are left out rather than guessed; you can assign them in Settings."}</p></details>
 
@@ -226,7 +219,7 @@ export function ProgressView({ onUpdateSettings, state, onLogBodyweight, onSaveW
     <div className="page-stack">
       <section className="topline"><h1>Progress</h1></section>
       {show("weekly") && <ActivityBreakdown state={state} />}
-      {show("coverage") && <StrengthCoverageCard state={state} />}
+      {show("coverage") && <StrengthCoverageCard state={state} today={today} />}
       {show("balance") && <StrengthProfileCard state={state} />}
       {show("bodyweight") && <section className="progress-panel">
         <div className="bodyweight-quicklog"><div><p className="eyebrow">Bodyweight</p><h2>{latestBodyweight ? `${latestBodyweight.weight} ${latestBodyweight.unit}` : "No bodyweight logged"}</h2><p className="mt-1 text-sm text-white/45">{latestBodyweight ? `Last logged ${dateLabel(latestBodyweight.date)}` : "Log when it suits you."}</p></div><Button type="button" onClick={openBodyweightDialog} aria-label="Log bodyweight" className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Scale /> Log</Button></div>
