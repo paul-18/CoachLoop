@@ -24,6 +24,11 @@ test('all real tab screens open repeatedly with offline network state and unique
   }
   const coach=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Coach');coach.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
   const goals=document.querySelector('details.coach-goals');assert.ok(goals);assert.equal(goals.open,false,'goals start collapsed');goals.querySelector('summary').click();await wait(20);assert.equal(goals.open,true,'goals expand');goals.querySelector('summary').click();assert.equal(goals.open,false,'goals collapse');
+  const progress=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Progress');progress.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
+  assert.equal(document.querySelectorAll('.anatomy-muscle.selected').length,0,'coverage starts with no muscle selected');
+  assert.ok(document.body.textContent.includes('Tap a muscle to see its effective sets'));
+  const chest=document.querySelector('.anatomy-muscle[aria-label="Show Chest coverage"]');assert.ok(chest);const originalFill=chest.getAttribute('fill');chest.dispatchEvent(new MouseEvent('click',{bubbles:true}));await wait(40);
+  assert.equal(chest.getAttribute('fill'),originalFill,'selecting a muscle preserves its data colour');assert.equal(chest.getAttribute('aria-pressed'),'true');assert.ok(document.querySelector('.coverage-detail').textContent.includes('Chest'));
   const settings=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Settings');settings.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
   const before=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(before.at(-1),'water_polo');
   document.querySelector('[aria-label="Move Water polo earlier"]').click();await wait(80);

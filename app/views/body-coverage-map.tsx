@@ -6,9 +6,9 @@ import type { BodyDiagram } from "@musclemap/assets";
 import type { MuscleCoverage, MuscleGroup } from "../domain/training-coverage";
 
 export const COVERAGE_LEVELS = [
-  { color: "#323b3b", label: "0" }, { color: "#596469", label: "under 4" },
-  { color: "#929da2", label: "4–<7" }, { color: "#c4cdd0", label: "7–<10" },
-  { color: "#f2f5f5", label: "10+" },
+  { color: "#303438", label: "0" }, { color: "#806039", label: "under 4" },
+  { color: "#b98b42", label: "4–<7" }, { color: "#e6b958", label: "7–<10" },
+  { color: "#ffe3a3", label: "10+" },
 ] as const;
 export const coverageColor = (entry: MuscleCoverage) => {
   const sets = entry.effectiveSets;
@@ -51,7 +51,7 @@ const tonedDiagram = (diagram: BodyDiagram): BodyDiagram => {
 const TONED_FRONT = tonedDiagram(FEMALE_FRONT);
 const TONED_BACK = tonedDiagram(FEMALE_BACK);
 
-export function BodyCoverageMap({ coverage, selected, onSelect, bodyDiagram = "male" }: { bodyDiagram?: "male" | "female"; coverage: MuscleCoverage[]; selected: MuscleGroup; onSelect: (muscle: MuscleGroup) => void }) {
+export function BodyCoverageMap({ coverage, selected, onSelect, bodyDiagram = "male" }: { bodyDiagram?: "male" | "female"; coverage: MuscleCoverage[]; selected: MuscleGroup | null; onSelect: (muscle: MuscleGroup) => void }) {
   const mapId = useId();
   const byMuscle = new Map(coverage.map((entry) => [entry.muscle, entry]));
   const draw = (diagram: BodyDiagram, mapping: Record<string, MuscleGroup>, x: number, label: string) => {
@@ -72,13 +72,14 @@ export function BodyCoverageMap({ coverage, selected, onSelect, bodyDiagram = "m
         {diagram.muscles.map((path, index) => {
           const muscle = mapping[path.group];
           const entry = muscle && byMuscle.get(muscle);
-          const fill = muscle ? coverageColor(entry ?? { muscle, effectiveSets: 0, days: 0 }) : "#323b3b";
+          const fill = muscle ? coverageColor(entry ?? { muscle, effectiveSets: 0, days: 0 }) : "#303438";
           return <g key={`muscle-${index}`}>
             {[undefined, ...(path.side === "LEFT" ? [mirror] : [])].map((transform, side) => <path key={side} d={path.d} transform={transform} fill={fill}
               className={muscle ? `anatomy-muscle${selected === muscle ? " selected" : ""}` : "anatomy-neutral"}
               onClick={muscle ? () => onSelect(muscle) : undefined}
               onKeyDown={muscle ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(muscle); } } : undefined}
               role={muscle ? "button" : undefined} tabIndex={muscle ? 0 : undefined}
+              aria-pressed={muscle ? selected === muscle : undefined}
               aria-label={muscle ? `Show ${muscle} coverage` : undefined} />)}
           </g>;
         })}

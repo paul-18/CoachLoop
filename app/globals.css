@@ -7,6 +7,7 @@
 
 :root {
   --app-safe-top: env(safe-area-inset-top, 0px);
+  --workout-header-clearance: 0px;
   --background: #10120f; --foreground: #f5f7ef; --card: #171916; --card-foreground: #f5f7ef;
   --popover: #171916; --popover-foreground: #f5f7ef; --primary: #c6ff4a; --primary-foreground: #11140d;
   --secondary: #20231e; --secondary-foreground: #f5f7ef; --muted: #20231e; --muted-foreground: #92988a;
@@ -211,7 +212,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .coverage-scale { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.35); font-size: .66rem; font-weight: 750; }.coverage-scale i { display: block; width: 52px; height: 7px; border-radius: 999px; background: #323b3b; }
 .coverage-illustration { display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; background: radial-gradient(ellipse at 50% 45%,rgba(83,111,101,.13),rgba(0,0,0,.12) 70%); padding: 10px 5px 3px; }
 .coverage-body-map { display: block; width: min(100%,430px); height: auto; margin-inline: auto; }
-.coverage-body-map text { fill: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .16em; }.anatomy-silhouette { fill: #282d2c; stroke: #69726e; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle,.anatomy-neutral { stroke: #1b2321; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle { cursor: pointer; transition: fill .18s ease, stroke .18s ease, filter .18s ease; }.anatomy-muscle:hover,.anatomy-muscle:focus { filter: brightness(1.25); stroke: #d8e4d4; outline: none; }.anatomy-muscle.selected { stroke: #f0f8e5; stroke-width: 7; filter: brightness(1.13); }
+.coverage-body-map text { fill: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .16em; }.anatomy-silhouette { fill: #282d2c; stroke: #69726e; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle,.anatomy-neutral { stroke: #1b2321; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle { cursor: pointer; transition: fill .18s ease, stroke .18s ease, filter .18s ease; }.anatomy-muscle:hover,.anatomy-muscle:focus { stroke: var(--lime); outline: none; }.anatomy-muscle.selected { stroke: var(--lime); stroke-width: 7; }
 .coverage-detail { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; border: 1px solid rgba(255,255,255,.06); border-radius: 12px; background: rgba(255,255,255,.025); padding: 9px 12px; }.coverage-selected-label { color: rgba(255,255,255,.38); font-size: .62rem; font-weight: 760; }.coverage-detail h3 { margin-top: 2px; font-size: 1.07rem; font-weight: 900; letter-spacing: -.035em; }.coverage-detail > strong { flex: 0 0 auto; color: #b7d987; font-size: 1.3rem; letter-spacing: -.035em; }.coverage-detail > strong small { color: rgba(255,255,255,.42); font-size: .68rem; font-weight: 650; letter-spacing: 0; }.coverage-detail p { color: rgba(255,255,255,.42); font-size: .68rem; }
 .coverage-list { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 5px; margin-top: 9px; }.coverage-list button { display: flex; min-width: 0; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.055); border-radius: 8px; padding: 6px 7px; color: rgba(255,255,255,.48); font-size: .68rem; text-align: left; }.coverage-list button:hover,.coverage-list button.active { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.055); color: rgba(255,255,255,.88); }.coverage-list i { display: inline-block; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 999px; }.coverage-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.coverage-list em { margin-left: auto; color: inherit; font-size: .64rem; font-style: normal; }
 .coverage-list-disclosure { margin-top: 9px; }.coverage-list-disclosure summary { width: fit-content; cursor: pointer; color: rgba(255,255,255,.57); font-size: .72rem; font-weight: 750; }
@@ -381,10 +382,10 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .bodyweight-quicklog button { min-height: 44px; flex-shrink: 0; }
 @media (max-width: 640px) {
   input:not([type="checkbox"]), textarea, select { font-size: 16px !important; }
-  .workout-shell { --live-header-height: calc(72px + var(--app-safe-top)); }
+  .workout-shell { --live-header-height: calc(72px + var(--app-safe-top) + var(--workout-header-clearance)); }
   .workout-shell.has-rest-timer { --live-rest-height: 60px; }
   .workout-shell input, .workout-shell textarea, .workout-shell select { scroll-margin-block-start: calc(var(--live-header-height) + var(--live-rest-height) + 12px); scroll-margin-block-end: 24px; }
-  .workout-header { height: var(--live-header-height); min-height: var(--live-header-height); padding: calc(10px + var(--app-safe-top)) 10px 10px; gap: 9px; }
+  .workout-header { height: var(--live-header-height); min-height: var(--live-header-height); padding: calc(10px + var(--app-safe-top) + var(--workout-header-clearance)) 10px 10px; gap: 9px; }
   .rest-timer { top: var(--live-header-height); padding: 6px 12px; }
   .workout-shell button[data-slot="button"], .workout-shell select, .workout-shell input { min-height: 44px; }
   .workout-header input { min-height: 24px; }
@@ -655,7 +656,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .hyrox-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 10px; }.hyrox-fields input { margin-top: 4px; }
 .hyrox-actions { display: flex; gap: 8px; flex-shrink: 0; margin-top: 12px; min-width: 0; }.hyrox-actions button { min-height: 44px; flex: 1; white-space: normal; }.hyrox-actions input { min-width: 0; flex: 1; }
 .hyrox-workout { min-height: 100dvh; color: #f4f6f0; background: #10120f; }
-.hyrox-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: #10120ff5; border-bottom: 1px solid #ffffff12; padding: calc(10px + var(--app-safe-top)) 12px 10px; }
+.hyrox-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: #10120ff5; border-bottom: 1px solid #ffffff12; padding: calc(10px + var(--app-safe-top) + var(--workout-header-clearance)) 12px 10px; }
 .hyrox-header > div { min-width: 0; flex: 1; }.hyrox-header strong,.hyrox-header small { display: block; overflow-wrap: anywhere; }.hyrox-header strong { font-size: 1rem; }.hyrox-header small { color: #adb6a5; font-size: .8rem; }.hyrox-header button { min-height: 44px; flex-shrink: 0; }
 .hyrox-main { max-width: 700px; margin-inline: auto; padding: 16px 14px calc(120px + env(safe-area-inset-bottom,0px)); }
 .hyrox-live { border: 1px solid #c6ff4130; border-radius: 20px; background: #c6ff4105; padding: 18px; }
@@ -847,10 +848,10 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 /* Apply to installed portrait sessions without relying solely on a launch-time
    env() value; browser tabs and landscape keep their reported safe insets. */
 @media (display-mode: standalone) and (orientation: portrait) {
-  :root { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); }
+  :root { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); --workout-header-clearance: 8px; }
 }
 @media (orientation: portrait) {
-  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); }
+  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); --workout-header-clearance: 8px; }
 }
 @media (max-width: 1099px) {
   .app-main { padding-left:env(safe-area-inset-left, 0px); padding-right:env(safe-area-inset-right, 0px); }
@@ -870,8 +871,8 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .coach-goals > summary::after { content:"＋"; color:var(--lime); }
 .coach-goals[open] > summary::after { content:"−"; }
 
-.workout-shell { --live-header-height:calc(72px + var(--app-safe-top)); }
-.workout-header { height:var(--live-header-height); min-height:var(--live-header-height); padding-top:calc(10px + var(--app-safe-top)); }
+.workout-shell { --live-header-height:calc(72px + var(--app-safe-top) + var(--workout-header-clearance)); }
+.workout-header { height:var(--live-header-height); min-height:var(--live-header-height); padding-top:calc(10px + var(--app-safe-top) + var(--workout-header-clearance)); }
 html[data-app-standalone="true"] body::before {
   content:""; position:fixed; inset:0 0 auto; height:var(--app-safe-top);
   background:#10120f; z-index:49; pointer-events:none;

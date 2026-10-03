@@ -12,7 +12,7 @@ test("collapsed Coach priorities retain complete long goal text and rank order",
  const html=renderToStaticMarkup(createElement(CoachView,{state,onBuild(){},onImport(){}}));
  assert.match(html,/<details class="coach-goals">/);assert.match(html,/2 goals/);assert.ok(html.includes(state.goals[0]));assert.ok(html.indexOf(state.goals[0])<html.indexOf("Second goal"));
 });
-test("neutral coverage spans distinct ordered brightness levels and saturates at high coverage",()=>{
+test("gold coverage spans distinct ordered brightness levels and saturates at high coverage",()=>{
  const inputs=[0,.5,4,7,10,20];const colors=inputs.map(effectiveSets=>coverageColor({muscle:"Chest",effectiveSets,days:1}));
  assert.deepEqual(colors.slice(0,5),COVERAGE_LEVELS.map(level=>level.color));assert.equal(colors[4],colors[5]);
  const brightness=(hex:string)=>parseInt(hex.slice(1,3),16)+parseInt(hex.slice(3,5),16)+parseInt(hex.slice(5,7),16);
