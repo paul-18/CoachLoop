@@ -19,7 +19,7 @@ test("gold coverage spans distinct ordered brightness levels and saturates at hi
  for(let i=1;i<5;i++)assert.ok(brightness(colors[i])-brightness(colors[i-1])>=100,"visible spacing between coverage levels");
 });
 test("theme names are short without changing saved identifiers",()=>{
- assert.deepEqual(COLOR_THEMES.map(t=>[t.id,t.label]),[["lime","Lime"],["peach","Peach"],["sky","Sky Blue"],["violet","Soft Violet"]]);
+ assert.deepEqual(COLOR_THEMES.slice(0,4).map(t=>[t.id,t.label]),[["lime","Lime"],["peach","Peach"],["sky","Sky Blue"],["violet","Soft Violet"]]);
 });
 
 import { SaveErrorBanner } from "../app/views/save-error-banner";

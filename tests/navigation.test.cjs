@@ -6,11 +6,14 @@ const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 test('all real tab screens open repeatedly with offline network state and unique tab IDs',async()=>{
  const dom=new JSDOM('<div id="root"></div>',{url:'https://example.test/CoachLoop/',pretendToBeVisual:true});
  const bind=new Set(['getComputedStyle','requestAnimationFrame','cancelAnimationFrame']);
- for(const key of ['window','document','navigator','HTMLElement','HTMLInputElement','HTMLDetailsElement','SVGElement','Node','MutationObserver','Event','CustomEvent','MouseEvent','getComputedStyle','requestAnimationFrame','cancelAnimationFrame'])Object.defineProperty(globalThis,key,{value:bind.has(key)?dom.window[key].bind(dom.window):dom.window[key],configurable:true});
+ for(const key of ['window','document','navigator','HTMLElement','HTMLInputElement','HTMLDetailsElement','SVGElement','Node','NodeFilter','MutationObserver','Event','CustomEvent','MouseEvent','getComputedStyle','requestAnimationFrame','cancelAnimationFrame'])Object.defineProperty(globalThis,key,{value:bind.has(key)?dom.window[key].bind(dom.window):dom.window[key],configurable:true});
  Object.assign(globalThis,{indexedDB,IDBKeyRange,localStorage:dom.window.localStorage,sessionStorage:dom.window.sessionStorage,ResizeObserver:class{observe(){}disconnect(){}unobserve(){}}});
  window.matchMedia=()=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});window.scrollTo=()=>{};
  Object.defineProperty(navigator,'locks',{value:{request:async(_name,_options,callback)=>callback({})}});Object.defineProperty(navigator,'onLine',{value:false});
  const React=require('react'),{createRoot}=require('react-dom/client');const App=require('../app/workout-app.tsx').default;
+ const {defaultState,makeWorkout,localDate}=require('../app/domain/training-types.ts');
+ const fixture=defaultState(),longExerciseName='Bench press with slow tempo and pauses '.repeat(8).trim(),workout=makeWorkout('lb',120);workout.date=localDate();workout.status='completed';workout.exercises[0].name=longExerciseName;workout.exercises[0].sets=workout.exercises[0].sets.slice(0,1);Object.assign(workout.exercises[0].sets[0],{completed:true,actualReps:'5',actualWeight:100,weightMode:'total',loadType:'weighted'});fixture.workouts=[workout];
+ await require('../app/persistence/training-storage.ts').saveTrainingState(fixture);
  const app=createRoot(document.getElementById('root'));
  try{
   app.render(React.createElement(App));
@@ -29,6 +32,9 @@ test('all real tab screens open repeatedly with offline network state and unique
   assert.ok(document.body.textContent.includes('Tap a muscle to see its effective sets'));
   const chest=document.querySelector('.anatomy-muscle[aria-label="Show Chest coverage"]');assert.ok(chest);const originalFill=chest.getAttribute('fill');chest.dispatchEvent(new MouseEvent('click',{bubbles:true}));await wait(40);
   assert.equal(chest.getAttribute('fill'),originalFill,'selecting a muscle preserves its data colour');assert.equal(chest.getAttribute('aria-pressed'),'true');assert.ok(document.querySelector('.coverage-detail').textContent.includes('Chest'));
+  const trendName=document.querySelector('.trend-series-name');assert.ok(trendName);assert.equal(trendName.textContent,longExerciseName);assert.equal(trendName.title,longExerciseName,'full name remains accessible');
+  const historyButton=document.querySelector('.exercise-trend-history-button');assert.equal(historyButton.textContent,'View exercise history');assert.equal(historyButton.getAttribute('aria-label'),`View ${longExerciseName} history`);historyButton.click();await wait(60);assert.ok(document.querySelector('.exercise-history-title').textContent.includes(longExerciseName),'history retains the complete exercise name');
+  const close=document.querySelector('[data-slot="dialog-close"]');assert.ok(close);close.click();await wait(60);
   const settings=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Settings');settings.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
   const before=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(before.at(-1),'water_polo');
   document.querySelector('[aria-label="Move Water polo earlier"]').click();await wait(80);

@@ -198,12 +198,14 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .range-switch { display: flex; flex: 0 0 auto; gap: 2px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(0,0,0,.16); padding: 3px; }
 .range-switch button { min-width: 35px; border-radius: 7px; padding: 6px 7px; color: rgba(255,255,255,.35); font-size: .63rem; font-weight: 850; }
 .range-switch button.active { background: rgba(var(--theme-accent-rgb),.12); color: var(--lime); }
-.trend-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.trend-controls select { width: min(220px,100%); border-color: rgba(255,255,255,.08); background: rgba(0,0,0,.16); }
-.trend-legend { display: flex; min-width: 0; flex: 1; gap: 6px; overflow-x: auto; scrollbar-width: none; }
-.trend-legend button { display: flex; min-width: 0; align-items: center; gap: 6px; border: 1px solid color-mix(in srgb,var(--series-color) 20%,transparent); border-radius: 999px; background: color-mix(in srgb,var(--series-color) 7%,transparent); padding: 6px 9px; color: rgba(255,255,255,.64); font-size: .68rem; font-weight: 800; white-space: nowrap; }
-.trend-legend button span { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--series-color); }
-.trend-legend button svg { width: 12px; height: 12px; opacity: .5; }
+.trend-controls { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.trend-controls > [data-slot="native-select-wrapper"] { flex:0 1 220px; min-width:0; max-width:100%; width:220px; }
+.trend-controls select { min-width:0; max-width:100%; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; width:100%; border-color: rgba(255,255,255,.08); background: rgba(0,0,0,.16); }
+.trend-legend { display: flex; flex-wrap:wrap; min-width: 0; max-width:100%; flex: 1; gap: 6px; scrollbar-width: none; }
+.trend-legend button { max-width:100%; flex:0 1 auto; display: flex; min-width: 0; align-items: center; gap: 6px; border: 1px solid color-mix(in srgb,var(--series-color) 20%,transparent); border-radius: 999px; background: color-mix(in srgb,var(--series-color) 7%,transparent); padding: 6px 9px; color: rgba(255,255,255,.64); font-size: .68rem; font-weight: 800; white-space: nowrap; }
+.trend-legend .trend-series-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--series-color); }
+.trend-series-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trend-legend button svg { flex-shrink:0; width: 12px; height: 12px; opacity: .5; }
 .trend-bodyweight-toggle { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; border: 1px solid rgba(255,184,77,.2); border-radius: 999px; background: rgba(255,184,77,.06); padding: 6px 9px; color: rgba(255,235,204,.62); font-size: .68rem; font-weight: 800; white-space: nowrap; }
 .trend-bodyweight-toggle i { width: 7px; height: 7px; border-radius: 50%; background: #ffb84d; }
 .trend-bodyweight-toggle.active { border-color: rgba(255,184,77,.46); background: rgba(255,184,77,.14); color: #ffd498; }
@@ -327,6 +329,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .range-switch { width: 100%; }
   .range-switch button { flex: 1; }
   .trend-controls { align-items: stretch; flex-direction: column; }
+  .trend-controls > [data-slot="native-select-wrapper"] { flex:0 0 auto; width:100%; }
   .trend-controls select { width: 100%; }
   .trend-legend { width: 100%; }
   .trend-bodyweight-toggle { align-self: flex-start; }
@@ -877,3 +880,15 @@ html[data-app-standalone="true"] body::before {
   content:""; position:fixed; inset:0 0 auto; height:var(--app-safe-top);
   background:#10120f; z-index:49; pointer-events:none;
 }
+
+/* Long imported names must never set the width of the trend panel. */
+.exercise-trend-panel { min-width:0; max-width:100%; }
+.exercise-trend-panel .trend-detail { min-width:0; max-width:100%; }
+.exercise-trend-panel .trend-detail strong { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.exercise-trend-panel .trend-detail > span { min-width:0; overflow-wrap:anywhere; }
+.exercise-trend-history-button { max-width:100%; min-width:0; white-space:normal; }
+.exercise-history-title, .exercise-history-session { overflow-wrap:anywhere; min-width:0; }
+html[data-coach-theme="red"] { --lime:#f4434b; --theme-accent-rgb:244,67,75; }
+html[data-coach-theme="teal"] { --lime:#43d9c3; --theme-accent-rgb:67,217,195; }
+html[data-coach-theme="amber"] { --lime:#ffbf5a; --theme-accent-rgb:255,191,90; }
+html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; }

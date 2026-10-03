@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COLOR_THEMES, type ColorTheme } from "../domain/display-preferences";
 import type { TrainingState } from "../domain/training-types";
 
 import { safeConflictPath } from "./conflict-path";
@@ -100,7 +101,7 @@ export const storedStateBoundary = z.object({
     phases: z.array(z.object({ id: identifier, start: date, end: date, label: z.string(), updatedAt: timestamp.optional(), deletedAt: timestamp.optional() })),
   }),
   settings: z.object({
-    colorTheme: z.enum(["lime", "peach", "sky", "violet"]).optional(),
+    colorTheme: z.enum(COLOR_THEMES.map(theme => theme.id) as [ColorTheme, ...ColorTheme[]]).optional(),
     weeklyCards: z.array(z.enum(["strength", "run", "ruck", "water_polo", "circuit", "swim", "bike", "row", "walk", "hike", "soccer", "grappling", "yoga", "mobility", "force", "other"])).refine(values => new Set(values).size === values.length).optional(),
     progressSections: z.array(z.enum(["weekly", "coverage", "balance", "bodyweight", "trends", "benchmarks", "activities", "waist", "monthly", "calendar", "records"])).refine(values => new Set(values).size === values.length).optional(),
     bodyDiagram: z.enum(["male", "female"]).optional(),

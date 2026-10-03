@@ -62,7 +62,12 @@ test("display control toggles save preferences without rewriting workouts or sho
   assert.equal(JSON.stringify(state.workouts),before);assert.equal(JSON.stringify(state.settings.quickLogActivities),quick);
 });
 
-test("all four accent presets keep readable contrast against primary button text", () => {
+test("all eight accent presets keep readable contrast against primary button text", () => {
   const luminance=(hex:string)=>{const values=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(c=>c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4);return values[0]*0.2126+values[1]*0.7152+values[2]*0.0722;};
   for(const theme of COLOR_THEMES) assert.ok((luminance(theme.color)+0.05)/(luminance("#11140d")+0.05)>4.5,theme.label);
+});
+
+test("all eight themes survive strict backup loading and new choices do not mutate workouts",()=>{
+ assert.equal(COLOR_THEMES.length,8);assert.equal(new Set(COLOR_THEMES.map(t=>t.id)).size,8);
+ for(const theme of COLOR_THEMES){const state=defaultState();state.settings.colorTheme=theme.id;state.workouts=[makeWorkout("lb",120)];const loaded=prepareLoadedState(JSON.parse(JSON.stringify(state)));assert.equal(loaded.settings.colorTheme,theme.id);assert.deepEqual(loaded.workouts,state.workouts);}
 });

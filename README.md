@@ -191,7 +191,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 - **Lift balance**: compares recent completed bench, squat, deadlift, and overhead press results, with pull-ups shown separately. These are loose training guides, and the underlying sets and dates stay visible. Missing data does not mean a weakness.
 - **Strength coverage**: shows completed lifting work over the last seven days using a charcoal-to-gold scale. Darker means less coverage; brighter gold means more. Tap a muscle for its effective sets and contributing exercises; selecting it adds an outline without changing its coverage colour. Primary muscles receive 1 credit per working set and secondary muscles 0.5. Warm-ups and cardio are excluded. This is volume coverage, not strength, recovery or effort intensity.
 - **Benchmarks**: pin repeatable tests, record dated attempts and protocols, and set optional re-test intervals (**Settings → Pinned benchmarks**).
-- **Choose your display**: select Lime, Peach, Sky Blue, or Soft Violet in **Settings → Appearance & quick log**. Pick which **Last 7 days** cards you want to see; these choices are separate from quick-log activities. At the bottom of **Progress**, tap **Modify Progress** to hide or show sections such as Lift balance. Hiding a section keeps its saved data.
+- **Choose your display**: select one of eight accents: Lime, Peach, Sky Blue, Soft Violet, Gym Red, Teal, Amber or Rose in **Settings → Appearance & quick log**. Pick which **Last 7 days** cards you want to see; these choices are separate from quick-log activities. At the bottom of **Progress**, tap **Modify Progress** to hide or show sections such as Lift balance. Hiding a section keeps its saved data.
 - **Personalize Today**: choose and reorder quick-log activities in Settings → Appearance & quick log. Select the male or corrected female strength-coverage diagram there; the choice changes the illustration only.
 - **Weekly streak**: five distinct completed training days in a Monday–Sunday week qualify. Tap the streak to open the training calendar.
 
@@ -302,7 +302,7 @@ When **Restart to update** appears, finish any active workout, close the editor 
 
 The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
-Keep a current backup before moving to a different app address. The app release is shown in Settings; v83 adds the gold coverage scale and extra portrait workout-header clearance.
+Keep a current backup before moving to a different app address. The app release is shown in Settings. v84 adds eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
 
 For repository owners, see [upload and cleanup instructions](UPDATE-INSTRUCTIONS.txt).
 

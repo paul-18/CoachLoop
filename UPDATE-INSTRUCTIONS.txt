@@ -1,33 +1,20 @@
-COACH LOOP v83 — README AND REPOSITORY CLEANUP
+COACH LOOP v84 — EIGHT THEMES AND COMPACT EXERCISE TRENDS
 
-Apply this AFTER your v83 app update. It stays v83: this is housekeeping, not a
-new feature release. Use this ZIP only; do not reapply the earlier v83 ZIP.
-The new build identifier lets installed apps receive the smaller stylesheet.
+Apply over your current v83 repository, including the cleanup that is now on GitHub.
+This ZIP replaces matching files in the same app; no duplicate app folder.
 
-1. GitHub → paul-18/CoachLoop → Code → main → Add file → Upload files.
-   Upload CoachLoop-v83-Repo-Cleanup.zip beside package.json. Commit the upload.
-2. Open your existing Codespace terminal in /workspaces/CoachLoop.
-   Run each command individually, waiting for completion. Stop on a failure.
+1. Save a full JSON backup privately in Files. Never upload personal backups to GitHub.
+2. GitHub → paul-18/CoachLoop → Code → main → Add file → Upload files.
+   Upload CoachLoop-v84-GitHub-Update.zip beside package.json and commit the upload.
+3. Open the existing Codespace terminal in /workspaces/CoachLoop.
+   Run each command separately, waiting for completion. Stop on any failure.
 
    git status --short
 
-   If it lists local changes, preserve them before continuing. If empty:
+   If this lists local changes, preserve them before continuing. If empty:
 
    git pull --ff-only
-   unzip -o CoachLoop-v83-Repo-Cleanup.zip
-   node scripts/cleanup-repo.mjs
-
-   This last command previews the exact 64 files; it does not delete yet.
-   See REPOSITORY-CLEANUP.md for why they are unused and what is kept.
-   Now apply those reviewed deletions:
-
-   node scripts/cleanup-repo.mjs --apply
-
-   If it reports a changed file, stop. It will not delete your modified files.
-   Do not use a force-delete command to bypass this safeguard.
-
-3. Run the checks, separately:
-
+   unzip -o CoachLoop-v84-GitHub-Update.zip
    npx --yes pnpm@11.25.0 install --frozen-lockfile
    npx --yes pnpm@11.25.0 exec tsc --noEmit
    npx --yes pnpm@11.25.0 run lint
@@ -37,20 +24,19 @@ The new build identifier lets installed apps receive the smaller stylesheet.
 
 4. Only after all checks pass:
 
-   git rm CoachLoop-v83-Repo-Cleanup.zip
-   git add README.md UPDATE-INSTRUCTIONS.txt REPOSITORY-CLEANUP.md scripts/cleanup-repo.mjs
+   git rm CoachLoop-v84-GitHub-Update.zip
+   git add app tests README.md UPDATE-INSTRUCTIONS.txt V84-UPDATE-NOTES.md
    git --no-pager diff --cached --stat
-   git commit -m "Refresh user README and remove unused Coach Loop templates"
+   git commit -m "Add v84 accent themes and contain long exercise trend names"
    git push
 
-   The cleanup script already staged the 64 deletions. The git add command stages
-   all four files supplied in this ZIP. Review the list before committing.
-   No personal backup, dist or node_modules should appear.
+   Review the staged files: no personal backups, dist or node_modules.
 5. GitHub → Actions → newest Publish Coach Loop PWA run: wait for green success.
-6. In your installed app, finish/save any workout. Settings → Check updates →
-   Restart to update when available. Release still says v83; the build changes.
-   Check Today, Coach, Progress and Settings, then the workout header/rest timer.
+6. Open the installed app online. Finish any workout and wait for Saved.
+   Settings → Check updates → Restart to update. Close another Coach Loop window
+   if requested. Confirm v84. Do not clear website data to update.
+7. Use the iPhone checks in V84-UPDATE-NOTES.md, especially long exercise names,
+   three selected exercises, history dialog layout and new theme persistence.
 
-The deletions are recorded in Git history and can be recovered. Browser log data
-is not stored in these repository files. This package does not remove workouts,
-goals or backups from your phone. Do not clear website data to update.
+The JavaScript chunk-size warning is non-blocking if the build succeeds.
+All eight themes keep the dark background; the coverage map retains its gold scale.

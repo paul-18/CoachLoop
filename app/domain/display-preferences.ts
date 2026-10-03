@@ -3,6 +3,10 @@ export const COLOR_THEMES = [
   { id: "peach", label: "Peach", color: "#f0a37d", rgb: "240,163,125" },
   { id: "sky", label: "Sky Blue", color: "#66c7ff", rgb: "102,199,255" },
   { id: "violet", label: "Soft Violet", color: "#d59cff", rgb: "213,156,255" },
+  { id: "red", label: "Gym Red", color: "#f4434b", rgb: "244,67,75" },
+  { id: "teal", label: "Teal", color: "#43d9c3", rgb: "67,217,195" },
+  { id: "amber", label: "Amber", color: "#ffbf5a", rgb: "255,191,90" },
+  { id: "rose", label: "Rose", color: "#ff8eac", rgb: "255,142,172" },
 ] as const;
 export type ColorTheme = (typeof COLOR_THEMES)[number]["id"];
 export const WEEKLY_CARD_OPTIONS = [
