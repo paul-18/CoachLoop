@@ -16,9 +16,6 @@ Plan it. Log it. Review it. Hand it to your AI. Bring the next workout back.
 
 </div>
 
-<!-- TODO: add a hero screenshot or short GIF here, e.g.
-<p align="center"><img src="docs/screenshots/today.png" width="280" alt="Today screen"></p>
--->
 
 ---
 
@@ -92,7 +89,6 @@ Installing as a Home Screen app gives you an icon, full-screen use, and offline 
 
 [Apple's Home Screen guide](https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios)
 
-<!-- TODO: add Android / desktop install notes if you've tested them. -->
 
 ---
 
@@ -120,6 +116,8 @@ Installing as a Home Screen app gives you an icon, full-screen use, and offline 
 
 Example order: strength → muscle growth → running endurance. Tell your AI to respect the ranking when goals compete for time or recovery.
 
+On **Coach**, tap **Your priorities** to expand your full ranked goals. Keep it collapsed when you want a simpler screen. Profile and goal editors support multiline text with Save and Cancel.
+
 ### 3. Set workout defaults
 
 **Settings → Workout defaults:** pounds or kilograms, usual rest time, bar weight.
@@ -139,13 +137,7 @@ Already have a backup? Restore it with **Settings → Restore JSON backup**.
 
 ## The coaching loop
 
-```text
-   ┌──────────┐     ┌──────────┐     ┌─────────┐     ┌──────────┐
-   │   Ask    │ ──► │  Import  │ ──► │  Train  │ ──► │  Review  │
-   └──────────┘     └──────────┘     └─────────┘     └────┬─────┘
-        ▲                                                  │
-        └────────────────── Continue ◄─────────────────────┘
-```
+Ask your AI → import the plan → log what you actually do → review → send your next brief.
 
 | Step | What you do |
 | --- | --- |
@@ -167,12 +159,19 @@ FITLOG is the plain-text format the AI uses to hand you a workout. It's wrapped 
 
 ```text
 [FITLOG:1]
-... workout contents ...
+WORKOUT|Example strength and easy run|2026-10-03
+EXERCISE|Bench press
+SET|6-8|40 kg total|RIR 2
+REST|120
+CARDIO|Easy run
+TYPE|run
+DURATION|15
+INTENSITY|easy
 [/FITLOG]
 ```
 
-<!-- TODO: replace the placeholder above with a real, minimal example from the app
-     (one strength exercise plus one run), and link to a full format spec if you have one. -->
+
+This is a format example, not a personalized prescription. Change its date, load and activities before using it. The in-app **Copy format** button provides the current full instructions.
 
 If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
@@ -189,8 +188,8 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 ### Insight
 
-- **Strength profile**: compares recent completed bench, squat, deadlift, and overhead press results, with pull-ups shown separately. These are loose training guides, and the underlying sets and dates stay visible. Missing data does not mean a weakness.
-- **Strength coverage**: shows which muscle groups received logged lifting work. It reflects training coverage, not recovery or physique.
+- **Lift balance**: compares recent completed bench, squat, deadlift, and overhead press results, with pull-ups shown separately. These are loose training guides, and the underlying sets and dates stay visible. Missing data does not mean a weakness.
+- **Strength coverage**: shows completed lifting work over the last seven days using a charcoal-to-gold scale. Darker means less coverage; brighter gold means more. Tap a muscle for its effective sets and contributing exercises; selecting it adds an outline without changing its coverage colour. Primary muscles receive 1 credit per working set and secondary muscles 0.5. Warm-ups and cardio are excluded. This is volume coverage, not strength, recovery or effort intensity.
 - **Benchmarks**: pin repeatable tests, record dated attempts and protocols, and set optional re-test intervals (**Settings → Pinned benchmarks**).
 - **Choose your display**: select Lime, Peach, Sky Blue, or Soft Violet in **Settings → Appearance & quick log**. Pick which **Last 7 days** cards you want to see; these choices are separate from quick-log activities. At the bottom of **Progress**, tap **Modify Progress** to hide or show sections such as Lift balance. Hiding a section keeps its saved data.
 - **Personalize Today**: choose and reorder quick-log activities in Settings → Appearance & quick log. Select the male or corrected female strength-coverage diagram there; the choice changes the illustration only.
@@ -199,7 +198,8 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 ### Data
 
 - **JSON backup**: full, restorable copy of your data.
-- **CSV export**: for spreadsheets and analysis (view only, not restorable).
+- **CSV export**: for spreadsheets and analysis, including warm-up labels and actual activity results (view only, not restorable).
+- **Import safeguards**: FITLOG preview, readable validation errors and duplicate warnings. **Undo import** is available for the most recent saved import while it remains unstarted.
 
 ---
 
@@ -209,11 +209,10 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 | --- | --- |
 | **Today** | Start or resume a workout, preview saved plans, import a session, quick-log an activity, see upcoming events and your weekly streak. |
 | **History** | Review past sessions and results. Edit a workout, including its date. |
-| **Progress** | Explore exercise trends, records, bodyweight, recent activity, the training calendar, strength coverage, and strength profile. |
-| **Coach** | Build context for an external AI chat, copy recent training or FITLOG instructions, and bring a workout plan back in. |
+| **Progress** | Explore exercise trends, records, bodyweight, recent activity, the training calendar, strength coverage, and Lift balance. |
+| **Coach** | Expand your ranked goals, build context for an external AI chat, copy recent training or FITLOG instructions, and bring a workout plan back in. |
 | **Settings** | Edit profile, ranked goals, units, and defaults. Manage benchmarks, muscle mappings, backups, exports, and offline status. |
 
-<!-- TODO: screenshots table, one image per section. -->
 
 ---
 
@@ -230,7 +229,10 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 **Backups**
 
 - Use **Settings → Download full backup** regularly and store the JSON somewhere safe (Files, iCloud Drive).
-- To move to another device, open Coach Loop there and choose **Restore JSON backup**. Restore **merges** data.
+- To move to another device, open Coach Loop there and choose **Restore JSON backup**, then review the preview.
+- **Merge** combines records and keeps newer revisions. An older backup may therefore leave newer local goals, profile or measurements unchanged.
+- **Complete restore** makes workouts, goals, coach profile, measurements and settings match the backup. Current-only records are removed, so download a current backup first. A local recovery copy is also saved before the restore.
+- Neither restore option creates ongoing sync between devices.
 - Local recovery copies live on the same device, so they don't replace an external backup.
 - Clearing browser site data or losing your device can erase locally stored training.
 - Keep private backups **out of this public repository**.
@@ -273,6 +275,18 @@ If you have a JSON backup, use **Settings → Restore JSON backup**. Choose **Me
 </details>
 
 <details>
+<summary><b>A restore did not bring back my old goals or profile.</b></summary>
+
+Merge keeps newer local revisions, including your profile and goals. If you want the entire saved state from a backup, download your current log first, then choose **Complete restore** and review what will be replaced.
+</details>
+
+<details>
+<summary><b>Coach Loop says it is already open elsewhere.</b></summary>
+
+Finish saving and close the other Coach Loop window. Only one window can edit the local log at a time; the waiting window opens automatically when the editor is released.
+</details>
+
+<details>
 <summary><b>The AI forgot my background.</b></summary>
 
 Start a new chat with **Start a new chat → Copy full context**.
@@ -288,7 +302,9 @@ When **Restart to update** appears, finish any active workout, close the editor 
 
 The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
-Keep a current backup before moving to a different app address.
+Keep a current backup before moving to a different app address. The app release is shown in Settings; v83 adds the gold coverage scale and extra portrait workout-header clearance.
+
+For repository owners, see [upload and cleanup instructions](UPDATE-INSTRUCTIONS.txt).
 
 ---
 
@@ -296,7 +312,6 @@ Keep a current backup before moving to a different app address.
 
 Bug reports and ideas are welcome. Please [open an issue](../../issues) and include your device, browser or OS version, and steps to reproduce. Do **not** attach personal backups or training data.
 
-<!-- TODO: add contribution guidelines if you accept pull requests. -->
 
 ---
 
@@ -308,6 +323,5 @@ Coach Loop is a logging tool and a way to move text between you and an AI. It is
 
 ## Credits
 
-<!-- TODO: choose a license (e.g. MIT) and add a LICENSE file, then update this section. -->
 
 *Created using AI.*

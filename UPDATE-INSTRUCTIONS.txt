@@ -1,20 +1,33 @@
-COACH LOOP v83 — UPDATE YOUR EXISTING v82 REPOSITORY
+COACH LOOP v83 — README AND REPOSITORY CLEANUP
 
-This is a source overlay for the v82 Reliability edition that just passed Actions.
-Unzipping replaces matching source files in place; it does not create another app.
+Apply this AFTER your v83 app update. It stays v83: this is housekeeping, not a
+new feature release. Use this ZIP only; do not reapply the earlier v83 ZIP.
+The new build identifier lets installed apps receive the smaller stylesheet.
 
-1. Save a full JSON backup privately in Files before updating. Never upload personal backups to GitHub.
-2. GitHub → paul-18/CoachLoop → Code → main → Add file → Upload files.
-   Upload CoachLoop-v83-GitHub-Update.zip beside package.json and commit the upload.
-3. In your existing Codespace terminal at /workspaces/CoachLoop, run each command
-   separately and wait for it to finish. Stop on any failure.
+1. GitHub → paul-18/CoachLoop → Code → main → Add file → Upload files.
+   Upload CoachLoop-v83-Repo-Cleanup.zip beside package.json. Commit the upload.
+2. Open your existing Codespace terminal in /workspaces/CoachLoop.
+   Run each command individually, waiting for completion. Stop on a failure.
 
    git status --short
 
-   If this lists local changes, preserve them before continuing. If it prints nothing:
+   If it lists local changes, preserve them before continuing. If empty:
 
    git pull --ff-only
-   unzip -o CoachLoop-v83-GitHub-Update.zip
+   unzip -o CoachLoop-v83-Repo-Cleanup.zip
+   node scripts/cleanup-repo.mjs
+
+   This last command previews the exact 64 files; it does not delete yet.
+   See REPOSITORY-CLEANUP.md for why they are unused and what is kept.
+   Now apply those reviewed deletions:
+
+   node scripts/cleanup-repo.mjs --apply
+
+   If it reports a changed file, stop. It will not delete your modified files.
+   Do not use a force-delete command to bypass this safeguard.
+
+3. Run the checks, separately:
+
    npx --yes pnpm@11.25.0 install --frozen-lockfile
    npx --yes pnpm@11.25.0 exec tsc --noEmit
    npx --yes pnpm@11.25.0 run lint
@@ -22,21 +35,22 @@ Unzipping replaces matching source files in place; it does not create another ap
    npx --yes pnpm@11.25.0 run build
    node scripts/check-pwa.mjs
 
-4. Only after all checks pass, run separately:
+4. Only after all checks pass:
 
-   git rm CoachLoop-v83-GitHub-Update.zip
-   git add app tests UPDATE-INSTRUCTIONS.txt V83-UPDATE-NOTES.md
+   git rm CoachLoop-v83-Repo-Cleanup.zip
+   git add README.md UPDATE-INSTRUCTIONS.txt REPOSITORY-CLEANUP.md scripts/cleanup-repo.mjs
    git --no-pager diff --cached --stat
-   git commit -m "Improve v83 coverage colours and installed workout header spacing"
+   git commit -m "Refresh user README and remove unused Coach Loop templates"
    git push
 
-   Review the staged list: no personal backups, dist or node_modules.
+   The cleanup script already staged the 64 deletions. The git add command stages
+   all four files supplied in this ZIP. Review the list before committing.
+   No personal backup, dist or node_modules should appear.
 5. GitHub → Actions → newest Publish Coach Loop PWA run: wait for green success.
-6. Open your existing installed app online, finish any workout and wait for Saved.
-   Settings → Check updates → wait for Restart to update → tap it.
-   Close other Coach Loop windows if requested. Confirm v83 in Settings.
-   Closing all app windows and reopening online remains a fallback. Do not clear website data.
-7. Run the device checks in V83-UPDATE-NOTES.md, especially portrait header,
-   rest-timer alignment, keyboard open, and coverage selection across themes.
+6. In your installed app, finish/save any workout. Settings → Check updates →
+   Restart to update when available. Release still says v83; the build changes.
+   Check Today, Coach, Progress and Settings, then the workout header/rest timer.
 
-The large JavaScript chunk warning is non-blocking when the build succeeds.
+The deletions are recorded in Git history and can be recovered. Browser log data
+is not stored in these repository files. This package does not remove workouts,
+goals or backups from your phone. Do not clear website data to update.
