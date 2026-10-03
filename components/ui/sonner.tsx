@@ -33,6 +33,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       {...props}
+      offset={{ top: "calc(var(--app-safe-top, 0px) + 16px)", left: "max(16px, env(safe-area-inset-left, 0px))", right: "max(16px, env(safe-area-inset-right, 0px))", bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+      mobileOffset={{ top: "calc(var(--app-safe-top, 0px) + 16px)", left: "max(12px, env(safe-area-inset-left, 0px))", right: "max(12px, env(safe-area-inset-right, 0px))", bottom: "calc(env(safe-area-inset-bottom, 0px) + 90px)" }}
     />
   )
 }
