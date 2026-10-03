@@ -20,7 +20,13 @@ test('all real tab screens open repeatedly with offline network state and unique
    const button=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent===name);assert.ok(button,name);
    button.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));button.dispatchEvent(new MouseEvent('click',{bubbles:true,button:0}));
    await wait(40);assert.equal(button.getAttribute('aria-selected'),'true',name);assert.ok(document.querySelector('[role="tabpanel"][data-state="active"]'),`${name} content opens`);assert.equal(document.body.textContent.includes('Opening view…'),false);
+   assert.equal([...document.querySelectorAll('button')].filter(b=>b.textContent==='Check updates').length,name==='Settings'?1:0,'update control belongs only in Settings');
   }
+  const settings=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Settings');settings.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
+  const before=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(before.at(-1),'water_polo');
+  document.querySelector('[aria-label="Move Water polo earlier"]').click();await wait(80);
+  const after=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(after.at(-2),'water_polo');assert.equal(after.at(-1),'yoga');
+  const saved=await require('../app/persistence/training-storage.ts').loadTrainingState();assert.deepEqual(saved.settings.quickLogActivities.slice(-2),['water_polo','yoga']);
   const ids=[...document.querySelectorAll('[id]')].map(e=>e.id);assert.equal(new Set(ids).size,ids.length,'no duplicate accessibility IDs');
  }finally{app.unmount();await wait(30);dom.window.close();}
 });

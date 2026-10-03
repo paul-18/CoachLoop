@@ -13,7 +13,7 @@ export function weeklyCards(state: TrainingState) {
       const lifts = state.workouts.filter(workout => workout.status === "completed" && dateInWindow(workout.date, 7)).map(workout => ({ date: workout.date, ...workoutLiftingVolume(workout, state.settings.defaultUnit) }));
       const volume = lifts.reduce((sum, lift) => sum + lift.volume, 0);
       const sets = lifts.reduce((sum, lift) => sum + lift.countedSets, 0);
-      return { id, title, value: `${Math.round(volume).toLocaleString()} ${state.settings.defaultUnit}·reps`, detail: `${sets} loaded sets · excludes bodyweight`, dates: [...new Set(lifts.filter(lift => lift.countedSets > 0).map(lift => lift.date))] };
+      return { id, title, value: `${Math.round(volume).toLocaleString()} ${state.settings.defaultUnit} × reps`, detail: `${sets} loaded sets · excludes BW`, dates: [...new Set(lifts.filter(lift => lift.countedSets > 0).map(lift => lift.date))] };
     }
     const start = new Date(); start.setDate(start.getDate() - 6);
     const rows = activityRows(state, id, localDate(start), localDate());

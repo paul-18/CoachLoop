@@ -207,7 +207,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .trend-bodyweight-toggle.active { border-color: rgba(255,184,77,.46); background: rgba(255,184,77,.14); color: #ffd498; }
 .coverage-panel { overflow: hidden; }
 .coverage-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }.coverage-heading h2 { margin-top: 5px; font-size: 1.2rem; font-weight: 920; letter-spacing: -.045em; }
-.coverage-scale { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.35); font-size: .66rem; font-weight: 750; }.coverage-scale i { display: block; width: 52px; height: 7px; border-radius: 999px; background: linear-gradient(90deg,#334b5d,#47777c,#9bbd65); }
+.coverage-scale { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.35); font-size: .66rem; font-weight: 750; }.coverage-scale i { display: block; width: 52px; height: 7px; border-radius: 999px; background: linear-gradient(90deg,#323b3b,hsl(203 60% 31%),hsl(203 60% 65%)); }
 .coverage-illustration { display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; background: radial-gradient(ellipse at 50% 45%,rgba(83,111,101,.13),rgba(0,0,0,.12) 70%); padding: 10px 5px 3px; }
 .coverage-body-map { display: block; width: min(100%,430px); height: auto; margin-inline: auto; }
 .coverage-body-map text { fill: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .16em; }.anatomy-silhouette { fill: #282d2c; stroke: #69726e; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle,.anatomy-neutral { stroke: #1b2321; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle { cursor: pointer; transition: fill .18s ease, stroke .18s ease, filter .18s ease; }.anatomy-muscle:hover,.anatomy-muscle:focus { filter: brightness(1.25); stroke: #d8e4d4; outline: none; }.anatomy-muscle.selected { stroke: #f0f8e5; stroke-width: 7; filter: brightness(1.13); }
@@ -833,3 +833,12 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .reliability-bar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 14px; font-size:.8rem; border-bottom:1px solid #ffffff18; }
 
 @media (pointer: coarse) { [data-slot="button"] { min-height:44px; } [data-slot="button"][data-size^="icon"] { min-width:44px; } }
+
+/* The normal app has no visible mobile header: inset the complete document once.
+   Fixed workout/Hyrox headers have their own insets and stay outside this shell. */
+.app-main { padding-top: env(safe-area-inset-top, 0px); }
+@media (max-width: 767px) {
+  .app-main .page-stack { padding-top:22px; }
+  .app-main .today-stack { padding-top:28px; }
+}
+.anatomy-face, .anatomy-neck { fill:#282d2c; stroke:#69726e; }

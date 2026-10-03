@@ -178,3 +178,13 @@ test('deliberate update saves first, rejects another window and reloads exactly 
   allow=true;let saved=false;await api.applyUpdate(async()=>{saved=true;});assert.equal(saved,true);assert.equal(reloads,1);
   for(const fn of [...(listeners.get('controllerchange')??[])])fn();assert.equal(reloads,1);
 });
+
+test('complete restore commits before display replacement and preserves the pre-restore checkpoint', async () => {
+  localEnvironment();const h=hooks(), checkpoints=[];let durable=types.defaultState(),rejectWrite=false;
+  durable.goals=['Current'];durable.goalsUpdatedAt='2026-10-03T12:00:00.000Z';
+  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>durable,saveTrainingState:async(state)=>{if(rejectWrite && state.goals.includes('Backup'))throw new Error('Storage full');durable=structuredClone(state);},saveSnapshot:async(state)=>checkpoints.push(structuredClone(state))}});
+  let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};render();await settle(h,render);
+  const backup=types.defaultState();backup.goals=['Backup'];backup.goalsUpdatedAt='2026-09-01T12:00:00.000Z';
+  rejectWrite=true;await assert.rejects(api.restoreBackup(backup,false,'replace'),/Storage full/);render();assert.deepEqual(api.state.goals,['Current']);assert.deepEqual(durable.goals,['Current']);
+  rejectWrite=false;await api.restoreBackup(backup,false,'replace');render();assert.deepEqual(api.state.goals,['Backup']);assert.deepEqual(durable.goals,['Backup']);assert.deepEqual(checkpoints.at(-1).goals,['Current']);
+});

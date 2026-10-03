@@ -1,5 +1,6 @@
+import { orderedQuickLogOptions } from "../domain/quick-log-order";
 import { useStorageHealth } from "../pwa/use-storage-health";
-import { parseBackup, recoverDeleted, backupChanges, MAX_BACKUP_BYTES } from "../persistence/backup-tools";
+import { parseBackup, restoredState, backupChanges, MAX_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
 import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -27,11 +28,11 @@ import { DisplayPreferences } from "./display-preferences";
 import { APP_RELEASE } from "../app-release";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 
-import { mergeRestoredState, type SyncStatus } from "../persistence/cloud-sync";
+import { type SyncStatus } from "../persistence/cloud-sync";
 
 
 import { listSnapshots, loadSnapshot, type TrainingSnapshot } from "../persistence/training-storage";
-import { DEFAULT_QUICK_LOG_ACTIVITIES, QUICK_LOG_OPTIONS, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
+import { DEFAULT_QUICK_LOG_ACTIVITIES, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
 
 import { DecimalInput, shareTextFile, downloadText } from "./shared";
 import { validMeasurementDate } from "../domain/training-workflow";
@@ -64,7 +65,7 @@ function ConflictReviewItem({ conflict, onResolve }: { conflict: FieldConflict; 
   </div>;
 }
 
-export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean }) {
+export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady, release, localSaveStatus, updateBlocked, onCheckUpdates, onApplyUpdate }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean, mode?: RestoreMode) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean; release?: string | null; localSaveStatus?: "saving" | "saved" | "error"; updateBlocked?: boolean; onCheckUpdates?: () => Promise<void>; onApplyUpdate?: () => Promise<void> }) {
   useEffect(() => {
     if (!openSection) return;
     const target = document.getElementById(openSection);
@@ -78,6 +79,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const fileRef = useRef<HTMLInputElement>(null);
   const [snapshots, setSnapshots] = useState<TrainingSnapshot[]>([]);
   const [installed, setInstalled] = useState(false);
+  const [restoreMode, setRestoreMode] = useState<RestoreMode>("merge");
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
   useEffect(() => { void listSnapshots().then(setSnapshots).catch(() => undefined); }, []);
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
@@ -105,34 +107,41 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const restore = async (file: File) => {
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 10 MB limit");
-      setRestoreCandidate(parseBackup(await file.text()));
-      setRecover(false);
+      setRestoreMode("merge"); setRecover(false); setRestoreCandidate(parseBackup(await file.text()));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
     }
   };
-  const restorePreview = restoreCandidate ? mergeRestoredState(canonicalState, recover ? recoverDeleted(canonicalState, restoreCandidate) : restoreCandidate) : null;
+  const restorePreview = restoreCandidate ? restoredState(canonicalState, restoreCandidate, restoreMode, recover) : null;
   const restoreAdditions = restorePreview?.workouts.filter((workout) => !canonicalState.workouts.some((item) => item.id === workout.id)).length ?? 0;
   const restoreRemovals = canonicalState.workouts.filter((workout) => !restorePreview?.workouts.some((item) => item.id === workout.id)).length;
   const changes = restorePreview ? backupChanges(canonicalState, restorePreview) : null;
   return (
     <div className="page-stack">
       <section className="topline"><div><h1>Settings</h1></div></section>
-      <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open) setRestoreCandidate(null); }}><DialogContent className="border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Adds {restoreAdditions} workouts; removes {restoreRemovals} workouts according to backup deletion records. Changes {changes?.changed ?? 0} existing workouts. Other changed sections: {changes?.sections.join(", ") || "none"}. Current data is snapshotted before applying.</DialogDescription></DialogHeader><label className="flex min-h-11 items-center gap-3"><Checkbox checked={recover} onCheckedChange={value => setRecover(value === true)} />Recover deleted records with new IDs</label><p className="text-sm text-white/60">Use recovery only for accidental deletions. Ordinary merge keeps deletion protection.</p><DialogFooter><Button disabled={restoring} variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button disabled={restoring} onClick={async () => { if (!restoreCandidate) return; setRestoring(true); try { await onRestoreBackup(restoreCandidate, recover); setRestoreCandidate(null); toast.success("Backup merged and saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Restore could not be saved; original log retained"); } finally { setRestoring(false); } }}>{restoring ? "Saving…" : "Merge backup"}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open && !restoring) setRestoreCandidate(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Choose how to restore. A recovery copy of the current log is saved before applying either option.</DialogDescription></DialogHeader>
+        <label className="field-label">Restore method<NativeSelect aria-label="Restore method" value={restoreMode} disabled={restoring} onChange={event => { setRestoreMode(event.target.value as RestoreMode); setRecover(false); }}><NativeSelectOption value="merge">Merge — keep newer changes</NativeSelectOption><NativeSelectOption value="replace">Complete restore — use backup only</NativeSelectOption></NativeSelect></label>
+        <p className="text-sm text-white/65">{restoreMode === "replace" ? "Replaces the current workouts, goals, coach profile, measurements and settings with exactly what is in the backup. Current records absent from the backup are removed." : "Combines both logs. Newer local goals, profile and measurements can win over older backup values."}</p>
+        <p className="text-sm text-white/65">Adds {restoreAdditions} workouts; removes {restoreRemovals}; changes {changes?.changed ?? 0} existing workouts. Other changed sections: {changes?.sections.join(", ") || "none"}.</p>
+        <p className="text-sm text-white/65">After restore: {restorePreview?.goals.length ?? 0} goals, {restorePreview?.bodyweightEntries.length ?? 0} bodyweight entries; coach profile {restorePreview?.coachProfile?.trim() ? "included" : "empty"}.</p>
+        {restoreMode === "merge" && <><label className="flex min-h-11 items-center gap-3"><Checkbox checked={recover} disabled={restoring} onCheckedChange={value => setRecover(value === true)} />Recover deleted records with new IDs</label><p className="text-sm text-white/60">Use recovery only for accidental deletions. Ordinary merge keeps deletion protection.</p></>}
+        <DialogFooter><Button disabled={restoring} variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button disabled={restoring} onClick={async () => { if (!restoreCandidate) return; setRestoring(true); try { await onRestoreBackup(restoreCandidate, recover, restoreMode); setRestoreCandidate(null); toast.success("Backup restored and saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Restore could not be saved; original log retained"); } finally { setRestoring(false); } }}>{restoring ? "Saving…" : restoreMode === "replace" ? "Complete restore" : "Merge backup"}</Button></DialogFooter></DialogContent></Dialog>
       {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">This backup contains unresolved edits. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
       <section className="settings-panel">
         <div className="settings-title"><div><h2>On this device</h2></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <p className="text-sm text-white/65">Workouts save to this phone’s browser storage. Download a JSON backup regularly from below; this edition does not sync between devices.</p>
         <p className="mt-2 text-sm text-white/60">Storage protection: {health.persisted === true ? "Persistent storage granted" : health.persisted === false ? "Best-effort storage; keep an external backup" : "Status unavailable; keep an external backup"}{health.usage !== undefined && health.quota ? ` · ${(health.usage / 1048576).toFixed(1)} MB used of ${(health.quota / 1048576).toFixed(0)} MB estimated quota` : ""}</p><details className="settings-sync-details"><summary>Offline files</summary><p>{offlineReady === "ready" ? "Ready for offline use" : offlineReady === "failed" ? "Could not be prepared yet; open while online and try again" : "Preparing…"}</p></details>
-        {updateReady && <div role="status" className="mt-3 rounded-xl border border-sky-300/15 bg-sky-300/[0.045] px-4 py-3"><p className="text-sm font-bold text-sky-100">Update downloaded</p><p className="mt-1 text-sm text-white/65">Finish your workout and wait for local saving to complete. Use Restart to update in the status bar. If another window is open, close it first.</p></div>}
+        <p className="mt-3 text-sm" role="status">{localSaveStatus === "error" ? "Latest changes are not saved" : localSaveStatus === "saving" ? "Saving…" : "Saved on this device"} · {APP_RELEASE}{release ? ` · ${release.split(":").at(-1)?.slice(0, 8)}` : ""}</p>
+        <div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" disabled={!onCheckUpdates} onClick={() => void onCheckUpdates?.().then(() => toast("Update check requested")).catch(() => toast.error("Update check failed; try online"))}>Check updates</Button>{updateReady && <Button disabled={updateBlocked || !onApplyUpdate} onClick={() => void onApplyUpdate?.().catch(error => toast.error(error instanceof Error ? error.message : "Update failed; try again"))}>Restart to update</Button>}</div>
+        {updateReady && <p className="mt-2 text-sm text-white/65">Update downloaded. Finish your workout, save and close any editor, then restart here. Close other Coach Loop windows first.</p>}
       </section>
       <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Colors, shortcuts, and Progress layout</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">
         <DisplayPreferences settings={state.settings} onUpdate={updateSettings} />
         <label className="field-label block">Strength coverage visual<NativeSelect aria-label="Strength coverage visual" value={state.settings.bodyDiagram ?? "male"} onChange={event => updateSettings(settings => ({ ...settings, bodyDiagram: event.target.value as "male" | "female" }))} className="mt-2 w-full"><NativeSelectOption value="male">Male</NativeSelectOption><NativeSelectOption value="female">Female</NativeSelectOption></NativeSelect><small className="mt-2 block text-white/55">Changes the diagram only. Your logged sets, coverage calculations, profile, and goals stay the same.</small></label>
-        <div><h3 className="font-bold">Quick-log activities</h3><p className="mt-1 text-sm text-white/60">Select the buttons you want on Today. Hiding a button keeps its history and import support.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{QUICK_LOG_OPTIONS.map(option => {
+        <div><h3 className="font-bold">Quick-log activities</h3><p className="mt-1 text-sm text-white/60">Select the buttons you want on Today. Hiding a button keeps its history and import support.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{orderedQuickLogOptions(state.settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES).map(option => {
           const selected = state.settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
           const index = selected.indexOf(option.type);
-          return <div key={option.type} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3"><label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3"><Checkbox checked={index >= 0} onCheckedChange={checked => updateSettings(settings => { const current = settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES; return { ...settings, quickLogActivities: checked === true ? [...current.filter(type => type !== option.type), option.type] : current.filter(type => type !== option.type) }; })} />{option.label}</label>{index >= 0 && <><Button variant="ghost" size="icon" disabled={index === 0} aria-label={`Move ${option.label} earlier`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return { ...settings, quickLogActivities: next }; })}><ChevronUp /></Button><Button variant="ghost" size="icon" disabled={index === selected.length - 1} aria-label={`Move ${option.label} later`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return { ...settings, quickLogActivities: next }; })}><ChevronDown /></Button></>}</div>;
+          return <div key={option.type} data-quick-log={option.type} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3"><label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3"><Checkbox checked={index >= 0} onCheckedChange={checked => updateSettings(settings => { const current = settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES; return { ...settings, quickLogActivities: checked === true ? [...current.filter(type => type !== option.type), option.type] : current.filter(type => type !== option.type) }; })} />{option.label}</label>{index >= 0 && <><Button variant="ghost" size="icon" disabled={index === 0} aria-label={`Move ${option.label} earlier`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return { ...settings, quickLogActivities: next }; })}><ChevronUp /></Button><Button variant="ghost" size="icon" disabled={index === selected.length - 1} aria-label={`Move ${option.label} later`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return { ...settings, quickLogActivities: next }; })}><ChevronDown /></Button></>}</div>;
         })}</div><Button variant="outline" className="mt-3" onClick={() => updateSettings(settings => ({ ...settings, quickLogActivities: [...DEFAULT_QUICK_LOG_ACTIVITIES] }))}>Restore default shortcuts</Button></div>
       </div></details>
       <section className="settings-panel">

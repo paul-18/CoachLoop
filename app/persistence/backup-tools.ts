@@ -1,4 +1,6 @@
 import { uid, type TrainingState } from "../domain/training-types";
+import { mergeRestoredState } from "./cloud-sync";
+import { validateSyncedState } from "./training-validation";
 import { prepareLoadedState } from "./migrations";
 export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
 export function parseBackup(text: string): TrainingState {
@@ -35,4 +37,12 @@ export function backupChanges(current: TrainingState, merged: TrainingState) {
     changed: merged.workouts.filter(w => { const prior = current.workouts.find(p => p.id === w.id); return prior && JSON.stringify(prior) !== JSON.stringify(w); }).length,
     sections: (["settings", "goals", "coachProfile", "bodyweightEntries", "waistEntries", "benchmarks", "exerciseAliases", "exerciseMuscleOverrides", "scheduleContext"] as const).filter(key => JSON.stringify(current[key]) !== JSON.stringify(merged[key])),
   };
+}
+
+export type RestoreMode = "merge" | "replace";
+/** Replacement preserves the backup itself; merging retains newer local revisions. */
+export function restoredState(current: TrainingState, backup: TrainingState, mode: RestoreMode = "merge", recover = false): TrainingState {
+  const checked = validateSyncedState(backup);
+  if (mode === "replace") return structuredClone(checked);
+  return validateSyncedState(mergeRestoredState(current, recover ? recoverDeleted(current, checked) : checked));
 }

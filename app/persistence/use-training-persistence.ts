@@ -2,9 +2,8 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { defaultState, type TrainingState } from "../domain/training-types";
-import { recoverDeleted } from "./backup-tools";
+import { restoredState, type RestoreMode } from "./backup-tools";
 import { prepareLoadedState } from "./migrations";
-import { mergeRestoredState } from "./cloud-sync";
 import { resolveFieldConflict } from "./field-conflicts";
 import { validateLocalState, validateSyncedState } from "./training-validation";
 import { loadTrainingState, resetTrainingData, saveSnapshot, saveTrainingState } from "./training-storage";
@@ -94,15 +93,14 @@ export function useTrainingPersistence() {
     do { candidate = latestStateRef.current; await saveTrainingState(candidate); } while (candidate !== latestStateRef.current);
     setLocalSaveStatus("saved");
   };
-  const restoreBackup = async (backup: TrainingState, recover = false) => {
+  const restoreBackup = async (backup: TrainingState, recover = false, mode: RestoreMode = "merge") => {
     if (operation.current) throw new Error("Recovery is already running");
     operation.current = true; setBusy(true);
     try {
       validateSyncedState(backup);
       await saveTrainingState(latestStateRef.current);
       await saveSnapshot(latestStateRef.current, "before-restore");
-      const candidate = recover ? recoverDeleted(latestStateRef.current, backup) : backup;
-      const next = validateSyncedState(mergeRestoredState(latestStateRef.current, candidate));
+      const next = restoredState(latestStateRef.current, backup, mode, recover);
       await saveTrainingState(next);
       latestStateRef.current = next;
       setReactState(next);

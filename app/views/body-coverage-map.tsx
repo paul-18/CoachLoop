@@ -8,7 +8,7 @@ import type { MuscleCoverage, MuscleGroup } from "../domain/training-coverage";
 export const coverageColor = (entry: MuscleCoverage) => {
   if (!entry.effectiveSets) return "#323b3b";
   const level = Math.min(1, entry.effectiveSets / 10);
-  return `hsl(${203 - level * 113} 52% ${31 + level * 23}%)`;
+  return `hsl(203 60% ${31 + level * 34}%)`;
 };
 
 // Keep labels tied to Coach Loop's existing strength-only mapping.

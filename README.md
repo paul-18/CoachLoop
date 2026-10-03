@@ -269,7 +269,7 @@ Open the installed app while online, then check **Settings → On this device �
 <details>
 <summary><b>I lost my data.</b></summary>
 
-If you have a JSON backup, use **Settings → Restore JSON backup**. If a workout was accidentally deleted, enable **Recover deleted records with new IDs** in the restore preview. Ordinary restore preserves deletion protection. Without an external backup, data cleared from browser storage cannot be recovered, so back up regularly.
+If you have a JSON backup, use **Settings → Restore JSON backup**. Choose **Merge** to combine records and keep newer changes, or **Complete restore** to replace workouts, goals, profile, measurements and settings with the backup. Complete restore removes current records absent from that backup; a recovery copy is saved first. If a workout was accidentally deleted, use **Merge** with **Recover deleted records with new IDs** in the restore preview. Ordinary restore preserves deletion protection. Without an external backup, data cleared from browser storage cannot be recovered, so back up regularly.
 </details>
 
 <details>
@@ -282,7 +282,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-Open the app online periodically. Updates are checked on return to the foreground, or tap **Check updates** above the tabs.
+Open the app online periodically. Updates are checked on return to the foreground, or open **Settings → On this device → Check updates**.
 
 When **Restart to update** appears, finish any active workout, close the editor and wait for **Saved on this device**. Tap it for one intentional restart. Another open Coach Loop window must be closed first. The app does not automatically restart during a workout.
 
