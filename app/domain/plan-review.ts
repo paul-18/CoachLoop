@@ -1,10 +1,16 @@
 import { formatLoad, performedDistance, performedDuration, performedReps, performedWeight } from "./training-metrics";
-import type { WorkoutSession } from "./training-types";
+import { localDate, type WorkoutSession } from "./training-types";
 import { validMeasurementDate } from "./training-workflow";
 
 export function reschedulePlannedWorkout(workout: WorkoutSession, date: string, updatedAt: string): WorkoutSession {
   if (workout.status !== "planned" || !validMeasurementDate(date)) throw new Error("Choose a valid date for a saved plan.");
   return { ...workout, date, updatedAt };
+}
+
+/** Correct the calendar date without rewriting when work was actually saved. */
+export function changeWorkoutDate(workout: WorkoutSession, date: string, today = localDate()): WorkoutSession {
+  if (!validMeasurementDate(date) || (workout.status !== "planned" && date > today)) throw new Error("Choose a valid workout date up to today.");
+  return { ...workout, date };
 }
 
 /** Only compare completed work that had an actual prescription. Unfinished work has its own review. */

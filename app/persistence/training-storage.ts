@@ -1,5 +1,6 @@
 import { uid, type TrainingState } from "../domain/training-types";
 
+import { validateSyncedState } from "./training-validation";
 const DB_NAME = "coach-loop";
 const DB_VERSION = 3;
 const STATE_STORE = "app";
@@ -78,6 +79,7 @@ export const loadTrainingState = async (): Promise<TrainingState | null> => {
 
 let pendingSave: Promise<unknown> = Promise.resolve();
 export const saveTrainingState = (state: TrainingState) => {
+  validateSyncedState(state);
   const snapshot = structuredClone(state);
   // Keep rapid edits in order, and do not report success before the transaction commits.
   const saved = pendingSave.catch(() => undefined).then(() =>
@@ -105,6 +107,7 @@ export const saveSyncMeta = async (meta: SyncMeta) => {
 
 /** State and its acknowledged cloud revision become visible in one transaction. */
 export const saveStateAndSyncMeta = (state: TrainingState, meta: SyncMeta): Promise<void> => {
+  validateSyncedState(state);
   const snapshot = structuredClone(state);
   const metadata = structuredClone(meta);
   const saved = pendingSave.catch(() => undefined).then(async () => {
@@ -136,8 +139,14 @@ export const getDeviceId = async (): Promise<string> => {
 export const loadConflictOverrides = async (): Promise<Record<string, unknown>> =>
   (await transact<Record<string, unknown> | undefined>(DEVICE_STORE, "readonly", (store) => store.get("conflict-overrides"))) ?? {};
 
-export const saveConflictOverrides = async (overrides: Record<string, unknown>): Promise<void> => {
-  await transact(DEVICE_STORE, "readwrite", (store) => store.put(structuredClone(overrides), "conflict-overrides"));
+let pendingOverrideSave: Promise<unknown> = Promise.resolve();
+export const saveConflictOverrides = (overrides: Record<string, unknown>): Promise<void> => {
+  const snapshot = structuredClone(overrides);
+  const saved = pendingOverrideSave.catch(() => undefined).then(async () => {
+    await transact(DEVICE_STORE, "readwrite", (store) => store.put(snapshot, "conflict-overrides"));
+  });
+  pendingOverrideSave = saved;
+  return saved;
 };
 
 export const reconcileConflictOverrides = async (pendingIds: string[]): Promise<Record<string, unknown>> => {

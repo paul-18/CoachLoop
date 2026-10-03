@@ -1,3 +1,5 @@
+/* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Timer } from "lucide-react";
@@ -61,7 +63,7 @@ export function HyroxWorkout({ workout, onUpdate, onFinish, onBack, onDiscard, u
   const index = hyroxCurrentIndex(session);
   const current = session.segments[index];
   const editing = Boolean(workout.completedAt);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [awake, setAwake] = useState(false);
   const lastTap = useRef(0);
   useEffect(() => { const handle = window.setInterval(() => setNow(Date.now()), 500); return () => clearInterval(handle); }, []);

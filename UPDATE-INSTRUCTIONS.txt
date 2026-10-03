@@ -1,40 +1,52 @@
-Coach Loop update — first-use guidance and profile editing
+COACH LOOP v79 GITHUB UPDATE
 
-Based on GitHub main commit 0819d15a7f72559218c99e22b662352bc00ef932.
-This archive contains only the changed source files and new focused tests.
+This ZIP is an update package for paul-18/CoachLoop at commit
+97a10f4c26660854f4674ba36cce4ad2e6be06b0 (the onboarding update).
+It replaces matching source files and adds new ones in the existing app.
+It has no extra enclosing folder and does not create another app.
 
-What changed
-- A compact first-use guide on Today, History, Coach, and Progress until the first completed workout.
-- Links directly to the coach profile and ranked goals in Settings.
-- An example import that opens for review without silently adding training history.
-- Your ranked goals on Coach, with a direct Edit goals button.
-- Larger profile editor with Save/Cancel, readable phone-sized text, and a scrolling inline editor.
-- Multiline ranked goals instead of narrow one-line fields.
-- First coach brief defaults to Start a new chat.
-- A second window now waits for the editor lock and opens automatically when available.
-  One writable window is still enforced to protect the shared full-log saves.
+1. In the live app, download a full JSON backup and save it somewhere private.
+   Do not upload that backup to the public GitHub repository.
+2. Upload CoachLoop-v79-GitHub-Update.zip to the repository's main folder
+   (the folder containing package.json and README.md), and commit the upload.
+3. Open the existing Codespace terminal in /workspaces/CoachLoop.
+4. Run each command below separately. Wait for it to finish.
 
-Verified: typecheck, 55 tests, and the static PWA production build.
-Limit: actual iPhone layout and Safari lifecycle testing have not been performed.
-No dependency, lockfile, publishing workflow, or storage schema changes.
+   git status --short
 
-Upload and publish using your existing Codespace
-1. Upload CoachLoop-Update.zip to the GitHub repository root and commit it.
-2. Open the existing Codespace terminal. If git status shows uncommitted work, preserve it before pulling.
-3. Run these commands one at a time:
+   If this lists changed files, preserve that work before continuing.
+   If it prints nothing:
 
    git pull --ff-only
-   unzip -o CoachLoop-Update.zip
+   unzip -o CoachLoop-v79-GitHub-Update.zip
+   npx --yes pnpm@11.25.0 install --frozen-lockfile
+   npx --yes pnpm@11.25.0 exec tsc --noEmit
+   npx --yes pnpm@11.25.0 run lint
+   npx --yes pnpm@11.25.0 run test
    npx --yes pnpm@11.25.0 run build
+   node scripts/check-pwa.mjs
 
-4. If the build succeeds, run:
+5. Only after every check succeeds, run these separately:
 
-   rm CoachLoop-Update.zip
-   git add app tests CoachLoop-Update.zip
-   git commit -m "Improve first-use guidance, goals, and profile editing"
+   rm CoachLoop-v79-GitHub-Update.zip
+   git add app tests scripts .github/workflows/pages.yml package.json eslint.config.mjs README.md UPDATE-INSTRUCTIONS.txt V79-UPDATE-NOTES.md CoachLoop-v79-GitHub-Update.zip
+   git diff --cached --stat
+   git commit -m "Port Coach Loop v79 and add customizable coverage and quick log"
    git push
 
-5. Check the newest Publish Coach Loop PWA run in Actions.
-6. Open the phone app online. Finish saving, then close and reopen when Update downloaded appears.
+6. In GitHub, open Actions and check the newest Publish Coach Loop PWA run.
+   It now checks types, lint, tests, the build, and offline assets before deploying.
+7. Open the live app online. Finish any workout and wait for local saving.
+   Close all Coach Loop Safari/PWA windows, then reopen. Settings shows v79.
+8. Settings -> Appearance & quick log:
+   - Select the male or corrected female strength-coverage visual.
+   - Show/hide quick-log activities, including Water polo.
+   - Use the arrows to change their order. Restore default shortcuts resets them.
+   Profile/goals editing uses Save/Cancel. Ranked goals remain visible in Coach.
 
-Keep your JSON backup separately. Do not replace the entire repository with an older app ZIP.
+The same live URL is used. GitHub Pages stays local-only, with no Sites database
+or automatic cross-device sync. Your existing on-device log should remain;
+keep its backup. Do not clear Safari storage to refresh the app.
+
+Large-chunk warnings are non-blocking if the command completes successfully.
+If any command fails, stop before committing and share its error output.

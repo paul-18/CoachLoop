@@ -5,6 +5,9 @@ import { validateLocalState } from "./training-validation";
 
 export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error";
 
+export const statusAfterCloudCheck = (local: TrainingState, lastSyncedHash: string | null): SyncStatus =>
+  stateHash(local) === lastSyncedHash ? "synced" : "saving";
+
 export type CloudSnapshot = {
   state: TrainingState | null;
   revision: number;
@@ -217,10 +220,11 @@ export const putCloudSnapshot = async (
   return { state, revision: result.revision, updatedAt: result.updatedAt, generation: result.generation };
 };
 
-/** Upload precisely the state that first completed an IndexedDB transaction. */
-export async function persistThenUpload(state: TrainingState, expectedRevision: number, generation: string): Promise<CloudSnapshot> {
+/** Persist local evidence before uploading. A background merge may upload an older candidate,
+ * but must persist the latest local edits rather than overwrite them with that candidate. */
+export async function persistThenUpload(state: TrainingState, expectedRevision: number, generation: string, persistLocal?: () => Promise<unknown>): Promise<CloudSnapshot> {
   const candidate = structuredClone(state);
-  await saveTrainingState(candidate);
+  await (persistLocal ? persistLocal() : saveTrainingState(candidate));
   return putCloudSnapshot(candidate, expectedRevision, generation);
 }
 

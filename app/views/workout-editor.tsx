@@ -1,7 +1,9 @@
+/* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { Activity, ArrowLeft, Check, ChevronDown, ChevronUp, CopyPlus, Dumbbell, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -16,15 +18,17 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea";
 
 import { ExerciseSubstitution } from "./exercise-substitution";
-import { moveBlockLater, substituteExercise, incrementKey } from "../domain/training-workflow";
+import { moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues } from "../domain/training-workflow";
 import { activityEffortSummary, activityLoggingStyle, completeActivityEffort, makeActivityEffort } from "../domain/activity-logging";
 
 import { completedSetValues, convertWeight, completedActivityValues, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, workoutLiftingVolume } from "../domain/training-metrics";
 
-import { localDate, makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
+import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
 
 import { DecimalInput, formatDate, formatDuration, orderedWorkoutBlocks } from "./shared";
 import { normalizedBlockOrder } from "../domain/block-order";
+import { WorkoutDateDialog } from "./workout-date-dialog";
+import { workoutCompletionSummary } from "../domain/completion";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
@@ -59,7 +63,7 @@ function RestTimer({
   onChange: (value: number | null) => void;
   measureRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!restUntil) return;
     const tick = () => {
@@ -67,11 +71,14 @@ function RestTimer({
       setNow(time);
       if (time >= restUntil) onChange(null);
     };
+    tick();
+    const whenVisible = () => { if (document.visibilityState === "visible") tick(); };
     const timer = window.setInterval(tick, 250);
-    return () => window.clearInterval(timer);
+    document.addEventListener("visibilitychange", whenVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", whenVisible); };
   }, [restUntil, onChange]);
   if (!restUntil) return null;
-  const seconds = Math.ceil((restUntil - Math.max(now, Date.now())) / 1000);
+  const seconds = Math.ceil((restUntil - now) / 1000);
   if (seconds <= 0) return null;
   return (
     <div className="rest-timer" ref={measureRef}>
@@ -111,15 +118,14 @@ function PlateVisualizer({
   unit: Unit;
   barWeight: number;
 }) {
-  if (total === null || !Number.isFinite(total) || total < barWeight) return null;
+  if (total === null || !Number.isFinite(total) || total > 5000 || !Number.isFinite(barWeight) || barWeight < 0 || total < barWeight) return null;
   const available = unit === "lb" ? [45, 35, 25, 10, 5, 2.5, 1.25] : [25, 20, 15, 10, 5, 2.5, 1.25];
   let remaining = Math.max(0, (total - barWeight) / 2);
   const plates: number[] = [];
   for (const plate of available) {
-    while (remaining + 0.001 >= plate) {
-      plates.push(plate);
-      remaining -= plate;
-    }
+    const count = Math.min(24 - plates.length, Math.floor((remaining + 0.001) / plate));
+    for (let i = 0; i < count; i++) plates.push(plate);
+    remaining -= count * plate;
   }
 
   return (
@@ -172,13 +178,13 @@ function SetRow({
     <div className={`set-row compact-set-row ${set.completed ? "is-complete" : set.skipped ? "is-skipped" : ""} ${isNext ? "is-next" : ""}`} aria-label={isNext ? "Next unfinished set" : undefined}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="ghost" className="set-number" aria-label={`Options for set ${index + 1}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{set.warmup ? "W" : index + 1}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
+        <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} onCloseAutoFocus={(event) => event.preventDefault()} className="border-white/10 bg-[#20231e] text-white">
           <DropdownMenuItem className="min-h-11" onSelect={onSkip}>{set.skipped ? "Restore skipped set" : "Skip this set"}</DropdownMenuItem>
           {!!increment && set.loadType !== "bodyweight" && <><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(((set.actualWeight ?? set.plannedWeight ?? 0) + increment).toFixed(4)), loadType:"weighted"})}>+ {increment} {set.unit}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(Math.max(0,(set.actualWeight ?? set.plannedWeight ?? 0)-increment).toFixed(4)), loadType:"weighted"})}>− {increment} {set.unit}</DropdownMenuItem></>}
           {onMatchPrevious && <DropdownMenuItem className="min-h-11" onSelect={onMatchPrevious}><CopyPlus /> Match previous set</DropdownMenuItem>}
           <DropdownMenuItem className="min-h-11" onSelect={() => setNoteOpen(true)}>{set.notes ? "Edit set note" : "Add set note"}</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={onToggleWarmup}>{set.warmup ? "Mark as working set" : "Mark as warm-up"}</DropdownMenuItem>
-          {set.completed && <><DropdownMenuItem className="min-h-11" onSelect={() => { const unit: Unit = set.unit === "lb" ? "kg" : "lb"; const convert = (weight: number | null) => weight === null ? null : Number(convertWeight(weight, set.unit, unit).toFixed(4)); onChange({ unit, actualWeight: convert(set.actualWeight), plannedWeight: convert(set.plannedWeight) }); }}>Correct this set's unit to {set.unit === "lb" ? "kg" : "lb"}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({ loadType: "bodyweight", actualWeight: null, plannedWeight: null })}>Correct this set to bodyweight</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({ loadType: "weighted", weightMode: "added" })}>Correct this set to added load</DropdownMenuItem></>}
+          {set.completed && <><DropdownMenuItem className="min-h-11" onSelect={() => { const unit: Unit = set.unit === "lb" ? "kg" : "lb"; const convert = (weight: number | null) => weight === null ? null : Number(convertWeight(weight, set.unit, unit).toFixed(4)); onChange({ unit, actualWeight: convert(set.actualWeight), plannedWeight: convert(set.plannedWeight) }); }}>Convert this set to {set.unit === "lb" ? "kg" : "lb"}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({ unit: set.unit === "lb" ? "kg" : "lb" })}>Correct unit label to {set.unit === "lb" ? "kg" : "lb"} · keep numbers</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({ loadType: "bodyweight", actualWeight: null, plannedWeight: null })}>Correct this set to bodyweight</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({ loadType: "weighted", weightMode: "added" })}>Correct this set to added load</DropdownMenuItem></>}
           <DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}><Trash2 /> Remove set</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -199,6 +205,7 @@ function SetRow({
       <label className="set-input">
         <span>Reps</span>
         <Input
+          id={`reps-${set.id}`}
           inputMode="numeric"
           value={set.actualReps}
           onChange={(event) => onChange({ actualReps: event.target.value })}
@@ -254,7 +261,7 @@ function ExerciseEditor({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const latestExercise = useRef(exercise);
-  latestExercise.current = exercise;
+  useLayoutEffect(() => { latestExercise.current = exercise; }, [exercise]);
   const updateSet = (setId: string, changes: Partial<TrainingSet>) => {
     const changesActual = "actualWeight" in changes || "actualReps" in changes || "rpe" in changes || "rir" in changes;
     const updatedAt = new Date().toISOString();
@@ -299,7 +306,7 @@ function ExerciseEditor({
             value={exercise.name}
             onChange={(event) => onChange({ ...exercise, name: event.target.value, updatedAt: new Date().toISOString() })}
             aria-label="Exercise name"
-            className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-0"
+            className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-2"
           />
                     <details className="exercise-setup"><summary aria-label={`Rest interval and load settings; ${exercise.restSec} seconds`}><strong>{exercise.restSec}s</strong><small>rest</small><ChevronDown /></summary><div className="exercise-options-row">
           <label className="block text-xs font-bold text-white/55">
@@ -370,15 +377,10 @@ function ExerciseEditor({
               onChange={(changes) => updateSet(set.id, changes)}
               onToggleWarmup={() => updateSet(set.id, { warmup: !set.warmup })}
               onMatchPrevious={index > 0 ? () => {
-                const previousSet = exercise.sets[index - 1];
-                updateSet(set.id, {
-                  actualReps: previousSet.completedAsPlanned ? previousSet.plannedReps : previousSet.actualReps || previousSet.plannedReps,
-                  actualWeight: previousSet.completedAsPlanned ? previousSet.plannedWeight : previousSet.actualWeight ?? previousSet.plannedWeight,
-                  rpe: previousSet.rpe,
-                  rir: previousSet.rir,
-                  loadType: previousSet.loadType,
-                  weightMode: previousSet.weightMode,
-                });
+                const current = latestExercise.current;
+                const previousSet = current.sets[index - 1];
+                const target = current.sets.find((item) => item.id === set.id) ?? set;
+                updateSet(set.id, matchedPreviousSetValues(previousSet, target));
               } : undefined}
               onToggle={() => {
                 // A focused weight field commits on blur just before this click.
@@ -389,7 +391,13 @@ function ExerciseEditor({
                   toast.error("Enter reps before completing this set");
                   return;
                 }
-                const values = completing ? completedSetValues(currentSet) : null;
+                let values: ReturnType<typeof completedSetValues> | null = null;
+                try { values = completing ? completedSetValues(currentSet) : null; }
+                catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Enter the reps you performed");
+                  document.getElementById(`reps-${set.id}`)?.focus();
+                  return;
+                }
                 const clearingAcceptedPlan = !completing && currentSet.completedAsPlanned;
                 updateSet(set.id, {
                   completed: completing,
@@ -492,9 +500,9 @@ function CardioEditor({
             value={activity.name}
             onChange={(event) => update({ name: event.target.value })}
             aria-label="Activity name"
-            className="activity-title-input h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-0"
+            className="activity-title-input h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-2"
           />
-          <p className="mt-1 text-xs capitalize text-white/38">{activity.activityType === "other" ? "Custom activity" : activity.activityType}</p>
+          <p className="mt-1 text-xs capitalize text-white/38">{activity.activityType === "other" ? "Custom activity" : activity.activityType.replace("_", " ")}</p>
         </div>
         <div className="flex items-center gap-2">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
@@ -529,12 +537,12 @@ function CardioEditor({
           <div className="activity-effort-actions"><Button type="button" variant="ghost" onClick={() => update({ efforts: [...efforts, makeActivityEffort()], completed: false })}><Plus /> Add effort</Button><span>{efforts.filter((item) => item.completed).length}/{efforts.length} done</span></div>
           {efforts.length > 0 && <details className="activity-effort-plan"><summary>Edit prescription</summary><div>{efforts.map((effort, index) => <div key={effort.id} className="activity-effort-plan-row"><span>{index + 1}</span><label className="field-label">Metres<DecimalInput min={0} value={effort.plannedDistanceM} onValueChange={(plannedDistanceM) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDistanceM } : item) })} /></label><label className="field-label">Load<DecimalInput min={0} value={effort.plannedLoad} onValueChange={(plannedLoad) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedLoad } : item) })} /></label><label className="field-label">Seconds<DecimalInput min={0} value={effort.plannedDurationSec} onValueChange={(plannedDurationSec) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDurationSec } : item) })} /></label><Button type="button" variant="ghost" aria-label={`Remove effort ${index + 1}`} onClick={() => update({ efforts: efforts.filter((item) => item.id !== effort.id), completed: false })}><X /></Button></div>)}</div></details>}
         </div>}
-        {style === "routine" && activity.activityType !== "mobility" && <label className="field-label block">{["soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
+        {style === "routine" && activity.activityType !== "mobility" && <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
         <details className="activity-details"><summary>{activity.activityType === "mobility" ? "Activity options" : "More details"}{activity.intensity ? ` · ${activity.intensity}` : ""}</summary>
           <div className="activity-option-grid"><label className="field-label">Effort / 10 · optional<Input inputMode="decimal" value={activity.effort} placeholder="—" onChange={(event) => update({ effort: event.target.value }, true)} /></label>
-            <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => update({ activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined })} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20 capitalize">{(["run", "swim", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type}</NativeSelectOption>)}</NativeSelect></label>
+            <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => update({ activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined })} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20 capitalize">{(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label>
             <label className="field-label">Logging style<NativeSelect value={style} disabled={hasCompletedEfforts} onChange={(event) => update({ loggingStyle: event.target.value as CardioEntry["loggingStyle"], efforts: event.target.value === "efforts" ? efforts : [] })} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="single">One result</NativeSelectOption><NativeSelectOption value="routine">Routine</NativeSelectOption><NativeSelectOption value="efforts">Repeated efforts</NativeSelectOption></NativeSelect></label>
-            {activity.activityType === "ruck" && <label className="field-label">Pack unit<NativeSelect value={activity.ruckLoadUnit} onChange={(event) => update({ ruckLoadUnit: event.target.value as Unit }, true)} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>}
+            {activity.activityType === "ruck" && <label className="field-label">Pack unit<NativeSelect value={activity.ruckLoadUnit} onChange={(event) => update({ ruckLoadUnit: event.target.value as Unit, ruckLoad: activity.ruckLoad === null ? null : Number(convertWeight(activity.ruckLoad, activity.ruckLoadUnit, event.target.value as Unit).toFixed(4)) }, true)} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>}
             {style === "efforts" && <><label className="field-label">Effort load unit<NativeSelect value={activity.effortLoadUnit ?? "lb"} onChange={(event) => {
               const from = activity.effortLoadUnit ?? "lb";
               const to = event.target.value as Unit;
@@ -570,7 +578,7 @@ function CardioEditor({
           </div>
         ) : null}
         {(style !== "routine" || activity.activityType === "mobility") && <details className="log-notes"><summary>{activity.notes ? "Your notes" : "Add your notes"}</summary><Textarea aria-label="Your activity notes" value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder="Feel, pain, terrain — anything useful" className="mt-1 min-h-12 border-white/8 bg-black/20" /></details>}
-        <Button
+        {style !== "efforts" && <Button
           type="button"
           variant="outline"
           onClick={() => {
@@ -579,7 +587,7 @@ function CardioEditor({
             const clearingAcceptedPlan = !completing && activity.completedAsPlanned;
             update({
               completed: completing,
-              completedAsPlanned: style === "efforts" ? false : values?.completedAsPlanned ?? false,
+              completedAsPlanned: values?.completedAsPlanned ?? false,
               actualDurationMin: values ? values.actualDurationMin : clearingAcceptedPlan ? null : activity.actualDurationMin,
               actualDistanceKm: values ? values.actualDistanceKm : clearingAcceptedPlan ? null : activity.actualDistanceKm,
             });
@@ -588,7 +596,8 @@ function CardioEditor({
           className={activity.completed ? "border-[var(--lime)]/25 bg-[var(--lime)]/8 text-[var(--lime)]" : "border-white/10 bg-white/[0.025] text-white"}
         >
           <Check /> {activity.completed ? "Activity complete" : "Mark activity complete"}
-        </Button>
+        </Button>}
+        {style === "efforts" && <p className="text-xs text-white/50">Complete each effort above. Unfinished efforts stay incomplete when you finish the workout.</p>}
       </CardContent>
     </Card>
   );
@@ -620,6 +629,7 @@ export function WorkoutEditor({
   const [substitutionId, setSubstitutionId] = useState<string|null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const isEditingHistory = Boolean(workout.completedAt);
   const finishLabel = isEditingHistory ? "Finish editing" : "Finish workout";
   const restStorageKey = `coach-loop-rest-${workout.id}`;
@@ -637,7 +647,7 @@ export function WorkoutEditor({
     } catch { /* The live timer still works if browser storage is unavailable. */ }
   };
   const latestWorkout = useRef(workout);
-  latestWorkout.current = workout;
+  useLayoutEffect(() => { latestWorkout.current = workout; }, [workout]);
   const { keepAwakeRequested, setKeepAwakeRequested, wakeLockHeld } = useWakeLock();
   const shellRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -645,15 +655,20 @@ export function WorkoutEditor({
   useEffect(() => {
     const key = `coach-loop-position-${workout.id}`;
     const frame = requestAnimationFrame(() => {
+      if (document.activeElement?.matches("input, textarea, select, [contenteditable=true]")) return;
       let saved = 0;
       try { saved = Number(sessionStorage.getItem(key)); } catch { /* Position memory is optional. */ }
       if (Number.isFinite(saved) && saved > 0) window.scrollTo({ top: saved, behavior: "instant" });
     });
     let pending = 0;
     const remember = () => {
+      if (document.activeElement?.matches("input, textarea, select, [contenteditable=true]") ||
+          (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.75)) return;
       if (pending) return;
       pending = requestAnimationFrame(() => {
         pending = 0;
+        if (document.activeElement?.matches("input, textarea, select, [contenteditable=true]") ||
+            (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.75)) return;
         try { sessionStorage.setItem(key, String(window.scrollY)); } catch { /* Scrolling still works without storage. */ }
       });
     };
@@ -662,10 +677,12 @@ export function WorkoutEditor({
       cancelAnimationFrame(frame);
       cancelAnimationFrame(pending);
       window.removeEventListener("scroll", remember);
-      try { sessionStorage.setItem(key, String(window.scrollY)); } catch { /* Optional position memory. */ }
+      if (!document.activeElement?.matches("input, textarea, select, [contenteditable=true]") &&
+          (!window.visualViewport || window.visualViewport.height >= window.innerHeight * 0.75)) {
+        try { sessionStorage.setItem(key, String(window.scrollY)); } catch { /* Optional position memory. */ }
+      }
     };
   // Restore once per opened workout; changes to its sets must not move the screen.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout.id]);
   useEffect(() => {
     const shell = shellRef.current;
@@ -749,11 +766,8 @@ export function WorkoutEditor({
     ? `${nextBlock.exercise.name} · Set ${nextBlock.exercise.sets.findIndex((set) => set.id === nextSet?.id) + 1}`
     : nextBlock?.activity.name ?? "";
 
-  const doneCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length, 0) + workout.cardio.filter((item) => item.completed).length;
-  const totalCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter(s=>!s.skipped || s.completed).length, 0) + workout.cardio.length;
-  const doneSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length, 0);
-  const allSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
-  const doneActivities = workout.cardio.filter((item) => item.completed).length;
+  const doneCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length, 0) + workout.cardio.reduce((sum, item) => sum + (item.efforts?.length ? item.efforts.filter((effort) => effort.completed).length : Number(item.completed)), 0);
+  const totalCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter(s=>!s.skipped || s.completed).length, 0) + workout.cardio.reduce((sum, item) => sum + (item.efforts?.length || 1), 0);
   const skippedSets = workout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
   const unfinishedSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
   const unfinishedActivities = workout.cardio.filter((item) => !item.completed).length;
@@ -764,10 +778,10 @@ export function WorkoutEditor({
       <header ref={headerRef} className="workout-header">
         <Button variant="ghost" size="icon" onClick={onBack} className="text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
-          {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-0" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
+          {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p className="mt-1 truncate text-xs text-white/55" title={`${doneCount} of ${totalCount} items complete${skippedSets ? `, ${skippedSets} skipped` : ""}`}>{doneCount}/{totalCount} done{skippedSets ? ` · ${skippedSets} skipped` : ""}</p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "bg-[var(--lime)]/10 text-[var(--lime)]" : "text-white/45 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setFinishOpen(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => setFinishOpen(true)} className="bg-[var(--lime)] px-2 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "bg-[var(--lime)]/10 text-[var(--lime)]" : "text-white/45 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => setFinishOpen(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => setFinishOpen(true)} className="bg-[var(--lime)] px-2 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
@@ -847,9 +861,9 @@ export function WorkoutEditor({
           <AlertDialog open={finishOpen} onOpenChange={setFinishOpen}>
             <Button onClick={() => setFinishOpen(true)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
-              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/45">{doneCount ? `${allSets ? `${doneSets}/${allSets} sets` : ""}${allSets && workout.cardio.length ? " · " : ""}${workout.cardio.length ? `${doneActivities}/${workout.cardio.length} activities` : ""} complete.` : "Nothing is marked complete yet, but you can still save the session."}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/45">{workoutCompletionSummary(workout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
               <div className="finish-review">
-                {isEditingHistory && <label className="field-label">Workout date<Input type="date" max={localDate()} value={workout.date} onChange={(event) => { const date = event.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date <= localDate()) onUpdate({ ...workout, date }); }} className="mt-2 border-white/10 bg-black/20" /></label>}
+                {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
                 <WorkoutVolume workout={workout} unit={state.settings.defaultUnit} />
                 {differences.length > 0 && <details className="log-notes" open><summary>Changed from plan · {differences.length}</summary><ul className="space-y-1.5 py-2 text-sm text-white/70">{differences.map((change, index) => <li key={index} className="break-words">{change}</li>)}</ul></details>}
                 {unfinishedSets + unfinishedActivities > 0 && <details className="log-notes"><summary>Review unfinished work ({unfinishedSets + unfinishedActivities})</summary><ul className="space-y-2 py-2 text-sm text-white/65">{workout.exercises.filter((exercise) => exercise.sets.some((set) => !set.completed && !set.skipped)).map((exercise) => <li key={exercise.id}>{exercise.name}: {exercise.sets.filter((set) => !set.completed && !set.skipped).length} sets incomplete</li>)}{workout.cardio.filter((activity) => !activity.completed).map((activity) => <li key={activity.id}>{activity.name}: incomplete</li>)}</ul></details>}
@@ -861,6 +875,7 @@ export function WorkoutEditor({
           </AlertDialog>
         </div>
       </main>
+      {dateOpen && <WorkoutDateDialog workout={workout} open={dateOpen} onOpenChange={setDateOpen} onUpdate={onUpdate} />}
     </div>
   );
 }

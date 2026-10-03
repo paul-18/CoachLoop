@@ -102,19 +102,20 @@ export const exerciseMappingEntries = (state: TrainingState) => {
 
 export const coverageExerciseKey = exerciseKey;
 
+import { hasCompletedActivityWork, performedDuration, performedDistance } from "./completion";
 type ActivityTotals = { sessions: number; minutes: number; distanceKm: number; dates: string[] };
 const emptyActivityTotals = (): ActivityTotals => ({ sessions: 0, minutes: 0, distanceKm: 0, dates: [] });
 
 export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, days = 7) => {
-  const result = { runs: emptyActivityTotals(), rucks: { ...emptyActivityTotals(), loadDistance: 0, unit }, circuits: emptyActivityTotals() };
+  const result = { runs: emptyActivityTotals(), waterPolo: emptyActivityTotals(), rucks: { ...emptyActivityTotals(), loadDistance: 0, unit }, circuits: emptyActivityTotals() };
   state.workouts.filter((workout) => workout.status === "completed" && dateInWindow(workout.date, days)).forEach((workout) => {
     let loggedCircuit = false;
     workout.cardio.forEach((item) => {
-      if (!item.completed) return;
-      const totals = item.activityType === "run" ? result.runs : item.activityType === "ruck" ? result.rucks : item.activityType === "circuit" ? result.circuits : null;
+      if (!hasCompletedActivityWork(item)) return;
+      const totals = item.activityType === "run" ? result.runs : item.activityType === "water_polo" ? result.waterPolo : item.activityType === "ruck" ? result.rucks : item.activityType === "circuit" ? result.circuits : null;
       if (!totals) return;
-      const minutes = item.completedAsPlanned ? item.plannedDurationMin ?? 0 : item.actualDurationMin ?? 0;
-      const distance = item.completedAsPlanned ? item.plannedDistanceKm ?? 0 : item.actualDistanceKm ?? 0;
+      const minutes = performedDuration(item) ?? 0;
+      const distance = performedDistance(item) ?? 0;
       totals.sessions += 1;
       totals.minutes += minutes;
       totals.distanceKm += distance;

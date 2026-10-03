@@ -29,6 +29,8 @@ import { localDate, type TrainingState, type Unit, type WorkoutSession } from ".
 
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
 
+import { hasCompletedActivityWork } from "../domain/completion";
+
 import { WorkoutVolume } from "./workout-editor";
 
 const historyUiKey = "coach-loop-history-view";
@@ -82,7 +84,7 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
         const distance = !item.completed || item.completedAsPlanned ? item.plannedDistanceKm : item.actualDistanceKm;
         return (
           <section key={item.id} className={`history-exercise ${item.completed ? "" : "history-activity-incomplete"}`}>
-            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{item.completed ? item.completedAsPlanned ? "As prescribed" : "Completed" : "Not completed"}</Badge></div>
+            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{item.completed ? item.completedAsPlanned ? "As prescribed" : "Completed" : hasCompletedActivityWork(item) ? "Partly completed" : "Not completed"}</Badge></div>
             {item.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{item.coachNotes}</p></details>}
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
             {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.completed ? effort.actualDistanceM : effort.plannedDistanceM, effort.completed ? effort.actualLoad : effort.plannedLoad, effort.completed ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
@@ -156,7 +158,7 @@ export function HistoryView({
           <DialogFooter className="gap-2 sm:gap-0"><Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={async () => { if (await copyText(exportText)) toast.success("History copied"); else toast.error("Could not copy. Select the history text and copy it manually."); }}><Copy /> Copy text</Button><Button className="bg-[var(--lime)] font-bold text-[#11140d] hover:bg-[var(--lime)]/90" onClick={() => downloadText(exportText, `coach-loop-history-${localDate()}.txt`, "text/plain;charset=utf-8")}><Download /> Download .txt</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
+      <Input aria-label="Search workouts or exercises" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
       <div className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/45">{workouts.length} sessions</span></div>
       {workouts.length ? (
         <div className="space-y-3">

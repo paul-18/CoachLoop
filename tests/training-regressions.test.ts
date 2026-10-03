@@ -491,7 +491,12 @@ EXERCISE|Pull-Up
 SET|5|Bodyweight||
 SET|5|Bodyweight + 45 lb||
 [/FITLOG]`, "lb", {});
-  workout.exercises.forEach((exercise) => exercise.sets.forEach((set) => { set.completed = true; Object.assign(set, completedSetValues(set)); }));
+  workout.exercises.forEach((exercise) => exercise.sets.forEach((set) => {
+    set.completed = true;
+    // A legacy saved range remains excluded from volume. New completions require actual reps.
+    if (set.plannedReps === "8-10") set.actualReps = "8-10";
+    else Object.assign(set, completedSetValues(set));
+  }));
   workout.exercises[0].sets[3].completed = false;
   const totals = workoutLiftingVolume(workout, "lb");
   assert.ok(Math.abs(totals.volume - (500 + 400 * 2.2046226218 + 225)) < 0.001);

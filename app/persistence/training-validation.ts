@@ -1,8 +1,10 @@
 import { z } from "zod";
 import type { TrainingState } from "../domain/training-types";
 
+import { safeConflictPath } from "./conflict-path";
 const finite = z.number().finite();
 const nullableNumber = finite.nullable();
+const loadNumber = finite.min(0).max(5000).nullable();
 const identifier = z.string().min(1);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -15,9 +17,9 @@ const stringArray = z.array(z.string());
 const timestamp = z.string();
 
 const setSchema = z.object({
-  id: identifier, plannedReps: z.string(), plannedWeight: nullableNumber,
+  id: identifier, plannedReps: z.string(), plannedWeight: loadNumber,
   plannedRpe: z.string(), plannedRir: z.string(), actualReps: z.string(),
-  actualWeight: nullableNumber, loadType, weightMode, unit,
+  actualWeight: loadNumber, loadType, weightMode, unit,
   rpe: z.string(), rir: z.string(), completed: z.boolean(),
   completedAsPlanned: z.boolean(), warmup: z.boolean(), notes: z.string(),
   updatedAt: timestamp, skipped: z.boolean().optional(),
@@ -31,17 +33,17 @@ const moveSchema = z.object({ id: identifier, name: z.string(), prescription: z.
 const effortSchema = z.object({
   id: identifier, plannedDistanceM: nullableNumber, actualDistanceM: nullableNumber,
   plannedDurationSec: nullableNumber, actualDurationSec: nullableNumber,
-  plannedLoad: nullableNumber, actualLoad: nullableNumber, completed: z.boolean(),
+  plannedLoad: loadNumber, actualLoad: loadNumber, completed: z.boolean(),
 });
 const activitySchema = z.object({
   id: identifier, name: z.string(),
   externalSourceId: z.string().optional(),
-  activityType: z.enum(["run", "swim", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"]),
+  activityType: z.enum(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"]),
   loggingStyle: z.enum(["single", "routine", "efforts"]).optional(),
   efforts: z.array(effortSchema).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
   plannedDurationMin: nullableNumber, actualDurationMin: nullableNumber,
   plannedDistanceKm: nullableNumber, actualDistanceKm: nullableNumber,
-  ruckLoad: nullableNumber, ruckLoadUnit: unit, averageHr: nullableNumber,
+  ruckLoad: loadNumber, ruckLoadUnit: unit, averageHr: nullableNumber,
   elevationM: nullableNumber, pace: z.string(), intensity: z.string(), intervals: z.string(),
   mobilityMoves: z.array(moveSchema), effort: z.string(), notes: z.string(),
   coachNotes: z.string(), completed: z.boolean(), completedAsPlanned: z.boolean(),
@@ -75,7 +77,7 @@ const workoutSchema = z.object({
 }).passthrough();
 const checkInSchema = z.object({ date: z.string(), energy: z.string(), sleep: z.string(), soreness: z.string(), restrictions: z.string(), schedule: z.string() });
 const conflictSchema = z.object({
-  id: identifier, recordId: identifier, fieldPath: z.string().min(1),
+  id: identifier, recordId: identifier, fieldPath: z.string().min(1).refine(safeConflictPath),
   base: z.unknown(), remoteValue: z.unknown(), raisingDeviceId: identifier,
   raisingDeviceValue: z.unknown(), createdAt: timestamp,
 });
@@ -98,6 +100,8 @@ export const storedStateBoundary = z.object({
     phases: z.array(z.object({ id: identifier, start: date, end: date, label: z.string(), updatedAt: timestamp.optional(), deletedAt: timestamp.optional() })),
   }),
   settings: z.object({
+    bodyDiagram: z.enum(["male", "female"]).optional(),
+    quickLogActivities: z.array(z.enum(["run", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
@@ -113,7 +117,7 @@ const legacyStateBoundary = z.object({
     id: identifier, date, exercises: z.array(z.object({
       id: identifier, name: z.string(), sets: z.array(z.object({
         id: identifier, plannedReps: z.string(), actualReps: z.string(),
-        plannedWeight: nullableNumber, actualWeight: nullableNumber,
+        plannedWeight: loadNumber, actualWeight: loadNumber,
         completed: z.boolean(), rpe: z.string(), rir: z.string(),
       }).passthrough()),
     }).passthrough()),

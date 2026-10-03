@@ -1,7 +1,11 @@
+/* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
+import { QuickLogButtons } from "./quick-log-buttons";
+import { APP_RELEASE } from "../app-release";
 
-import { Activity, Backpack, Bike, Bot, Check, ChevronRight, CirclePlus, Clipboard, ClipboardCheck, CloudOff, Copy, Dumbbell, Flower2, Footprints, Import, Play, Redo2, RotateCcw, Save, UsersRound, Waves, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Activity, Bot, Check, ChevronRight, CirclePlus, Clipboard, ClipboardCheck, CloudOff, Copy, Dumbbell, Import, Play, Redo2, Save, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { buildCoachPrompt } from "../interchange/coach-export";
 
@@ -30,13 +35,8 @@ import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
 import { CoachCue } from "./workout-editor";
 import { RunPlan } from "./run-plan";
 
-function SoccerBallIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9.5" />
-    <path d="m12 7.4 4.3 3.1-1.6 5.1H9.3l-1.6-5.1L12 7.4Z" />
-    <path d="M12 7.4V2.6M16.3 10.5l4.5-1.4m-6.1 6.5 2.6 3.7m-8-3.7-2.6 3.7m1-8.8L3.2 9.1" />
-  </svg>;
-}
+
+
 
 export function ImportWorkoutDialog({
   open,
@@ -57,16 +57,19 @@ export function ImportWorkoutDialog({
 }) {
   const [preview, setPreview] = useState<WorkoutSession | null>(null);
   const [error, setError] = useState("");
+  const [warningsReviewed, setWarningsReviewed] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setPreview(null);
       setError("");
+      setWarningsReviewed(false);
     }
   }, [open]);
-  useEffect(() => { setPreview(null); setError(""); }, [text]);
+  useEffect(() => { setPreview(null); setError(""); setWarningsReviewed(false); }, [text]);
 
   const review = () => {
+    setWarningsReviewed(false);
     try {
       setPreview(
         parseFitlog(text, state.settings.defaultUnit, state.exerciseAliases),
@@ -80,6 +83,7 @@ export function ImportWorkoutDialog({
   const duplicate = preview?.importFingerprint
     ? state.workouts.find((workout) => workout.importFingerprint === preview.importFingerprint)
     : undefined;
+  const needsWarningReview = Boolean(preview?.importWarnings?.length) && !warningsReviewed;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,7 +103,7 @@ export function ImportWorkoutDialog({
               <Textarea
                 value={text}
                 onChange={(event) => onTextChange(event.target.value)}
-                placeholder="Paste ChatGPT’s reply here…"
+                aria-label="FITLOG workout text" placeholder="Paste ChatGPT’s reply here…"
                 className="min-h-56 resize-y border-white/10 bg-black/20 font-mono text-sm leading-6 text-white placeholder:text-white/25"
               />
               {error && (
@@ -124,13 +128,13 @@ export function ImportWorkoutDialog({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.13em] text-[var(--lime)]/70">
-                      Ready to import
+                      {preview.importWarnings?.length ? "Needs review" : "Ready to import"}
                     </p>
                     <h3 className="mt-2 text-xl font-black tracking-[-0.035em]">{preview.name}</h3>
                     <p className="mt-1 text-sm text-white/45">{formatDate(preview.date)}</p>
                   </div>
-                  <Badge className="border-[var(--lime)]/20 bg-[var(--lime)]/10 text-[var(--lime)]">
-                    Valid FITLOG
+                  <Badge className={preview.importWarnings?.length ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-[var(--lime)]/20 bg-[var(--lime)]/10 text-[var(--lime)]"}>
+                    {preview.importWarnings?.length ? "Review warnings" : "Valid FITLOG"}
                   </Badge>
                 </div>
               </div>
@@ -140,6 +144,7 @@ export function ImportWorkoutDialog({
                   <ul className="mt-1 list-disc space-y-1 pl-5">
                     {preview.importWarnings.map((warning) => <li key={warning}>{warning}</li>)}
                   </ul>
+                  <label className="mt-3 flex items-center gap-3 text-sm"><Checkbox checked={warningsReviewed} onCheckedChange={(checked) => setWarningsReviewed(checked === true)} />I reviewed these warnings</label>
                 </div>
               ) : null}
               {duplicate ? (
@@ -164,12 +169,14 @@ export function ImportWorkoutDialog({
                 </div>
               ) : (
                 <div key={block.activity.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
-                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><p className="min-w-0 font-bold">{block.activity.name}</p><label className="text-xs text-white/60">Category <NativeSelect aria-label={`Category for ${block.activity.name}`} value={block.activity.activityType} onChange={(event) => setPreview((current) => current ? { ...current, cardio: current.cardio.map((item) => item.id === block.activity.id ? { ...item, activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined } : item) } : current)} className="ml-2 inline-block h-9 w-auto max-w-36 border-white/15 bg-[#20231e] text-white">{(["run", "ruck", "bike", "swim", "row", "walk", "hike", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type}</NativeSelectOption>)}</NativeSelect></label></div>
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><p className="min-w-0 font-bold">{block.activity.name}</p><label className="text-xs text-white/60">Category <NativeSelect aria-label={`Category for ${block.activity.name}`} value={block.activity.activityType} onChange={(event) => setPreview((current) => current ? { ...current, cardio: current.cardio.map((item) => item.id === block.activity.id ? { ...item, activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined } : item) } : current)} className="ml-2 inline-block h-9 w-auto max-w-36 border-white/15 bg-[#20231e] text-white">{(["run", "ruck", "bike", "swim", "water_polo", "row", "walk", "hike", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label></div>
                   <p className="mt-1 text-sm text-white/45">
                     {block.activity.plannedDurationMin ? `${block.activity.plannedDurationMin} min` : "Duration open"}
                     {block.activity.plannedDistanceKm ? ` · ${block.activity.plannedDistanceKm} km` : ""}
                     {block.activity.intensity ? ` · ${block.activity.intensity}` : ""}
                   </p>
+                  {block.activity.intervals && <RunPlan text={block.activity.intervals} />}
+                  {!!block.activity.efforts?.length && <ol className="mt-3 space-y-2 text-sm text-white/75">{block.activity.efforts.map((e, index) => <li key={e.id}>{index + 1}. {[e.plannedDistanceM !== null ? `${e.plannedDistanceM} m` : "", e.plannedDurationSec !== null ? `${e.plannedDurationSec} sec` : "", e.plannedLoad !== null ? `${e.plannedLoad} ${block.activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ")}</li>)}</ol>}
                   {block.activity.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{block.activity.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
                   {block.activity.coachNotes && <p className="coach-cue mt-3"><strong>Coach cue</strong>{block.activity.coachNotes}</p>}
                 </div>
@@ -191,6 +198,7 @@ export function ImportWorkoutDialog({
                   onTextChange("");
                 }}
                 variant="outline"
+                disabled={needsWarningReview}
                 className="border-white/10 bg-white/[0.025] font-bold text-white hover:bg-white/8"
               >
                 <Save /> Save for later
@@ -201,7 +209,7 @@ export function ImportWorkoutDialog({
                   onOpenChange(false);
                   onTextChange("");
                 }}
-                disabled={Boolean(state.activeWorkoutId)}
+                disabled={Boolean(state.activeWorkoutId) || needsWarningReview}
                 className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"
               >
                 <Play /> Start workout
@@ -317,15 +325,18 @@ export function CoachDialog({
   onMarkSent: () => void;
 }) {
   const [options, setOptions] = useState<CoachOptions>(initialCoachOptions);
+  const wasOpen = useRef(false);
 
   const prompt = useMemo(() => buildCoachPrompt(state, options), [state, options]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { wasOpen.current = false; return; }
+    if (wasOpen.current) return;
+    wasOpen.current = true;
     const saved = state.settings.coachCheckIn;
     const checkIn = currentCoachCheckIn(saved);
     setOptions({ ...initialCoachOptions(), mode: state.settings.lastCoachBriefAt ? "continue" : "new", energy: checkIn.energy, sleep: checkIn.sleep, soreness: checkIn.soreness, restrictions: checkIn.restrictions, schedule: checkIn.schedule });
-  }, [open]);
+  }, [open, state.settings.coachCheckIn, state.settings.lastCoachBriefAt]);
 
   const field = <K extends keyof CoachOptions>(key: K, value: CoachOptions[K]) =>
     setOptions((current) => ({ ...current, [key]: value }));
@@ -527,6 +538,7 @@ export function TodayView({
         <div>
           <h1 className="today-date">{new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</h1>
         </div>
+        <span className="text-xs text-white/50" aria-label={`Published app version ${APP_RELEASE}`}>{APP_RELEASE}</span>
         {(syncStatus === "offline" || syncStatus === "error") && <span className="data-pill sync-exception"><CloudOff />{syncCopy[syncStatus]}</span>}
       </section>
 
@@ -612,16 +624,7 @@ export function TodayView({
             <h2>Quick log</h2>
           </div>
         </div>
-        <div className="quick-grid">
-          <button type="button" onClick={() => onQuickCardio("run")} disabled={Boolean(active)}><Footprints /><span>Run</span></button>
-          <button type="button" onClick={() => onQuickCardio("swim")} disabled={Boolean(active)}><Waves /><span>Swim</span></button>
-          <button type="button" onClick={() => onQuickCardio("bike")} disabled={Boolean(active)}><Bike /><span>Bike</span></button>
-          <button type="button" onClick={() => onQuickCardio("ruck")} disabled={Boolean(active)}><Backpack /><span>Ruck</span></button>
-          <button type="button" onClick={() => onQuickCardio("circuit")} disabled={Boolean(active)}><RotateCcw /><span>Circuit</span></button>
-          <button type="button" onClick={() => onQuickCardio("soccer")} disabled={Boolean(active)}><SoccerBallIcon /><span>Soccer</span></button>
-          <button type="button" onClick={() => onQuickCardio("grappling")} disabled={Boolean(active)}><UsersRound aria-hidden="true" /><span>Grappling</span></button>
-          <button type="button" onClick={() => onQuickCardio("yoga")} disabled={Boolean(active)}><Flower2 aria-hidden="true" /><span>Yoga</span></button>
-        </div>
+        <QuickLogButtons settings={state.settings} disabled={Boolean(active)} onChoose={onQuickCardio} />
       </section>}
 
       {!active && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}

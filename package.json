@@ -9,7 +9,7 @@
     "install:ci": "pnpm install --frozen-lockfile",
     "build": "vite build && node scripts/build-pwa.mjs",
     "dev": "vite --host 0.0.0.0",
-    "test": "node --import ./node_modules/.pnpm/tsx@4.22.1/node_modules/tsx/dist/loader.mjs --test tests/*.test.ts",
+    "test": "node --import ./node_modules/.pnpm/tsx@4.22.1/node_modules/tsx/dist/loader.mjs --test tests/*.test.ts tests/*.test.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

@@ -11,6 +11,8 @@ export function useLocalEditorLease(): Lease {
     if (!navigator.locks) {
       // The HTTP development preview is not a secure context, so Web Locks is absent.
       // Production keeps the single-editor guard; this only permits local QA.
+      // Resolve browser capability after mounting in a client environment.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLease(import.meta.env.PROD ? "unsupported" : "owner");
       return;
     }

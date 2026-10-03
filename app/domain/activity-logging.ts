@@ -6,7 +6,7 @@ export const activityLoggingStyle = (activity: CardioEntry): "single" | "routine
   if (activity.loggingStyle === "efforts") return "efforts";
   if (activity.loggingStyle === "routine") return "routine";
   if (activity.loggingStyle === "single") return "single";
-  if (["mobility", "circuit", "force", "soccer", "grappling", "yoga"].includes(activity.activityType)) return "routine";
+  if (["mobility", "circuit", "force", "soccer", "grappling", "yoga", "water_polo"].includes(activity.activityType)) return "routine";
   if (activity.activityType === "other" && /\b(drag|carry|sled|sprint|shuttle|push|pull)\b/i.test(activity.name)) return "efforts";
   return activity.loggingStyle ?? "single";
 };

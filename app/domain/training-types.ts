@@ -79,6 +79,7 @@ export interface CardioEntry {
   activityType:
     | "run"
     | "swim"
+    | "water_polo"
     | "bike"
     | "row"
     | "walk"
@@ -163,7 +164,19 @@ export interface ExerciseMuscleTarget {
   deletedAt?: string;
 }
 
+export const QUICK_LOG_OPTIONS = [
+  { type: "run", label: "Run" }, { type: "swim", label: "Swim" },
+  { type: "bike", label: "Bike" }, { type: "ruck", label: "Ruck" },
+  { type: "circuit", label: "Circuit" }, { type: "soccer", label: "Soccer" },
+  { type: "grappling", label: "Grappling" }, { type: "yoga", label: "Yoga" },
+  { type: "water_polo", label: "Water polo" },
+] as const;
+export type QuickLogActivityType = (typeof QUICK_LOG_OPTIONS)[number]["type"];
+export const DEFAULT_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = QUICK_LOG_OPTIONS.map(option => option.type);
+
 export interface AppSettings {
+  bodyDiagram?: "male" | "female";
+  quickLogActivities?: QuickLogActivityType[];
   defaultUnit: Unit;
   defaultRestSec: number;
   barWeightLb: number;
@@ -303,6 +316,7 @@ export const makeCardio = (
     ({
       run: "Running",
       swim: "Swimming",
+      water_polo: "Water polo",
       bike: "Cycling",
       row: "Rowing",
       walk: "Walking",
@@ -315,9 +329,9 @@ export const makeCardio = (
       grappling: "Grappling",
       yoga: "Yoga",
       other: "Custom activity",
-    } as Record<CardioEntry["activityType"], string>)[activityType],
+    } satisfies Record<CardioEntry["activityType"], string>)[activityType],
   activityType,
-  loggingStyle: ["mobility", "circuit", "force", "soccer", "grappling", "yoga"].includes(activityType) ? "routine" : activityType === "other" ? undefined : "single",
+  loggingStyle: ["mobility", "circuit", "force", "soccer", "grappling", "yoga", "water_polo"].includes(activityType) ? "routine" : activityType === "other" ? undefined : "single",
   efforts: [],
   effortRestSec: 0,
   effortLoadUnit: "lb",
@@ -395,6 +409,8 @@ export const defaultState = (): TrainingState => ({
   exerciseMuscleOverrides: {},
   scheduleContext: { events: [], phases: [] },
   settings: {
+    bodyDiagram: "male",
+    quickLogActivities: [...DEFAULT_QUICK_LOG_ACTIVITIES],
     defaultUnit: "lb",
     defaultRestSec: 120,
     barWeightLb: 45,

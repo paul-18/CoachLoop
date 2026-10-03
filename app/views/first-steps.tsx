@@ -1,9 +1,9 @@
-import type { TrainingState, Unit } from "../domain/training-types";
+import type { TrainingState } from "../domain/training-types";
 import { localDate } from "../domain/training-types";
 import { Button } from "@/components/ui/button";
 import type { MainView } from "./shared";
 
-export const sampleWorkout = (unit: Unit) => `[FITLOG:1]
+export const sampleWorkout = () => `[FITLOG:1]
 WORKOUT|Example workout — review before saving|${localDate()}
 EXERCISE|Bodyweight squat
 SET|8|Bodyweight|RPE 5
@@ -18,7 +18,7 @@ NOTES|Format example only. Choose movements and effort suitable for you.
 export function FirstSteps({ state, view, onSetup, onCoach, onSample }: {
   state: TrainingState;
   view: MainView;
-  onSetup: (section: string) => void;
+  onSetup: (section: "coach-profile" | "training-goals") => void;
   onCoach: () => void;
   onSample: () => void;
 }) {

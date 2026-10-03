@@ -1,11 +1,14 @@
+/* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { ChevronDown, ChevronUp, Cloud, CloudOff, DatabaseBackup, Download, FileJson, Import, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, DatabaseBackup, Download, FileJson, Import, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,38 +16,67 @@ import { Input } from "@/components/ui/input";
 
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
-import { Textarea } from "@/components/ui/textarea";
+
 
 import { MuscleMappingSettings } from "./muscle-mapping-settings";
 import { BenchmarkSettings } from "./benchmark-settings";
+import { APP_RELEASE } from "../app-release";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 
 import { mergeRestoredState, type SyncStatus } from "../persistence/cloud-sync";
 
-import { toCsv } from "../interchange/csv-export";
+import { toCsv, csvSetEffort } from "../interchange/csv-export";
 
 import { listSnapshots, loadSnapshot, type TrainingSnapshot } from "../persistence/training-storage";
-import { localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
+import { DEFAULT_QUICK_LOG_ACTIVITIES, QUICK_LOG_OPTIONS, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
 
-import { DecimalInput, downloadText, syncCopy } from "./shared";
+import { DecimalInput, downloadText } from "./shared";
+import { validMeasurementDate } from "../domain/training-workflow";
 import { prepareLoadedState } from "../persistence/migrations";
+import { portableBackup } from "../persistence/portable-backup";
+import { TextEditorDialog } from "./text-editor-dialog";
 
 function ConflictReviewItem({ conflict, onResolve }: { conflict: FieldConflict; onResolve: (id: string, value: unknown) => Promise<void> }) {
   const [fresh, setFresh] = useState("");
+  const field = decodeURIComponent(conflict.fieldPath.split("/").at(-1) ?? "");
   const format = (value: unknown) => typeof value === "string" ? value : JSON.stringify(value);
-  return <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.035] p-3"><p className="break-words font-semibold">{conflict.fieldPath}</p><div className="mt-2 grid gap-2 text-sm sm:grid-cols-2"><div className="break-words"><span className="text-white/45">Saved in cloud</span><p>{format(conflict.remoteValue)}</p></div><div className="break-words"><span className="text-white/45">Other edit</span><p>{format(conflict.raisingDeviceValue)}</p></div></div><div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.remoteValue)}>Keep cloud</Button><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.raisingDeviceValue)}>Use other edit</Button>{typeof conflict.remoteValue === "string" && typeof conflict.raisingDeviceValue === "string" && <Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, `${conflict.remoteValue}\n${conflict.raisingDeviceValue}`)}>Keep both</Button>}</div><div className="mt-2 flex gap-2"><Input aria-label={`Fresh value for ${conflict.fieldPath}`} value={fresh} onChange={(event) => setFresh(event.target.value)} placeholder="Or enter a new value" className="min-w-0 border-white/10 bg-black/20" /><Button type="button" size="sm" disabled={!fresh.trim()} onClick={() => { let value: unknown = fresh; if (typeof conflict.remoteValue !== "string") { try { value = JSON.parse(fresh); } catch { toast.error("Enter a valid value for this field"); return; } } void onResolve(conflict.id, value); }}>Use new</Button></div></div>;
+  const freeText = /^(notes|coachNotes|coachProfile|skipReason)$/.test(field);
+  const numeric = typeof conflict.remoteValue === "number" || /^(actualWeight|plannedWeight|ruckLoad|averageHr|elevationM|weight|cm|retestDays|actualDurationMin|plannedDurationMin|actualDistanceKm|plannedDistanceKm)$/.test(field);
+  const options: Record<string, string[]> = { unit: ["lb", "kg"], defaultUnit: ["lb", "kg"], ruckLoadUnit: ["lb", "kg"], effortLoadUnit: ["lb", "kg"], loadType: ["weighted", "bodyweight", "unrecorded"], weightMode: ["total", "per_hand", "added"], status: ["planned", "active", "completed", "skipped"], loggingStyle: ["single", "routine", "efforts"], activityType: ["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] };
+  const choices = typeof conflict.remoteValue === "boolean" ? ["true", "false"] : options[field];
+  const resolveFresh = () => {
+    let value: unknown = fresh;
+    if (numeric) {
+      value = fresh.trim() ? Number(fresh) : null;
+      if (value !== null && !Number.isFinite(value)) return toast.error("Enter a finite number");
+    } else if (typeof conflict.remoteValue !== "string") {
+      try { value = JSON.parse(fresh); } catch { return toast.error("Enter a valid value for this field"); }
+    }
+    void onResolve(conflict.id, value);
+  };
+  return <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.035] p-3">
+    <p className="break-words font-semibold">{conflict.fieldPath}</p>
+    <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2"><div className="break-words"><span className="text-white/65">Saved in cloud</span><p>{format(conflict.remoteValue)}</p></div><div className="break-words"><span className="text-white/65">Other edit</span><p>{format(conflict.raisingDeviceValue)}</p></div></div>
+    <div className="mt-3 flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.remoteValue)}>Keep cloud</Button><Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, conflict.raisingDeviceValue)}>Use other edit</Button>{freeText && typeof conflict.remoteValue === "string" && typeof conflict.raisingDeviceValue === "string" && <Button type="button" size="sm" variant="outline" onClick={() => void onResolve(conflict.id, `${conflict.remoteValue}\n${conflict.raisingDeviceValue}`)}>Keep both</Button>}</div>
+    <div className="mt-2 flex gap-2">{choices ? <NativeSelect aria-label={`New value for ${field}`} value={fresh} onChange={(e) => setFresh(e.target.value)}><NativeSelectOption value="">Choose a value</NativeSelectOption>{choices.map((v) => <NativeSelectOption key={v} value={v}>{v}</NativeSelectOption>)}</NativeSelect> : <Input aria-label={`New value for ${field}`} type={/^(date|start|end|testedOn)$/.test(field) ? "date" : "text"} inputMode={numeric ? "decimal" : "text"} value={fresh} onChange={(e) => setFresh(e.target.value)} placeholder={numeric ? "Number, or blank to clear" : "Or enter a new value"} className="min-w-0 border-white/10 bg-black/20" />}<Button type="button" size="sm" disabled={!numeric && !fresh.trim()} onClick={resolveFresh}>Use new</Button></div>
+  </div>;
 }
 
-export function SettingsView({ state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, syncStatus, syncFailure, onRetrySync, lastSyncedAt, offlineReady, updateReady }: { state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean }) {
+export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean }) {
+  useEffect(() => {
+    if (!openSection) return;
+    const target = document.getElementById(openSection);
+    if (target instanceof HTMLDetailsElement) target.open = true;
+    target?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    onSectionOpened?.();
+  }, [openSection, onSectionOpened]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [snapshots, setSnapshots] = useState<TrainingSnapshot[]>([]);
   const [installed, setInstalled] = useState(false);
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
   useEffect(() => { void listSnapshots().then(setSnapshots).catch(() => undefined); }, []);
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileDraft, setProfileDraft] = useState("");
-  const [newGoal, setNewGoal] = useState("");
+  const [textEdit, setTextEdit] = useState<{ kind: "goal" | "new-goal" | "profile"; index?: number; value: string } | null>(null);
   const [scheduleDate, setScheduleDate] = useState(localDate());
   const [scheduleLabel, setScheduleLabel] = useState("");
   const [phaseStart, setPhaseStart] = useState(localDate());
@@ -57,14 +89,15 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
   const updateCoachProfile = (coachProfile: string) =>
     setState((current) => ({ ...current, coachProfile, coachProfileUpdatedAt: new Date().toISOString() }));
   const exportBackup = () => {
-    downloadText(JSON.stringify(canonicalState, null, 2), `coach-loop-backup-${localDate()}.json`, "application/json");
+    downloadText(JSON.stringify(portableBackup(canonicalState, state), null, 2), `coach-loop-backup-${localDate()}.json`, "application/json");
+    updateSettings((settings) => ({ ...settings, lastBackupAt: new Date().toISOString() }));
     toast("Backup download requested");
   };
   const exportCsv = () => {
     const recordStatus = (completed: boolean, skipped = false) => completed ? "completed" : skipped ? "skipped" : "incomplete";
     const rows = [["date", "workout", "record_status", "type", "exercise_or_activity", "set", "load_type", "weight_mode", "planned_weight", "actual_weight", "unit", "planned_reps", "actual_reps", "completed_as_planned", "rpe_or_effort", "duration_min", "distance_km", "ruck_load", "average_hr", "elevation_m", "pace", "notes", "skip_reason", "efforts"]];
     state.workouts.filter((workout) => workout.status === "completed").forEach((workout) => {
-      workout.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => rows.push([workout.date, workout.name, recordStatus(set.completed, set.skipped), "strength", exercise.name, String(index + 1), set.loadType, set.weightMode, set.plannedWeight?.toString() ?? "", set.actualWeight?.toString() ?? "", set.unit, set.plannedReps, set.actualReps, String(set.completedAsPlanned), set.rpe, "", "", "", "", "", "", `${exercise.notes} ${set.notes}`.trim(), "", ""])));
+      workout.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => rows.push([workout.date, workout.name, recordStatus(set.completed, set.skipped), "strength", exercise.name, String(index + 1), set.loadType, set.weightMode, set.plannedWeight?.toString() ?? "", set.actualWeight?.toString() ?? "", set.unit, set.plannedReps, set.actualReps, String(set.completedAsPlanned), csvSetEffort(set), "", "", "", "", "", "", `${exercise.notes} ${set.notes}`.trim(), "", ""])));
       workout.cardio.forEach((item) => rows.push([workout.date, workout.name, recordStatus(item.completed), item.activityType, item.name, "", "", "", "", "", "", "", "", String(item.completedAsPlanned), item.effort, item.actualDurationMin?.toString() ?? "", item.actualDistanceKm?.toString() ?? "", item.ruckLoad !== null ? `${item.ruckLoad} ${item.ruckLoadUnit}` : "", item.averageHr?.toString() ?? "", item.elevationM?.toString() ?? "", item.pace, item.notes, "", (item.efforts ?? []).map((effort, index) => `${index + 1}: ${effort.completed ? "done" : "not done"}${effort.actualDistanceM !== null ? ` ${effort.actualDistanceM} m` : ""}${effort.actualLoad !== null ? ` ${effort.actualLoad} ${item.effortLoadUnit ?? "lb"}` : ""}${effort.actualDurationSec !== null ? ` ${effort.actualDurationSec} sec` : ""}`).join("; ")]));
     });
     state.workouts.filter((workout) => workout.status === "skipped").forEach((workout) => rows.push([workout.date, workout.name, "skipped", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", workout.notes, workout.skipReason, ""]));
@@ -86,7 +119,6 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
   return (
     <div className="page-stack">
       <section className="topline"><div><h1>Settings</h1></div></section>
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}><DialogContent className="profile-editor-dialog border-white/10 bg-[#151713] text-white"><DialogHeader><DialogTitle>Coach profile</DialogTitle><DialogDescription className="text-white/55">Use paragraphs or bullet points. Save when ready; Cancel keeps your existing profile.</DialogDescription></DialogHeader><label htmlFor="profile-draft" className="text-sm font-semibold">Your background and coaching preferences</label><Textarea id="profile-draft" autoFocus value={profileDraft} onChange={event => setProfileDraft(event.target.value)} className="profile-draft" placeholder={"ABOUT ME\nTraining experience and activities…\n\nLONG-TERM DIRECTION\nGoals and what matters most…\n\nSCHEDULE & EQUIPMENT\nDays, time available, and gym access…\n\nPREFERENCES & LIMITATIONS\nWorkout style, warm-ups, and relevant restrictions…"} /><DialogFooter><Button variant="outline" onClick={() => setProfileOpen(false)}>Cancel</Button><Button onClick={() => { updateCoachProfile(profileDraft); setProfileOpen(false); toast.success("Coach profile updated"); }}>Save profile</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open) setRestoreCandidate(null); }}><DialogContent className="border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Adds {restoreAdditions} workouts; removes {restoreRemovals} workouts according to backup deletion records. Current data is snapshotted before applying.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button onClick={async () => { if (!restoreCandidate) return; try { await onRestoreBackup(restoreCandidate); setRestoreCandidate(null); toast.success("Backup merged"); } catch { toast.error("Restore could not be saved"); } }}>Merge backup</Button></DialogFooter></DialogContent></Dialog>
       {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">Other changes continue syncing. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
       <section className="settings-panel">
@@ -95,19 +127,28 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
         <details className="settings-sync-details"><summary>Offline files</summary><p>{offlineReady === "ready" ? "Ready for offline use" : offlineReady === "failed" ? "Could not be prepared yet; open while online and try again" : "Preparing…"}</p></details>
         {updateReady && <div role="status" className="mt-3 rounded-xl border border-sky-300/15 bg-sky-300/[0.045] px-4 py-3"><p className="text-sm font-bold text-sky-100">Update downloaded</p><p className="mt-1 text-sm text-white/65">Finish your workout and wait for local saving to complete. Close all Coach Loop windows, then reopen the app.</p></div>}
       </section>
+      <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Choose your body diagram and Today shortcuts</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">
+        <label className="field-label block">Strength coverage visual<NativeSelect aria-label="Strength coverage visual" value={state.settings.bodyDiagram ?? "male"} onChange={event => updateSettings(settings => ({ ...settings, bodyDiagram: event.target.value as "male" | "female" }))} className="mt-2 w-full"><NativeSelectOption value="male">Male</NativeSelectOption><NativeSelectOption value="female">Female</NativeSelectOption></NativeSelect><small className="mt-2 block text-white/55">Changes the diagram only. Your logged sets, coverage calculations, profile, and goals stay the same.</small></label>
+        <div><h3 className="font-bold">Quick-log activities</h3><p className="mt-1 text-sm text-white/60">Select the buttons you want on Today. Hiding a button keeps its history and import support.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{QUICK_LOG_OPTIONS.map(option => {
+          const selected = state.settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
+          const index = selected.indexOf(option.type);
+          return <div key={option.type} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3"><label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3"><Checkbox checked={index >= 0} onCheckedChange={checked => updateSettings(settings => { const current = settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES; return { ...settings, quickLogActivities: checked === true ? [...current.filter(type => type !== option.type), option.type] : current.filter(type => type !== option.type) }; })} />{option.label}</label>{index >= 0 && <><Button variant="ghost" size="icon" disabled={index === 0} aria-label={`Move ${option.label} earlier`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return { ...settings, quickLogActivities: next }; })}><ChevronUp /></Button><Button variant="ghost" size="icon" disabled={index === selected.length - 1} aria-label={`Move ${option.label} later`} onClick={() => updateSettings(settings => { const next = [...(settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES)]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return { ...settings, quickLogActivities: next }; })}><ChevronDown /></Button></>}</div>;
+        })}</div><Button variant="outline" className="mt-3" onClick={() => updateSettings(settings => ({ ...settings, quickLogActivities: [...DEFAULT_QUICK_LOG_ACTIVITIES] }))}>Restore default shortcuts</Button></div>
+      </div></details>
       <section className="settings-panel">
-        <div className="settings-title"><div><h2>Backup & export</h2><p>Restore merges backup data with this device; newer entries and deletions are kept. CSV opens cleanly in Excel.</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
+        <div className="settings-title"><div><h2>Backup & export</h2><p>Save a JSON backup for recovery. Export CSV to view your training in a spreadsheet. Restoring merges data; newer changes are kept.</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><Button onClick={exportBackup} className="h-12 bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"><FileJson /> Download full backup</Button><Button variant="outline" onClick={exportCsv} className="h-12 border-white/10 bg-white/[0.025] text-white"><Download /> Export CSV</Button><Button variant="outline" onClick={() => fileRef.current?.click()} className="h-12 border-white/10 bg-white/[0.025] text-white sm:col-span-2"><Import /> Restore JSON backup</Button><input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></div>
-        <p className="mt-4 text-xs leading-5 text-white/35">Last downloaded backup: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
+        <p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
       </section>
-      <details className="page-disclosure"><summary><span>Recovery copies<small>Download a local checkpoint before restoring it</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {snapshot.reason}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
+      <details className="page-disclosure"><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">
         <summary><span><strong>Training goals</strong><small>Included in every coach brief</small></span><ChevronDown /></summary>
         <div className="pt-4">
         <p className="mb-3 text-sm leading-6 text-white/55">Rank your goals from most to least important. Your coach brief includes this order.</p>
         <div className="space-y-2">
-          {state.goals.map((goal, index) => <div key={index} className="goal-edit"><span className="goal-rank" aria-label={`Priority ${index + 1}`}>{index + 1}</span><Textarea rows={2} aria-label={`Training goal ${index + 1}`} value={goal} onChange={(event) => updateGoals((goals) => goals.map((item, goalIndex) => goalIndex === index ? event.target.value : item))} className="goal-text border-white/8 bg-black/15" /><Button type="button" variant="ghost" size="icon-sm" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon-sm" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon-sm" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} className="text-white/25 hover:bg-red-400/10 hover:text-red-300" aria-label={`Remove goal ${index + 1}`}><X /></Button></div>)}
-          <div className="flex gap-2"><Input value={newGoal} onChange={(event) => setNewGoal(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && newGoal.trim()) { updateGoals((goals) => [...goals, newGoal.trim()]); setNewGoal(""); } }} placeholder="Add another goal…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!newGoal.trim()) return; updateGoals((goals) => [...goals, newGoal.trim()]); setNewGoal(""); }} className="bg-white/8 text-white hover:bg-white/12"><Plus /></Button></div>
+          {state.goals.map((goal, index) => <div key={index} className="goal-read-card"><p>{goal}</p><div className="goal-actions"><Button type="button" variant="outline" size="sm" onClick={() => setTextEdit({ kind: "goal", index, value: goal })}>Edit</Button><Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} aria-label={`Remove goal ${index + 1}`}><X /></Button></div></div>)}
+          {!state.goals.length && <p className="text-sm text-white/60">No goals yet.</p>}
+          <Button variant="outline" onClick={() => setTextEdit({ kind: "new-goal", value: "" })}><Plus /> Add goal</Button>
         </div>
         </div>
       </details>
@@ -117,19 +158,9 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
           <ChevronDown />
         </summary>
         <div className="mt-5">
-          <p className="mb-3 text-sm leading-6 text-white/55">Describe your experience, long-term goals, usual schedule, equipment, and lasting preferences. Put today’s readiness in the coach brief.</p>
-          <Button type="button" variant="outline" className="mb-3" onClick={() => { setProfileDraft(state.coachProfile); setProfileOpen(true); }}>Open larger editor</Button>
-          <Textarea
-            value={state.coachProfile}
-            onChange={(event) => updateCoachProfile(event.target.value)}
-            placeholder={DEFAULT_COACH_PROFILE}
-            className="coach-profile-text border-white/8 bg-black/15"
-            aria-label="Editable coach profile"
-          />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm leading-5 text-white/42">Changes save automatically on this device. Your profile is included when you choose Start a new chat.</p>
-            <Button type="button" variant="ghost" size="sm" onClick={() => updateCoachProfile(DEFAULT_COACH_PROFILE)} className="text-white/50 hover:bg-white/7 hover:text-white"><RotateCcw /> Insert starter guidance</Button>
-          </div>
+          <p className="profile-read-text">{state.coachProfile || "Add your training background and durable preferences."}</p>
+          <div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" onClick={() => setTextEdit({ kind: "profile", value: state.coachProfile })}>Edit coach profile</Button><Button type="button" variant="ghost" size="sm" onClick={() => setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE })}><RotateCcw /> Use starter guidance</Button></div>
+          <p className="mt-3 text-sm leading-5 text-white/55">Keep durable preferences here. Put today’s sleep, soreness, and upcoming PT in the Coach brief form.</p>
         </div>
       </details>
       <details className="settings-panel profile-editor">
@@ -148,11 +179,11 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
         <div className="mt-5 space-y-5">
           <div><p className="mb-2 text-sm font-bold text-white/75">Upcoming events</p>
             <div className="space-y-2">{state.scheduleContext.events.filter((entry) => !entry.deletedAt).map((entry) => <div key={entry.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/15 px-3 py-2"><p className="min-w-0 text-sm text-white/75"><strong>{entry.date}</strong> · {entry.label}</p><Button variant="ghost" size="icon-sm" aria-label={`Remove ${entry.label}`} onClick={() => setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, events: current.scheduleContext.events.map((item) => item.id === entry.id ? { ...item, updatedAt: new Date().toISOString(), deletedAt: new Date().toISOString() } : item) } }))}><X /></Button></div>)}</div>
-            <div className="mt-2 grid gap-2 sm:grid-cols-[145px_1fr_auto]"><Input type="date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} className="border-white/8 bg-black/15" /><Input value={scheduleLabel} onChange={(event) => setScheduleLabel(event.target.value)} placeholder="Morning ruck, pool PT, FORCE test…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!scheduleLabel.trim()) return; setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, events: [...current.scheduleContext.events, { id: uid("event"), date: scheduleDate, label: scheduleLabel.trim(), updatedAt: new Date().toISOString() }].sort((a, b) => a.date.localeCompare(b.date)) } })); setScheduleLabel(""); }} className="bg-white/8 text-white"><Plus /> Add</Button></div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-[145px_1fr_auto]"><Input type="date" aria-label="Event date" value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} className="border-white/8 bg-black/15" /><Input aria-label="Event name" value={scheduleLabel} onChange={(event) => setScheduleLabel(event.target.value)} placeholder="Morning ruck, pool PT, FORCE test…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!scheduleLabel.trim() || !validMeasurementDate(scheduleDate)) { toast.error("Enter an event name and valid date"); return; } setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, events: [...current.scheduleContext.events, { id: uid("event"), date: scheduleDate, label: scheduleLabel.trim(), updatedAt: new Date().toISOString() }].sort((a, b) => a.date.localeCompare(b.date)) } })); setScheduleLabel(""); }} className="bg-white/8 text-white"><Plus /> Add</Button></div>
           </div>
           <div><p className="mb-2 text-sm font-bold text-white/75">Training periods</p>
             <div className="space-y-2">{state.scheduleContext.phases.filter((phase) => !phase.deletedAt).map((phase) => <div key={phase.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/15 px-3 py-2"><p className="min-w-0 text-sm text-white/75"><strong>{phase.label}</strong> · {phase.start} to {phase.end}</p><Button variant="ghost" size="icon-sm" aria-label={`Remove ${phase.label}`} onClick={() => setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, phases: current.scheduleContext.phases.map((item) => item.id === phase.id ? { ...item, updatedAt: new Date().toISOString(), deletedAt: new Date().toISOString() } : item) } }))}><X /></Button></div>)}</div>
-            <div className="mt-2 grid gap-2 sm:grid-cols-[140px_140px_1fr_auto]"><Input type="date" aria-label="Period start" value={phaseStart} onChange={(event) => setPhaseStart(event.target.value)} className="border-white/8 bg-black/15" /><Input type="date" aria-label="Period end" value={phaseEnd} onChange={(event) => setPhaseEnd(event.target.value)} className="border-white/8 bg-black/15" /><Input value={phaseLabel} onChange={(event) => setPhaseLabel(event.target.value)} placeholder="Field exercise, travel, build block…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!phaseLabel.trim() || phaseEnd < phaseStart) return; setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, phases: [...current.scheduleContext.phases, { id: uid("phase"), start: phaseStart, end: phaseEnd, label: phaseLabel.trim(), updatedAt: new Date().toISOString() }].sort((a, b) => a.start.localeCompare(b.start)) } })); setPhaseLabel(""); }} className="bg-white/8 text-white"><Plus /> Add</Button></div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-[140px_140px_1fr_auto]"><Input type="date" aria-label="Period start" value={phaseStart} onChange={(event) => setPhaseStart(event.target.value)} className="border-white/8 bg-black/15" /><Input type="date" aria-label="Period end" value={phaseEnd} onChange={(event) => setPhaseEnd(event.target.value)} className="border-white/8 bg-black/15" /><Input aria-label="Training period name" value={phaseLabel} onChange={(event) => setPhaseLabel(event.target.value)} placeholder="Field exercise, travel, build block…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!phaseLabel.trim() || !validMeasurementDate(phaseStart) || !validMeasurementDate(phaseEnd) || phaseEnd < phaseStart) { toast.error("Enter a name and valid start and end dates"); return; } setState((current) => ({ ...current, scheduleContext: { ...current.scheduleContext, phases: [...current.scheduleContext.phases, { id: uid("phase"), start: phaseStart, end: phaseEnd, label: phaseLabel.trim(), updatedAt: new Date().toISOString() }].sort((a, b) => a.start.localeCompare(b.start)) } })); setPhaseLabel(""); }} className="bg-white/8 text-white"><Plus /> Add</Button></div>
           </div>
           <p className="text-xs leading-5 text-white/40">Individual events and active or upcoming periods appear in coach context through their end date. Saved workouts already appear on Today.</p>
         </div>
@@ -172,7 +203,13 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
         <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive"><Trash2 /> Erase this device’s data</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Erase every workout on this device?</AlertDialogTitle><AlertDialogDescription className="text-white/45">Goals, aliases, history, and the active workout will be removed from this browser. Download a backup first.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void onReset()}>Erase everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </div>
       </details>
-      <footer className="pt-4 text-center text-xs text-white/40">Coach Loop · Local storage</footer>
+      {textEdit && <TextEditorDialog title={textEdit.kind === "profile" ? "Edit coach profile" : textEdit.kind === "new-goal" ? "Add training goal" : "Edit training goal"} description="Changes apply when you tap Save." value={textEdit.value} allowEmpty={textEdit.kind === "profile"} onChange={(value) => setTextEdit((current) => current ? { ...current, value } : current)} onClose={() => setTextEdit(null)} onSave={() => {
+        if (textEdit.kind === "profile") updateCoachProfile(textEdit.value);
+        else if (textEdit.kind === "new-goal") updateGoals((goals) => [...goals, textEdit.value.trim()]);
+        else updateGoals((goals) => goals.map((goal, index) => index === textEdit.index ? textEdit.value.trim() : goal));
+        setTextEdit(null);
+      }} />}
+      <footer className="pt-4 text-center text-xs text-white/40">Coach Loop {APP_RELEASE} · Local storage</footer>
     </div>
   );
 }

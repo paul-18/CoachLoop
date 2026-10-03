@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { type CardioEntry, type TrainingState, type WaistEntry, localDate, uid } from '../domain/training-types';
 import { performedDuration, performedDistance, workoutLiftingVolume, strengthRecords, convertWeight } from '../domain/training-metrics';
 import { activityRows, activityTotals, readableNumber as num, validMeasurementDate } from '../domain/training-workflow';
-const labels:Record<string,string>={run:'Runs',ruck:'Rucks',bike:'Bike',row:'Row',swim:'Swim',circuit:'Circuits',mobility:'Mobility',walk:'Walks',hike:'Hikes',force:'FORCE',soccer:'Soccer',grappling:'Grappling',yoga:'Yoga',other:'Other'};
+const labels:Record<string,string>={run:'Runs',ruck:'Rucks',bike:'Bike',row:'Row',swim:'Swim',water_polo:'Water polo',circuit:'Circuits',mobility:'Mobility',walk:'Walks',hike:'Hikes',force:'FORCE',soccer:'Soccer',grappling:'Grappling',yoga:'Yoga',other:'Other'};
 
 export function ActivityHistory({state,onChangeActivityType}:{state:TrainingState;onChangeActivityType:(workoutId:string,activityId:string,type:CardioEntry['activityType'])=>void}) {
  const [type,setType]=useState('run'); const [range,setRange]=useState('30'); const [limit,setLimit]=useState(20);

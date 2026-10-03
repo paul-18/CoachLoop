@@ -84,6 +84,9 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
     const activity = activityById.get(block.id);
     if (!activity) return;
     lines.push(`\n${activity.name}:`);
+    if (activity.efforts?.length) {
+      lines.push(...activity.efforts.map((effort, index) => `- Effort ${index + 1}: ${effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "completed; measures unrecorded" : "NOT COMPLETED"}`));
+    }
     if (!activity.completed) {
       const planned = [
         activity.plannedDurationMin !== null ? `${activity.plannedDurationMin} min` : "",

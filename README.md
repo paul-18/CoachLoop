@@ -36,7 +36,7 @@ Plan it. Log it. Review it. Hand it to your AI. Bring the next workout back.
 - [Updates](#updates)
 - [Contributing](#contributing)
 - [Disclaimer](#disclaimer)
-- [License](#license)
+- [Credits](#credits)
 
 ---
 
@@ -157,7 +157,7 @@ Already have a backup? Restore it with **Settings → Restore JSON backup**.
 
 ### Brief shortcuts
 
-- **Mark sent** records that you shared a brief (it doesn't send anything). Your next brief then includes only newer sessions.
+- **Mark sent** records that you shared a brief (it doesn't send anything). Choose the “since last brief” option to include newer sessions and later corrections.
 - For a shorter update, copy your **last workout**, **today's training**, or the **last two days**.
 - **Copy format** shares only the FITLOG instructions.
 
@@ -183,7 +183,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 ### Training
 
 - **Strength logging**: sets, reps, loads, RPE/RIR, warm-ups, notes, and rest timing. Planned work stays separate from completed results.
-- **Activities and mobility**: running, rucking, swimming, cycling, rowing, walking, hiking, circuits, FORCE, soccer, grappling, yoga, and more. Mobility plans can go movement by movement.
+- **Activities and mobility**: running, rucking, swimming, cycling, rowing, walking, hiking, circuits, FORCE, soccer, grappling, yoga, water polo, and more. Mobility plans can go movement by movement.
 - **Readable intervals**: semicolon-separated run instructions display as stages.
 - **HYROX simulation** *(optional)*: run-and-station timer with division selection.
 
@@ -192,6 +192,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 - **Strength profile**: compares recent completed bench, squat, deadlift, and overhead press results, with pull-ups shown separately. These are loose training guides, and the underlying sets and dates stay visible. Missing data does not mean a weakness.
 - **Strength coverage**: shows which muscle groups received logged lifting work. It reflects training coverage, not recovery or physique.
 - **Benchmarks**: pin repeatable tests, record dated attempts and protocols, and set optional re-test intervals (**Settings → Pinned benchmarks**).
+- **Personalize Today**: choose and reorder quick-log activities in Settings → Appearance & quick log. Select the male or corrected female strength-coverage diagram there; the choice changes the illustration only.
 - **Weekly streak**: five distinct completed training days in a Monday–Sunday week qualify. Tap the streak to open the training calendar.
 
 ### Data
@@ -304,7 +305,7 @@ Coach Loop is a logging tool and a way to move text between you and an AI. It is
 
 ---
 
-## License
+## Credits
 
 <!-- TODO: choose a license (e.g. MIT) and add a LICENSE file, then update this section. -->
 

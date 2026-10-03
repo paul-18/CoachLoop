@@ -30,6 +30,12 @@ export function createSyncQueue(
     requestPull() { if (paused) return; pullPending = true; void drain(); },
     requestPush() { if (paused) return; pushPending = true; void drain(); },
     retry() { void drain(); },
+    restart() {
+      paused = false;
+      pullPending = true;
+      pushPending = true;
+      void drain();
+    },
     async pauseAndDrain() {
       paused = true;
       pullPending = false;

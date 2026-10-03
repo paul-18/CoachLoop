@@ -91,16 +91,18 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .run-plan p span { flex: 0 0 18px; color: rgba(142,209,232,.7); font-size: .72rem; font-weight: 800; }
 @media (max-width: 640px) { .quick-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } .quick-grid button { min-width: 0; min-height: 70px; } }
 .quick-grid button { display: flex; min-height: 82px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 17px; background: rgba(255,255,255,.022); color: rgba(255,255,255,.56); font-size: .74rem; font-weight: 800; transition: .18s ease; }
-.quick-grid button:hover { border-color: rgba(198,255,74,.18); color: var(--lime); background: rgba(198,255,74,.045); } .quick-grid svg { width: 20px; height: 20px; }
+@media (hover: hover) and (pointer: fine) { .quick-grid button:hover { border-color: rgba(198,255,74,.18); color: var(--lime); background: rgba(198,255,74,.045); } }
+.quick-grid button:active { background: rgba(198,255,74,.045); }
+.quick-grid svg { width: 24px; height: 24px; flex: 0 0 24px; stroke-width: 2; }
 .stat-tile { min-width: 0; border: 1px solid rgba(255,255,255,.07); border-radius: 18px; background: linear-gradient(150deg,rgba(255,255,255,.032),rgba(255,255,255,.012)); padding: 18px; }
 .history-card { display: block; width: 100%; min-width: 0; min-height: 72px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); border-radius: 17px; background: rgba(255,255,255,.022); padding: 16px; }
 .history-card > button { min-width: 0; }
 .history-set-compact { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 40px; border-bottom: 1px solid rgba(255,255,255,.06); padding: 7px 2px; color: rgba(255,255,255,.78); font-size: .8rem; }
 .history-set-compact:last-child { border-bottom: 0; }
-.history-set-compact.incomplete { opacity: .55; }
+.history-set-compact.incomplete { color: rgba(255,255,255,.72); }
 .history-set-compact strong { min-width: 0; overflow-wrap: anywhere; font-weight: 750; }
 .history-set-index { color: var(--lime); font-size: .7rem; font-weight: 900; }
-.history-set-compact small { color: rgba(255,255,255,.42); }
+.history-set-compact small { color: rgba(255,255,255,.72); }
 .history-set-compact .history-set-note { grid-column: 2 / -1; margin: 0; color: rgba(255,255,255,.54); }
 .history-extra { margin-top: 8px; color: rgba(255,255,255,.48); font-size: .75rem; }
 .history-extra summary { min-height: 36px; cursor: pointer; }
@@ -147,7 +149,8 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .history-set-card > div { min-width: 0; }
 .history-set-card small, .history-cardio-grid small { display: block; color: rgba(255,255,255,.38); font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .history-set-card strong, .history-cardio-grid strong { display: block; margin-top: 4px; word-break: normal; color: rgba(255,255,255,.76); font-size: .84rem; line-height: 1.4; }
-.history-set-card.incomplete, .history-activity-incomplete { opacity: .58; }
+.history-set-card.incomplete, .history-activity-incomplete { opacity: 1; }
+.history-activity-incomplete .history-efforts span { color: rgba(255,255,255,.72); }
 .history-set-name span { color: var(--lime); font-size: .72rem; font-weight: 850; }
 .history-set-name small { margin-top: 2px; color: #ffba66; }
 .history-set-note { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; color: rgba(255,255,255,.35); font-size: .7rem; line-height: 1.5; }
@@ -774,3 +777,35 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .goal-edit > button:nth-of-type(2) { grid-column:4; }
   .goal-edit > button:nth-of-type(3) { grid-column:5; }
 }
+/* Readable logging targets and effort fields at phone sizes. */
+.compact-set-row .set-target-effort { font-size: .75rem; max-width: none; white-space: normal; line-height: 1.25; }
+.activity-effort .field-label, .activity-effort-plan-row .field-label { font-size: .875rem; white-space: normal; }
+.coach-cue strong { font-size: .75rem; }
+.calendar-weekday, .calendar-legend { font-size: .75rem; color: rgba(255,255,255,.65); }
+button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+
+/* Full plan instructions keep their width on small screens; live cues remain compact. */
+@media (max-width: 640px) {
+  .coach-cue:not(.compact-coach-cue) { flex-direction: column; align-items: stretch; gap: 4px; }
+}
+.coach-format-disclosure summary { min-height: 44px; cursor: pointer; color: rgba(255,255,255,.75); }
+.coach-format-disclosure .coach-quick-row { margin-top: 8px; }
+
+/* Read long coaching context without squeezed single-line fields. */
+.goal-read-card { padding: 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(0,0,0,.12); }
+.goal-read-card p, .profile-read-text, .readable-goals li { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.6; color: rgba(255,255,255,.85); }
+.goal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 10px; }
+.goal-actions button { min-height: 44px; }
+.readable-goals { padding: 16px 18px 16px 38px; list-style: decimal; }
+.readable-goals li + li { margin-top: 14px; }
+.long-text-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 720px; height: min(85dvh, 680px); gap: 14px; overflow: hidden; padding: 20px; border-color: rgba(255,255,255,.12); background: #151713; color: white; }
+.long-text-dialog [data-slot="dialog-description"] { color: rgba(255,255,255,.65); }
+.long-text-dialog .long-text-input { field-sizing: fixed; flex: 1; min-height: 0; width: 100%; resize: none; overflow-y: auto; border-color: rgba(255,255,255,.15); background: rgba(0,0,0,.2); font-size: 16px; line-height: 1.65; padding: 14px; }
+@media (max-width: 639px) { .long-text-dialog { padding: 16px; } }
+
+.coach-goals li p { white-space: pre-wrap; }
+
+.anatomy-head { stroke-linecap: round; stroke-linejoin: round; }
+.anatomy-neck { fill: #80665d; stroke: none; }
+.anatomy-face { fill: #ac8a7c; stroke: #c6a08c; stroke-width: 1.5; }
+.anatomy-hair { fill: #3a2928; stroke: #98746a; stroke-width: 2; }

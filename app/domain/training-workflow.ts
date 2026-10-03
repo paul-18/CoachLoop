@@ -1,5 +1,19 @@
-import { makeExercise, makeSet, type WorkoutSession, type TrainingState, type Unit } from './training-types';
+import { makeExercise, makeSet, type WorkoutSession, type TrainingState, type TrainingSet, type Unit } from './training-types';
+import { hasCompletedActivityWork } from "./completion";
 import { exerciseIdentity, performedDistance, performedDuration, convertWeight } from './training-metrics';
+
+/** Copy a result while retaining the destination set's displayed unit. */
+export function matchedPreviousSetValues(previous: TrainingSet, target: TrainingSet): Partial<TrainingSet> {
+  const weight = previous.actualWeight ?? previous.plannedWeight;
+  return {
+    actualReps: previous.actualReps || previous.plannedReps,
+    actualWeight: weight === null ? null : Number(convertWeight(weight, previous.unit, target.unit).toFixed(4)),
+    rpe: previous.rpe,
+    rir: previous.rir,
+    loadType: previous.loadType,
+    weightMode: previous.weightMode,
+  };
+}
 
 export function moveBlockLater(workout: WorkoutSession, id: string): WorkoutSession {
   const order = [...workout.blockOrder];
@@ -20,7 +34,7 @@ export function substituteExercise(workout: WorkoutSession, id: string, name: st
     sets: remaining.map(s => makeSet(unit, {plannedReps:s.plannedReps, warmup:s.warmup})), updatedAt:now};
   const exercises = workout.exercises.map(e => e.id === id ? {...e, updatedAt:now, sets:e.sets.map(s => s.completed || s.skipped ? s : {...s, skipped:true, updatedAt:now})} : e);
   exercises.push(replacement);
-  let order = [...workout.blockOrder];
+  const order = [...workout.blockOrder];
   if (!order.some(b => b.id === id)) order.push({type:'exercise', id});
   order.splice(order.findIndex(b => b.id === id)+1, 0, {type:'exercise', id:replacement.id});
   return {...workout, exercises, blockOrder:order, updatedAt:now};
@@ -31,7 +45,7 @@ export function incrementKey(name: string, unit: Unit, mode: string, aliases: Tr
 export const readableNumber = (n:number) => Number(n.toFixed(2)).toLocaleString();
 export function activityRows(state:TrainingState, type?:string, from='', to='9999-12-31') {
   return state.workouts.filter(w => w.status==='completed' && w.date>=from && w.date<=to)
-    .flatMap(workout => workout.cardio.filter(a => a.completed && (!type || a.activityType===type)).map(activity => ({workout,activity})))
+    .flatMap(workout => workout.cardio.filter(a => hasCompletedActivityWork(a) && (!type || a.activityType===type)).map(activity => ({workout,activity})))
     .sort((a,b)=>b.workout.date.localeCompare(a.workout.date));
 }
 export function activityTotals(rows:ReturnType<typeof activityRows>) {

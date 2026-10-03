@@ -4,6 +4,8 @@ import { uid, type FieldConflict, type TrainingState } from "../domain/training-
 type Entity = Record<string, unknown>;
 const asEntity = (value: unknown): Entity | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Entity : null;
+import { validateSyncedState } from "./training-validation";
+import { safeConflictPath } from "./conflict-path";
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const segment = (value: string) => encodeURIComponent(value);
 
@@ -20,17 +22,19 @@ export function mergeField<T>(base: T, local: T, remote: T): MergeResult<T> {
 
 /** Stable entity paths address array elements by ID, never by array position. */
 export function readEntity(state: TrainingState, path: string): Entity | null {
+  if (path && !safeConflictPath(path)) return null;
   let node: unknown = state;
   for (const part of path.split("/").filter(Boolean).map(decodeURIComponent)) {
     node = Array.isArray(node)
       ? node.find((item) => asEntity(item)?.id === part)
-      : asEntity(node)?.[part];
+      : asEntity(node) && Object.hasOwn(node as object, part) ? (node as Entity)[part] : undefined;
     if (node === undefined) return null;
   }
   return asEntity(node);
 }
 
 export function writeConflictValue(state: TrainingState, path: string, value: unknown): boolean {
+  if (!safeConflictPath(path)) return false;
   const slash = path.lastIndexOf("/");
   const node = readEntity(state, path.slice(0, slash));
   if (!node) return false;
@@ -116,6 +120,7 @@ export function mergeConcurrentState(
 }
 
 export function projectLocalOverrides(state: TrainingState, overrides: Record<string, unknown>): TrainingState {
+  if (!(state.pendingConflicts ?? []).some((item) => Object.hasOwn(overrides, item.id))) return state;
   const projected = structuredClone(state);
   for (const conflict of state.pendingConflicts ?? []) {
     if (Object.hasOwn(overrides, conflict.id)) {
@@ -136,5 +141,6 @@ export function resolveFieldConflict(state: TrainingState, id: string, value: un
   if (conflict.fieldPath === "/goals") next.goalsUpdatedAt = new Date().toISOString();
   next.pendingConflicts = next.pendingConflicts?.filter((item) => item.id !== id);
   next.resolvedConflictIds = [...new Set([...(next.resolvedConflictIds ?? []), id])];
+  validateSyncedState(next);
   return next;
 }

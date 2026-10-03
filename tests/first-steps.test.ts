@@ -13,7 +13,7 @@ test("first-use guide is available in empty tabs and an example does not invent 
     assert.match(html, /Rank your training goals/);
     assert.match(html, /Try example import/);
   }
-  const sample = parseFitlog(sampleWorkout("lb"), "lb", {});
+  const sample = parseFitlog(sampleWorkout(), "lb", {});
   assert.ok(sample.exercises.length);
   assert.ok(sample.exercises.every(exercise => exercise.sets.every(set => !set.completed)));
   assert.equal(state.workouts.length, 0);

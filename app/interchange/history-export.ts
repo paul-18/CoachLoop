@@ -2,6 +2,7 @@ import { hyroxExport } from "../domain/hyrox";
 import type { TrainingState, TrainingSet } from "../domain/training-types";
 import { performedReps, performedWeight, performedDistance, performedDuration, exerciseIdentity } from "../domain/training-metrics";
 
+import { hasCompletedActivityWork } from "../domain/completion";
 const setDescription = (set: TrainingSet) => {
   const weight = performedWeight(set);
   const load = set.loadType === "bodyweight"
@@ -36,7 +37,7 @@ export function exportCompletedHistory(state: TrainingState, filter: { from?: st
       }
       if (groups.length) items.push(`${exercise.name}: ${groups.map(({ label, count }) => `${label}${count > 1 ? ` (${count} sets)` : ""}`).join("; ")}`);
     }
-    for (const activity of (filter.exercise ? [] : workout.cardio).filter((entry) => entry.completed)) {
+    for (const activity of (filter.exercise ? [] : workout.cardio).filter(hasCompletedActivityWork)) {
       const details = [
         performedDistance(activity) !== null ? `${performedDistance(activity)} km` : null,
         performedDuration(activity) !== null ? `${performedDuration(activity)} min` : null,

@@ -1,3 +1,8 @@
+import type { TrainingSet } from "../domain/training-types";
+
+export const csvSetEffort = (set: Pick<TrainingSet, "rpe" | "rir">) =>
+  [set.rpe.trim() ? `RPE ${set.rpe.trim()}` : "", set.rir.trim() ? `RIR ${set.rir.trim()}` : ""].filter(Boolean).join("; ");
+
 /**
  * Spreadsheet applications may evaluate cells beginning with these characters
  * as formulas. Prefixing an apostrophe keeps exported training text literal.

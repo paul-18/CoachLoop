@@ -1,7 +1,8 @@
 "use client";
+import { APP_RELEASE } from "../app-release";
 
 import { Activity, BarChart3, Bot, Dumbbell, History, Settings } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -11,6 +12,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 
 import { type CardioEntry, type ExerciseBlock, type WorkoutSession } from "../domain/training-types";
 
+import { performedDuration, performedDistance, hasCompletedActivityWork } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 export type MainView = "today" | "history" | "coach" | "progress" | "settings";
 
@@ -46,13 +48,20 @@ export function DecimalInput({
 }) {
   const [raw, setRaw] = useState(value === null ? "" : String(value));
   const focused = useRef(false);
+  const dirty = useRef(false);
+  const lastSubmitted = useRef<number | null | undefined>(undefined);
+  const baseline = useRef(value);
   const clamp = (candidate: number) => {
     const min = typeof props.min === "number" ? props.min : typeof props.min === "string" ? Number(props.min) : -Infinity;
     const max = typeof props.max === "number" ? props.max : typeof props.max === "string" ? Number(props.max) : Infinity;
     return Math.min(Number.isFinite(max) ? max : Infinity, Math.max(Number.isFinite(min) ? min : -Infinity, candidate));
   };
   useEffect(() => {
-    if (!focused.current) setRaw(value === null ? "" : String(value));
+    if (!focused.current || !dirty.current || (value !== baseline.current && value !== lastSubmitted.current)) {
+      dirty.current = false;
+      setRaw(value === null ? "" : String(value));
+    }
+    baseline.current = value;
   }, [value]);
   return (
     <Input
@@ -61,27 +70,34 @@ export function DecimalInput({
       value={raw}
       onFocus={(event) => {
         focused.current = true;
+        baseline.current = value;
         props.onFocus?.(event);
       }}
       onBlur={(event) => {
         focused.current = false;
         const parsed = raw === "" || raw === "." || raw === "-" ? null : Number(raw);
-        if (!Number.isFinite(parsed)) {
+        if (parsed !== null && !Number.isFinite(parsed)) {
           setRaw(value === null ? "" : String(value));
-        } else {
+        } else if (dirty.current) {
           const bounded = parsed === null ? null : clamp(parsed);
-          onValueChange(bounded);
+          if (bounded !== lastSubmitted.current) onValueChange(bounded);
           setRaw(bounded === null ? "" : String(bounded));
         }
+        dirty.current = false;
+        lastSubmitted.current = undefined;
         props.onBlur?.(event);
       }}
       onChange={(event) => {
         const next = event.target.value;
         if (!/^-?\d*\.?\d*$/.test(next)) return;
         setRaw(next);
-        // Keep keystrokes local. The committed value updates on blur (which also
-        // happens before a set/activity completion tap), avoiding a whole-log
-        // render and sync pass for every digit.
+        dirty.current = true;
+        const parsed = next === "" || next === "." || next === "-" ? null : Number(next);
+        if (parsed === null || Number.isFinite(parsed)) {
+          const bounded = parsed === null ? null : clamp(parsed);
+          lastSubmitted.current = bounded;
+          onValueChange(bounded);
+        }
       }}
     />
   );
@@ -117,12 +133,13 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
     (sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length,
     0,
   );
-  const duration = workout.cardio.reduce(
-    (sum, activity) => sum + (activity.completedAsPlanned ? activity.plannedDurationMin ?? 0 : activity.actualDurationMin ?? 0),
+  const activities = workout.cardio.filter(hasCompletedActivityWork);
+  const duration = activities.reduce(
+    (sum, activity) => sum + (performedDuration(activity) ?? 0),
     0,
   );
-  const distance = workout.cardio.reduce(
-    (sum, activity) => sum + (activity.completedAsPlanned ? activity.plannedDistanceKm ?? 0 : activity.actualDistanceKm ?? 0),
+  const distance = activities.reduce(
+    (sum, activity) => sum + (performedDistance(activity) ?? 0),
     0,
   );
   const pieces = [];
@@ -132,8 +149,8 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
   if (sets) pieces.push(`${sets} completed set${sets === 1 ? "" : "s"}`);
   if (duration) pieces.push(`${duration.toFixed(duration % 1 ? 1 : 0)} cardio min`);
   if (distance) pieces.push(`${distance.toFixed(distance % 1 ? 2 : 0)} km`);
-  if (workout.cardio.length && !duration && !distance) {
-    pieces.push(`${workout.cardio.length} completed activit${workout.cardio.length === 1 ? "y" : "ies"}`);
+  if (activities.length && !duration && !distance) {
+    pieces.push(`${activities.length} activit${activities.length === 1 ? "y" : "ies"}`);
   }
   return pieces.join(" · ") || "No work recorded";
 };
@@ -163,7 +180,7 @@ export function AppMark({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <div className="app-mark-copy min-w-0">
           <p className="text-[1.05rem] font-black tracking-[-0.04em] text-white">Coach Loop</p>
-          <p className="text-xs font-medium text-white/42">Local training log</p>
+          <p className="text-xs font-medium text-white/42">Local training log · {APP_RELEASE}</p>
         </div>
       )}
     </div>
