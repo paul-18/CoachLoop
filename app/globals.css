@@ -6,6 +6,7 @@
 @utility scrollbar-none { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
 
 :root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
   --background: #10120f; --foreground: #f5f7ef; --card: #171916; --card-foreground: #f5f7ef;
   --popover: #171916; --popover-foreground: #f5f7ef; --primary: #c6ff4a; --primary-foreground: #11140d;
   --secondary: #20231e; --secondary-foreground: #f5f7ef; --muted: #20231e; --muted-foreground: #92988a;
@@ -47,7 +48,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .rail-tab[data-state="active"] { background: rgba(var(--theme-accent-rgb),.09); color: var(--lime); box-shadow: inset 0 0 0 1px rgba(var(--theme-accent-rgb),.08); }
 .rail-tab::after, .mobile-tab::after { display: none; }
 .app-main { width: 100%; min-height: 100dvh; padding-bottom: 92px; }
-.mobile-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(16,18,15,.86); padding: max(14px, env(safe-area-inset-top)) 16px 14px; backdrop-filter: blur(22px); }
+.mobile-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(16,18,15,.86); padding: max(14px, var(--app-safe-top)) 16px 14px; backdrop-filter: blur(22px); }
 .mobile-header:empty { display: none; }
 .mobile-nav { position: fixed; inset: auto 10px calc(max(10px, env(safe-area-inset-bottom)) + 6px) 10px; z-index: 45; display: grid; width: auto; height: 67px; grid-template-columns: repeat(5,1fr); gap: 2px; border: 1px solid rgba(255,255,255,.085); border-radius: 21px; background: rgba(24,27,22,.91); padding: 5px; box-shadow: 0 18px 45px rgba(0,0,0,.42); backdrop-filter: blur(24px); }
 .mobile-tab { display: flex; height: 56px; flex-direction: column; gap: 4px; border-radius: 16px; color: rgba(255,255,255,.34); font-size: .64rem; font-weight: 800; }
@@ -207,7 +208,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .trend-bodyweight-toggle.active { border-color: rgba(255,184,77,.46); background: rgba(255,184,77,.14); color: #ffd498; }
 .coverage-panel { overflow: hidden; }
 .coverage-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }.coverage-heading h2 { margin-top: 5px; font-size: 1.2rem; font-weight: 920; letter-spacing: -.045em; }
-.coverage-scale { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.35); font-size: .66rem; font-weight: 750; }.coverage-scale i { display: block; width: 52px; height: 7px; border-radius: 999px; background: linear-gradient(90deg,#323b3b,hsl(203 60% 31%),hsl(203 60% 65%)); }
+.coverage-scale { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.35); font-size: .66rem; font-weight: 750; }.coverage-scale i { display: block; width: 52px; height: 7px; border-radius: 999px; background: #323b3b; }
 .coverage-illustration { display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; background: radial-gradient(ellipse at 50% 45%,rgba(83,111,101,.13),rgba(0,0,0,.12) 70%); padding: 10px 5px 3px; }
 .coverage-body-map { display: block; width: min(100%,430px); height: auto; margin-inline: auto; }
 .coverage-body-map text { fill: rgba(255,255,255,.48); font-size: 9px; font-weight: 800; letter-spacing: .16em; }.anatomy-silhouette { fill: #282d2c; stroke: #69726e; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle,.anatomy-neutral { stroke: #1b2321; stroke-width: 4; stroke-linejoin: round; }.anatomy-muscle { cursor: pointer; transition: fill .18s ease, stroke .18s ease, filter .18s ease; }.anatomy-muscle:hover,.anatomy-muscle:focus { filter: brightness(1.25); stroke: #d8e4d4; outline: none; }.anatomy-muscle.selected { stroke: #f0f8e5; stroke-width: 7; filter: brightness(1.13); }
@@ -257,7 +258,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 
 .workout-shell { --live-header-height: 72px; --live-rest-height: 0px; min-height: 100dvh; background: radial-gradient(circle at 55% -20%,rgba(var(--theme-accent-rgb),.055),transparent 26rem),#10120f; color: #fff; }
 .workout-shell.has-rest-timer { --live-rest-height: 60px; }
-.workout-header { position: fixed; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; gap: 12px; min-height: 72px; border-bottom: 1px solid rgba(255,255,255,.065); background: rgba(16,18,15,.95); padding: max(12px,env(safe-area-inset-top)) 14px 12px; backdrop-filter: blur(22px); }
+.workout-header { position: fixed; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; gap: 12px; min-height: 72px; border-bottom: 1px solid rgba(255,255,255,.065); background: rgba(16,18,15,.95); padding: max(12px,var(--app-safe-top)) 14px 12px; backdrop-filter: blur(22px); }
 .workout-header-title { min-width: 0; overflow: hidden; }
 .workout-header-title h1, .workout-header-title p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-header-actions { flex-shrink: 0; }
@@ -380,10 +381,10 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .bodyweight-quicklog button { min-height: 44px; flex-shrink: 0; }
 @media (max-width: 640px) {
   input:not([type="checkbox"]), textarea, select { font-size: 16px !important; }
-  .workout-shell { --live-header-height: calc(72px + env(safe-area-inset-top, 0px)); }
+  .workout-shell { --live-header-height: calc(72px + var(--app-safe-top)); }
   .workout-shell.has-rest-timer { --live-rest-height: 60px; }
   .workout-shell input, .workout-shell textarea, .workout-shell select { scroll-margin-block-start: calc(var(--live-header-height) + var(--live-rest-height) + 12px); scroll-margin-block-end: 24px; }
-  .workout-header { height: var(--live-header-height); min-height: var(--live-header-height); padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 10px; gap: 9px; }
+  .workout-header { height: var(--live-header-height); min-height: var(--live-header-height); padding: calc(10px + var(--app-safe-top)) 10px 10px; gap: 9px; }
   .rest-timer { top: var(--live-header-height); padding: 6px 12px; }
   .workout-shell button[data-slot="button"], .workout-shell select, .workout-shell input { min-height: 44px; }
   .workout-header input { min-height: 24px; }
@@ -410,8 +411,8 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .coach-hero p:not(.eyebrow) { margin-top: 8px; font-size: .87rem; line-height: 1.55; }
   .coach-hero button { width: 100%; margin-top: 16px; }
   .loop-connector { display: none; }
-  .page-stack { gap: 22px; padding: calc(22px + env(safe-area-inset-top, 0px)) 12px 50px; }
-  .today-stack { padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
+  .page-stack { gap: 22px; padding: calc(22px + var(--app-safe-top)) 12px 50px; }
+  .today-stack { padding-top: calc(28px + var(--app-safe-top)); }
   .today-stack { gap: 20px; }
   .coach-action-row { display: block; padding: 16px; }
   .coach-action-row button { width: 100%; margin-top: 14px; }
@@ -428,7 +429,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .history-card button[data-slot="button"], .range-switch button, .calendar-nav button { min-height: 44px; }
   .calendar-nav button { min-width: 44px; }
   .mobile-tab { color: #969e8e; }
-  .mobile-header { padding-block: max(10px, env(safe-area-inset-top)) 10px; }
+  .mobile-header { padding-block: max(10px, var(--app-safe-top)) 10px; }
 }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 
@@ -654,7 +655,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .hyrox-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 10px; }.hyrox-fields input { margin-top: 4px; }
 .hyrox-actions { display: flex; gap: 8px; flex-shrink: 0; margin-top: 12px; min-width: 0; }.hyrox-actions button { min-height: 44px; flex: 1; white-space: normal; }.hyrox-actions input { min-width: 0; flex: 1; }
 .hyrox-workout { min-height: 100dvh; color: #f4f6f0; background: #10120f; }
-.hyrox-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: #10120ff5; border-bottom: 1px solid #ffffff12; padding: calc(10px + env(safe-area-inset-top,0px)) 12px 10px; }
+.hyrox-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: #10120ff5; border-bottom: 1px solid #ffffff12; padding: calc(10px + var(--app-safe-top)) 12px 10px; }
 .hyrox-header > div { min-width: 0; flex: 1; }.hyrox-header strong,.hyrox-header small { display: block; overflow-wrap: anywhere; }.hyrox-header strong { font-size: 1rem; }.hyrox-header small { color: #adb6a5; font-size: .8rem; }.hyrox-header button { min-height: 44px; flex-shrink: 0; }
 .hyrox-main { max-width: 700px; margin-inline: auto; padding: 16px 14px calc(120px + env(safe-area-inset-bottom,0px)); }
 .hyrox-live { border: 1px solid #c6ff4130; border-radius: 20px; background: #c6ff4105; padding: 18px; }
@@ -806,9 +807,9 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--l
 .coach-goals li p { white-space: pre-wrap; }
 
 .anatomy-head { stroke-linecap: round; stroke-linejoin: round; }
-.anatomy-neck { fill: #80665d; stroke: none; }
-.anatomy-face { fill: #ac8a7c; stroke: #c6a08c; stroke-width: 1.5; }
-.anatomy-hair { fill: #3a2928; stroke: #98746a; stroke-width: 2; }
+.anatomy-neck { fill: #282d2c; stroke: #69726e; }
+.anatomy-face { fill: #282d2c; stroke: #69726e; stroke-width: 1.5; }
+.anatomy-hair { fill: #151918; stroke: #69726e; stroke-width: 2; }
 
 /* Accent presets preserve the dark canvas and use readable dark button text. */
 html[data-coach-theme="peach"] { --lime:#f0a37d; --theme-accent-rgb:240,163,125; }
@@ -836,9 +837,42 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 
 /* The normal app has no visible mobile header: inset the complete document once.
    Fixed workout/Hyrox headers have their own insets and stay outside this shell. */
-.app-main { padding-top: env(safe-area-inset-top, 0px); }
+.app-main { padding-top: var(--app-safe-top); }
 @media (max-width: 767px) {
   .app-main .page-stack { padding-top:22px; }
   .app-main .today-stack { padding-top:28px; }
 }
 .anatomy-face, .anatomy-neck { fill:#282d2c; stroke:#69726e; }
+
+/* Apply to installed portrait sessions without relying solely on a launch-time
+   env() value; browser tabs and landscape keep their reported safe insets. */
+@media (display-mode: standalone) and (orientation: portrait) {
+  :root { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); }
+}
+@media (orientation: portrait) {
+  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); }
+}
+@media (max-width: 1099px) {
+  .app-main { padding-left:env(safe-area-inset-left, 0px); padding-right:env(safe-area-inset-right, 0px); }
+  .workout-header, .hyrox-header { padding-left:max(12px,env(safe-area-inset-left,0px)); padding-right:max(12px,env(safe-area-inset-right,0px)); }
+}
+[data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+  top:calc((100dvh + var(--app-safe-top) - env(safe-area-inset-bottom,0px)) / 2);
+  max-height:calc(100dvh - var(--app-safe-top) - env(safe-area-inset-bottom,0px) - 24px);
+  overflow-y:auto;
+}
+.coverage-swatches { display:flex; gap:2px; }
+.coverage-scale .coverage-swatches i { width:14px; height:12px; border:1px solid #ffffff20; border-radius:2px; }
+.coverage-scale-note { font-size:.75rem; color:#aeb5a7; margin-top:8px; }
+.coach-goals > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; cursor:pointer; list-style:none; }
+.coach-goals > summary::-webkit-details-marker { display:none; }
+.coach-goals > summary span { color:#aeb5a7; font-size:.8rem; }
+.coach-goals > summary::after { content:"＋"; color:var(--lime); }
+.coach-goals[open] > summary::after { content:"−"; }
+
+.workout-shell { --live-header-height:calc(72px + var(--app-safe-top)); }
+.workout-header { height:var(--live-header-height); min-height:var(--live-header-height); padding-top:calc(10px + var(--app-safe-top)); }
+html[data-app-standalone="true"] body::before {
+  content:""; position:fixed; inset:0 0 auto; height:var(--app-safe-top);
+  background:#10120f; z-index:49; pointer-events:none;
+}

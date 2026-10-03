@@ -1,5 +1,7 @@
 "use client";
 
+import { SaveErrorBanner } from "./views/save-error-banner";
+
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -349,7 +351,7 @@ function WorkoutApp() {
     return (
       <>
         
-        {localSaveStatus === "error" && <div role="alert" className="fixed inset-x-3 top-2 z-[100] rounded-xl border border-red-300/30 bg-[#371f20] p-3 text-sm text-white">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}
+        {localSaveStatus === "error" && <SaveErrorBanner onRetry={() => setLocalSaveRetry((value) => value + 1)} />}
         <ViewErrorBoundary onReload={async () => { await flushLatest(); window.location.reload(); }} label="This workout" resetKey={displayedWorkout.id}>
           {displayedWorkout.hyrox ? <HyroxWorkout history={displayedState.workouts} key={displayedWorkout.id} workout={displayedWorkout} unit={displayedState.settings.defaultUnit} onUpdate={putWorkout} onFinish={finishEditor} onDiscard={discardWorkout} onBack={leaveEditor} /> : <WorkoutEditor workout={displayedWorkout} state={displayedState} onIncrement={(key,value)=>applyProjectedUpdate(current=>({...current,loadIncrements:{...current.loadIncrements,[key]:{value,updatedAt:new Date().toISOString()}}}))} onUpdate={putWorkout} onFinish={() => finishEditor()} onDiscard={editingWorkoutId ? undefined : discardWorkout} onBack={leaveEditor} />}
         </ViewErrorBoundary>

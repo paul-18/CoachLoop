@@ -5,10 +5,14 @@ import { FEMALE_BACK, FEMALE_FRONT, MALE_BACK, MALE_FRONT } from "@musclemap/ass
 import type { BodyDiagram } from "@musclemap/assets";
 import type { MuscleCoverage, MuscleGroup } from "../domain/training-coverage";
 
+export const COVERAGE_LEVELS = [
+  { color: "#323b3b", label: "0" }, { color: "#596469", label: "under 4" },
+  { color: "#929da2", label: "4–<7" }, { color: "#c4cdd0", label: "7–<10" },
+  { color: "#f2f5f5", label: "10+" },
+] as const;
 export const coverageColor = (entry: MuscleCoverage) => {
-  if (!entry.effectiveSets) return "#323b3b";
-  const level = Math.min(1, entry.effectiveSets / 10);
-  return `hsl(203 60% ${31 + level * 34}%)`;
+  const sets = entry.effectiveSets;
+  return COVERAGE_LEVELS[sets <= 0 ? 0 : sets < 4 ? 1 : sets < 7 ? 2 : sets < 10 ? 3 : 4].color;
 };
 
 // Keep labels tied to Coach Loop's existing strength-only mapping.

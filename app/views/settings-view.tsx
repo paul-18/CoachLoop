@@ -79,6 +79,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const fileRef = useRef<HTMLInputElement>(null);
   const [snapshots, setSnapshots] = useState<TrainingSnapshot[]>([]);
   const [installed, setInstalled] = useState(false);
+  const [updateNotice, setUpdateNotice] = useState("");
   const [restoreMode, setRestoreMode] = useState<RestoreMode>("merge");
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
   useEffect(() => { void listSnapshots().then(setSnapshots).catch(() => undefined); }, []);
@@ -132,7 +133,8 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <p className="text-sm text-white/65">Workouts save to this phone’s browser storage. Download a JSON backup regularly from below; this edition does not sync between devices.</p>
         <p className="mt-2 text-sm text-white/60">Storage protection: {health.persisted === true ? "Persistent storage granted" : health.persisted === false ? "Best-effort storage; keep an external backup" : "Status unavailable; keep an external backup"}{health.usage !== undefined && health.quota ? ` · ${(health.usage / 1048576).toFixed(1)} MB used of ${(health.quota / 1048576).toFixed(0)} MB estimated quota` : ""}</p><details className="settings-sync-details"><summary>Offline files</summary><p>{offlineReady === "ready" ? "Ready for offline use" : offlineReady === "failed" ? "Could not be prepared yet; open while online and try again" : "Preparing…"}</p></details>
         <p className="mt-3 text-sm" role="status">{localSaveStatus === "error" ? "Latest changes are not saved" : localSaveStatus === "saving" ? "Saving…" : "Saved on this device"} · {APP_RELEASE}{release ? ` · ${release.split(":").at(-1)?.slice(0, 8)}` : ""}</p>
-        <div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" disabled={!onCheckUpdates} onClick={() => void onCheckUpdates?.().then(() => toast("Update check requested")).catch(() => toast.error("Update check failed; try online"))}>Check updates</Button>{updateReady && <Button disabled={updateBlocked || !onApplyUpdate} onClick={() => void onApplyUpdate?.().catch(error => toast.error(error instanceof Error ? error.message : "Update failed; try again"))}>Restart to update</Button>}</div>
+        <div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" disabled={!onCheckUpdates} onClick={() => void onCheckUpdates?.().then(() => setUpdateNotice("Update check requested. Any downloaded update appears here.")).catch(() => setUpdateNotice("Update check failed; try again while online."))}>Check updates</Button>{updateReady && <Button disabled={updateBlocked || !onApplyUpdate} onClick={() => void onApplyUpdate?.().catch(error => toast.error(error instanceof Error ? error.message : "Update failed; try again"))}>Restart to update</Button>}</div>
+        {updateNotice && <p role="status" aria-live="polite" className="mt-2 text-sm text-white/65">{updateNotice}</p>}
         {updateReady && <p className="mt-2 text-sm text-white/65">Update downloaded. Finish your workout, save and close any editor, then restart here. Close other Coach Loop windows first.</p>}
       </section>
       <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Colors, shortcuts, and Progress layout</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">

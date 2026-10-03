@@ -28,6 +28,6 @@ test("strength weekly total is load times reps rather than plain pounds",()=>{
  const state=defaultState(),w=makeWorkout("lb",120);w.date=localDate();w.status="completed";const s=w.exercises[0].sets[0];s.completed=true;s.actualReps="5";s.actualWeight=100;s.loadType="weighted";w.exercises[0].sets=[s];state.workouts=[w];state.settings.weeklyCards=["strength"];
  const card=weeklyCards(state)[0];assert.match(card.value,/500 lb × reps/);assert.match(card.detail,/excludes BW/);
 });
-test("coverage uses a consistent blue scale whose brightness increases with evidence",()=>{
- const low=coverageColor({muscle:"Chest",effectiveSets:1,days:1}),high=coverageColor({muscle:"Chest",effectiveSets:10,days:1});assert.match(low,/hsl\(203 /);assert.match(high,/hsl\(203 /);assert.notEqual(low,high);assert.equal(coverageColor({muscle:"Chest",effectiveSets:0,days:0}),"#323b3b");
+test("coverage uses clearly separated neutral levels as evidence increases",()=>{
+ const low=coverageColor({muscle:"Chest",effectiveSets:1,days:1}),high=coverageColor({muscle:"Chest",effectiveSets:10,days:1});assert.equal(low,"#596469");assert.equal(high,"#f2f5f5");assert.notEqual(low,high);assert.equal(coverageColor({muscle:"Chest",effectiveSets:0,days:0}),"#323b3b");
 });

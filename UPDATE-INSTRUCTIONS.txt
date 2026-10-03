@@ -1,12 +1,12 @@
-COACH LOOP v81 — UPLOAD TO YOUR EXISTING v80 REPOSITORY
+COACH LOOP v82 — UPLOAD TO YOUR EXISTING v81 REPOSITORY
 
-This ZIP updates the supplied v80 Reliability edition. Matching files replace
+This ZIP updates the supplied v81 Reliability edition. Matching files replace
 existing files; new files join the same app. No extra nested app folder.
 
 1. In the live app, download a full JSON backup and save it privately in Files.
    Never upload that backup to public GitHub.
 2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v81-GitHub-Update.zip in the repository's root folder
+   Upload CoachLoop-v82-Revised-GitHub-Update.zip in the repository's root folder
    (where package.json is). Commit the upload.
 3. Open your existing Codespace terminal in /workspaces/CoachLoop.
    Run each command separately; wait for completion. Stop on any failure.
@@ -17,7 +17,7 @@ existing files; new files join the same app. No extra nested app folder.
    If it prints nothing, continue:
 
    git pull --ff-only
-   unzip -o CoachLoop-v81-GitHub-Update.zip
+   unzip -o CoachLoop-v82-Revised-GitHub-Update.zip
    npx --yes pnpm@11.25.0 install --frozen-lockfile
    npx --yes pnpm@11.25.0 exec tsc --noEmit
    npx --yes pnpm@11.25.0 run lint
@@ -27,21 +27,21 @@ existing files; new files join the same app. No extra nested app folder.
 
 4. Only after all checks pass, run these separately:
 
-   git rm CoachLoop-v81-GitHub-Update.zip
+   git rm CoachLoop-v82-Revised-GitHub-Update.zip
    git add app tests README.md UPDATE-INSTRUCTIONS.txt V81-UPDATE-NOTES.md V81-IPHONE-QC.md
    git --no-pager diff --cached --stat
-   git commit -m "Improve Coach Loop v81 PWA layout, settings and restore"
+   git commit -m "Fix Coach Loop v82 PWA safe areas, coverage and Coach goals"
    git push
 
    The --no-pager command avoids the scrollable viewer that paused you last time.
    Review the staged list: it must not contain personal backups, dist or node_modules.
 5. GitHub -> Actions -> newest Publish Coach Loop PWA run. Wait for green success.
-6. Open the existing installed app ONLINE. In v80, finish any workout and wait
-   for Saved; Check updates -> wait for Restart to update -> tap it. Close any
-   other Coach Loop window if requested. Because the old controls are too high,
-   you may need to scroll to reach them once. If that remains difficult, finish
+6. Open the existing installed app ONLINE. In v81, finish any workout and open
+   Settings -> On this device. Wait for Saved; Check updates -> wait for Restart to update -> tap it. Close any
+   other Coach Loop window if requested. If old notifications are hidden, wait a moment and
+   look for Restart to update in Settings. If activation remains difficult, finish
    saving, close ALL Coach Loop Safari/Home Screen windows and reopen online.
-   Do not clear website data. Check Settings says Coach Loop v81.
+   Do not clear website data. Check Settings says Coach Loop v82.
 7. Future checks/updates are in Settings -> On this device. The same live URL,
    installed app and local database are used. Keep your external backup.
 
@@ -49,3 +49,7 @@ The large-chunk build warning is non-blocking if the build finishes successfully
 Complete restore is intentionally destructive to current-only records: review
 its preview and download a current backup first. Test on synthetic data before
 replacing your real log. See V81-IPHONE-QC.md for the focused device checks.
+
+Use this REVISED v82 ZIP instead of the earlier v82 ZIP. It contains all v82
+changes from v81 and can also be applied over the earlier v82. The release name
+stays v82; the build identifier changes so the worker can detect this update.

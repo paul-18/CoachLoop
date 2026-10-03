@@ -17,7 +17,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 import { ActivityHistory, WaistTracking, MonthlyReview } from "./training-review";
 
-import { BodyCoverageMap, coverageColor } from "./body-coverage-map";
+import { BodyCoverageMap, coverageColor, COVERAGE_LEVELS } from "./body-coverage-map";
 import { convertWeight, parseExactReps, performedReps, strengthRecords } from "../domain/training-metrics";
 import { buildExerciseTrends, dateInWindow, localDateDaysEarlier, RECENT_STRENGTH_WINDOW_DAYS, type TrendPoint, type TrendSeries } from "../domain/training-insights";
 import { coverageForLastDays, targetForCoverage, unmappedExerciseNamesLastDays, type MuscleGroup } from "../domain/training-coverage";
@@ -53,8 +53,8 @@ function StrengthCoverageCard({ state }: { state: TrainingState }) {
     })).sort((a, b) => b.date.localeCompare(a.date)), [state.workouts, state.exerciseMuscleOverrides, selected]);
   const unmappedExercises = unmappedExerciseNamesLastDays(state);
   return <section className="progress-panel coverage-panel">
-    <div className="coverage-heading"><div><p className="eyebrow">Last 7 days</p><h2>Strength coverage</h2></div><div className="coverage-scale"><span>Less</span><i /><span>More</span></div></div>
-    <div className="coverage-illustration"><BodyCoverageMap bodyDiagram={state.settings.bodyDiagram ?? "male"} coverage={coverage} selected={selected} onSelect={setSelected} /></div>
+    <div className="coverage-heading"><div><p className="eyebrow">Last 7 days</p><h2>Strength coverage</h2></div><div className="coverage-scale" aria-label="Coverage: dark grey is none; progressively lighter shades mean more completed set credit"><span>Less</span><div className="coverage-swatches">{COVERAGE_LEVELS.map(level => <i key={level.label} style={{ background: level.color }} title={`${level.label} effective sets`} />)}</div><span>More</span></div></div>
+    <p className="coverage-scale-note">Dark → light: 0 · under 4 · 4–&lt;7 · 7–&lt;10 · 10+ effective sets. Coverage counts completed working sets, not effort intensity.</p><div className="coverage-illustration"><BodyCoverageMap bodyDiagram={state.settings.bodyDiagram ?? "male"} coverage={coverage} selected={selected} onSelect={setSelected} /></div>
     <div className="coverage-detail"><div><span className="coverage-selected-label">Selected muscle</span><h3>{active.muscle}</h3><p>{active.days} training day{active.days === 1 ? "" : "s"}</p></div><strong>{active.effectiveSets % 1 ? active.effectiveSets.toFixed(1) : active.effectiveSets}<small> effective sets</small></strong></div>
     <details className="coverage-method"><summary>Where {active.muscle.toLowerCase()} credit came from</summary>{sources.length ? <div className="mt-2 space-y-1">{sources.map((item) => <p key={`${item.date}-${item.exercise}`} className="text-xs text-white/50">{formatDate(item.date)} · {item.exercise} · {item.sets} sets = {item.effective} credited</p>)}</div> : <p>No completed working sets were counted this week.</p>}</details>
     <details className="coverage-list-disclosure"><summary>View all muscle totals</summary><div className="coverage-list">{coverage.map((entry) => <button type="button" key={entry.muscle} onClick={() => setSelected(entry.muscle)} className={entry.muscle === selected ? "active" : ""} aria-pressed={entry.muscle === selected}><i style={{ background: coverageColor(entry) }} /><span>{entry.muscle}</span><em>{entry.effectiveSets % 1 ? entry.effectiveSets.toFixed(1) : entry.effectiveSets}</em></button>)}</div></details>

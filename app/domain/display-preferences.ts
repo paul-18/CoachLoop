@@ -1,8 +1,8 @@
 export const COLOR_THEMES = [
-  { id: "lime", label: "Coach Loop lime", color: "#c6ff4a", rgb: "198,255,74" },
-  { id: "peach", label: "Rally peach", color: "#f0a37d", rgb: "240,163,125" },
-  { id: "sky", label: "Sky blue", color: "#66c7ff", rgb: "102,199,255" },
-  { id: "violet", label: "Soft violet", color: "#d59cff", rgb: "213,156,255" },
+  { id: "lime", label: "Lime", color: "#c6ff4a", rgb: "198,255,74" },
+  { id: "peach", label: "Peach", color: "#f0a37d", rgb: "240,163,125" },
+  { id: "sky", label: "Sky Blue", color: "#66c7ff", rgb: "102,199,255" },
+  { id: "violet", label: "Soft Violet", color: "#d59cff", rgb: "213,156,255" },
 ] as const;
 export type ColorTheme = (typeof COLOR_THEMES)[number]["id"];
 export const WEEKLY_CARD_OPTIONS = [
