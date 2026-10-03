@@ -736,3 +736,41 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .exercise-options-row { flex-wrap: wrap; }.exercise-options-row label { min-width: 0; }.exercise-options-row label:last-child small { display: block; margin-top: 5px; font-size: .8rem; color: #acb6a6; }
 .exercise-options-row > label:last-child { grid-column: 1 / -1; }
 .hyrox-plan-line > span:has(.hyrox-include) { width: 44px; }.hyrox-include { min-height: 44px; min-width: 44px; border-radius: 10px; }.hyrox-include svg { width: 20px; height: 20px; }
+
+/* First-use guidance stays compact and disappears after completed training. */
+.first-steps { margin: 18px 18px 0; padding: 16px; border: 1px solid rgba(190,225,130,.2); border-radius: 16px; background: rgba(190,225,130,.035); }
+.first-steps summary { display:flex; justify-content:space-between; gap:12px; cursor:pointer; font-weight:800; min-height:32px; list-style:none; }
+.first-steps summary::-webkit-details-marker { display:none; }
+.first-steps > p, .first-steps-footer p { color:rgba(255,255,255,.6); font-size:.85rem; line-height:1.6; margin:8px 0; }
+.first-steps ol { display:grid; gap:14px; margin:16px 0; padding:0; list-style:none; }
+.first-steps li { display:grid; grid-template-columns:24px minmax(0,1fr) auto; gap:10px; align-items:center; }
+.first-steps li strong, .first-steps li small { display:block; }
+.first-steps li strong { font-size:.86rem; }
+.first-steps li small, .first-steps-note { color:rgba(255,255,255,.5); font-size:.77rem; line-height:1.5; }
+.step-number, .goal-rank, .coach-goals li > span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%; background:rgba(190,225,130,.12); color:var(--lime); font-size:.8rem; font-weight:800; }
+.first-steps button { min-height:44px; white-space:normal; }
+.first-steps-footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.first-steps-note { display:block; margin-top:8px; }
+.coach-goals { border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px; }
+.coach-goals h2 { font-size:1rem; font-weight:800; }
+.coach-goals ol { list-style:none; padding:0; display:grid; gap:10px; margin:14px 0; }
+.coach-goals li { display:grid; grid-template-columns:24px minmax(0,1fr); gap:10px; align-items:start; }
+.coach-goals li p { overflow-wrap:anywhere; font-size:.9rem; line-height:1.5; }
+.coach-goals-note { color:rgba(255,255,255,.5); font-size:.8rem; line-height:1.6; margin-top:10px; }
+.goal-edit { grid-template-columns:24px minmax(0,1fr) auto auto auto; }
+.goal-text { field-sizing:fixed; min-height:70px; font-size:16px; line-height:1.5; resize:vertical; }
+.coach-profile-text { field-sizing:fixed; height:240px; min-height:160px; max-height:55dvh; resize:vertical; overflow:auto; font-size:16px; line-height:1.65; }
+.profile-editor-dialog { display:flex; flex-direction:column; width:calc(100vw - 24px); max-width:720px; height:min(760px,88dvh); overflow:hidden; }
+.profile-draft { field-sizing:fixed; flex:1; min-height:100px; resize:none; overflow:auto; font-size:16px; line-height:1.65; }
+.profile-editor-dialog [data-slot="dialog-footer"] { flex-shrink:0; }
+#coach-profile, #training-goals { scroll-margin-top:20px; }
+@media (max-width:480px) {
+  .first-steps li { grid-template-columns:24px minmax(0,1fr); }
+  .first-steps li button { grid-column:2; justify-self:start; }
+  .goal-edit { grid-template-columns:24px minmax(0,1fr) auto auto auto; gap:3px; }
+  .goal-text { grid-column:2 / -1; }
+  .goal-edit > button { grid-row:2; min-height:44px; min-width:44px; }
+  .goal-edit > button:nth-of-type(1) { grid-column:3; }
+  .goal-edit > button:nth-of-type(2) { grid-column:4; }
+  .goal-edit > button:nth-of-type(3) { grid-column:5; }
+}

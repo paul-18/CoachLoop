@@ -1,0 +1,40 @@
+Coach Loop update — first-use guidance and profile editing
+
+Based on GitHub main commit 0819d15a7f72559218c99e22b662352bc00ef932.
+This archive contains only the changed source files and new focused tests.
+
+What changed
+- A compact first-use guide on Today, History, Coach, and Progress until the first completed workout.
+- Links directly to the coach profile and ranked goals in Settings.
+- An example import that opens for review without silently adding training history.
+- Your ranked goals on Coach, with a direct Edit goals button.
+- Larger profile editor with Save/Cancel, readable phone-sized text, and a scrolling inline editor.
+- Multiline ranked goals instead of narrow one-line fields.
+- First coach brief defaults to Start a new chat.
+- A second window now waits for the editor lock and opens automatically when available.
+  One writable window is still enforced to protect the shared full-log saves.
+
+Verified: typecheck, 55 tests, and the static PWA production build.
+Limit: actual iPhone layout and Safari lifecycle testing have not been performed.
+No dependency, lockfile, publishing workflow, or storage schema changes.
+
+Upload and publish using your existing Codespace
+1. Upload CoachLoop-Update.zip to the GitHub repository root and commit it.
+2. Open the existing Codespace terminal. If git status shows uncommitted work, preserve it before pulling.
+3. Run these commands one at a time:
+
+   git pull --ff-only
+   unzip -o CoachLoop-Update.zip
+   npx --yes pnpm@11.25.0 run build
+
+4. If the build succeeds, run:
+
+   rm CoachLoop-Update.zip
+   git add app tests CoachLoop-Update.zip
+   git commit -m "Improve first-use guidance, goals, and profile editing"
+   git push
+
+5. Check the newest Publish Coach Loop PWA run in Actions.
+6. Open the phone app online. Finish saving, then close and reopen when Update downloaded appears.
+
+Keep your JSON backup separately. Do not replace the entire repository with an older app ZIP.

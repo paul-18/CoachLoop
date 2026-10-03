@@ -324,7 +324,7 @@ export function CoachDialog({
     if (!open) return;
     const saved = state.settings.coachCheckIn;
     const checkIn = currentCoachCheckIn(saved);
-    setOptions({ ...initialCoachOptions(), energy: checkIn.energy, sleep: checkIn.sleep, soreness: checkIn.soreness, restrictions: checkIn.restrictions, schedule: checkIn.schedule });
+    setOptions({ ...initialCoachOptions(), mode: state.settings.lastCoachBriefAt ? "continue" : "new", energy: checkIn.energy, sleep: checkIn.sleep, soreness: checkIn.soreness, restrictions: checkIn.restrictions, schedule: checkIn.schedule });
   }, [open]);
 
   const field = <K extends keyof CoachOptions>(key: K, value: CoachOptions[K]) =>

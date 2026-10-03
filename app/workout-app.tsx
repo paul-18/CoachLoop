@@ -32,6 +32,7 @@ import { HistoryView } from "./views/history-view";
 import { CoachView } from "./views/coach-view";
 import { ProgressView } from "./views/progress-view";
 import { SettingsView } from "./views/settings-view";
+import { FirstSteps, sampleWorkout } from "./views/first-steps";
 import { useOfflineStatus } from "./pwa/use-offline-status";
 import { useTrainingPersistence } from "./persistence/use-training-persistence";
 
@@ -71,7 +72,7 @@ type WebMcpContext = {
 export default function EditorGate() {
   const lease = useLocalEditorLease();
   if (lease === "checking") return <main className="grid min-h-dvh place-items-center bg-[#10120f] text-white">Opening your log…</main>;
-  if (lease === "busy") return <main className="grid min-h-dvh place-items-center bg-[#10120f] p-6 text-white"><div><p>Coach Loop is already open in another window.</p><Button className="mt-4" onClick={() => window.location.reload()}>Try again</Button></div></main>;
+  if (lease === "busy") return <main className="grid min-h-dvh place-items-center bg-[#10120f] p-6 text-white"><div><p>Your log is open in another window.</p><p className="mt-2 max-w-sm text-sm leading-6 text-white/60">Finish your edits there, then close that Safari tab or Home Screen app. This window will open automatically when the log is available.</p><details className="mt-4 max-w-sm text-sm text-white/60"><summary className="cursor-pointer py-3">Still waiting?</summary><p>Close the other Coach Loop windows, including Safari and the installed app, then return here. You do not need to clear your training data.</p></details></div></main>;
   if (lease === "unsupported") return <main className="grid min-h-dvh place-items-center bg-[#10120f] p-6 text-white">This browser cannot safely coordinate multiple editors.</main>;
   return <WorkoutApp />;
 }
@@ -491,12 +492,13 @@ function WorkoutApp() {
         </aside>
 
         <div className="app-main">
+          {view !== "settings" && !displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onSetup={(section) => { setView("settings"); requestAnimationFrame(() => { const target = document.getElementById(section); if (target instanceof HTMLDetailsElement) target.open = true; target?.scrollIntoView({ behavior: "smooth", block: "start" }); }); }} onCoach={() => setCoachOpen(true)} onSample={() => { setImportDraft(sampleWorkout(displayedState.settings.defaultUnit)); setImportOpen(true); }} />}
           {resetNotice}
           {activeChoices.length > 1 && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { setState((current) => ({ ...current, activeWorkoutId: choice.id })); setWorkoutOpen(true); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
           {localSaveStatus === "error" && <div role="alert" className="m-3 rounded-xl border border-red-300/30 bg-red-950/30 p-3 text-sm">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}
           <TabsContent value="today"><ViewErrorBoundary label="Today" resetKey={view}><TodayView state={displayedState} onHyrox={() => setHyroxOpen(true)} onStartBlank={startBlank} onQuickCardio={quickCardio} onImport={() => setImportOpen(true)} onCoach={() => setCoachOpen(true)} onResume={() => setWorkoutOpen(true)} onStartPlan={startPlannedWorkout} onReschedulePlan={reschedulePlan} onSkipPlan={setSkipWorkoutId} onHistory={() => setView("history")} onTrainingCalendar={() => { setCalendarRequest((value) => value + 1); setView("progress"); }} onBodyweightLog={() => { setBodyweightPromptOpen(true); setView("progress"); }} syncStatus={syncStatus} /></ViewErrorBoundary></TabsContent>
           <TabsContent value="history"><ViewErrorBoundary label="History" resetKey={view}><HistoryView state={displayedState} onEdit={editWorkout} onRepeat={repeatWorkout} onReplan={replanWorkout} onDelete={deleteWorkout} /></ViewErrorBoundary></TabsContent>
-          <TabsContent value="coach"><ViewErrorBoundary label="Coach" resetKey={view}><CoachView state={state} onBuild={() => setCoachOpen(true)} onImport={() => setImportOpen(true)} /></ViewErrorBoundary></TabsContent>
+          <TabsContent value="coach"><ViewErrorBoundary label="Coach" resetKey={view}><CoachView state={state} onEditGoals={() => { setView("settings"); requestAnimationFrame(() => { const target = document.getElementById("training-goals"); if (target instanceof HTMLDetailsElement) target.open = true; target?.scrollIntoView({ behavior: "smooth", block: "start" }); }); }} onBuild={() => setCoachOpen(true)} onImport={() => setImportOpen(true)} /></ViewErrorBoundary></TabsContent>
           <TabsContent value="progress"><ViewErrorBoundary label="Progress" resetKey={view}><ProgressView state={displayedState} calendarRequest={calendarRequest} onCalendarOpened={consumeCalendarRequest} onChangeActivityType={(workoutId, activityId, type) => applyProjectedUpdate(current => ({ ...current, workouts: current.workouts.map(workout => workout.id === workoutId && workout.status === "completed" ? { ...workout, updatedAt: new Date().toISOString(), cardio: workout.cardio.map(activity => activity.id === activityId ? { ...activity, activityType: type, updatedAt: new Date().toISOString() } : activity) } : workout) }))} onLogBodyweight={logBodyweight} bodyweightPromptOpen={bodyweightPromptOpen} onBodyweightPromptChange={setBodyweightPromptOpen} onSaveWaist={entry=>applyProjectedUpdate(current=>({...current,waistEntries:[...(current.waistEntries??[]).filter(e=>e.date!==entry.date),entry]}))} /></ViewErrorBoundary></TabsContent>
           <TabsContent value="settings"><ViewErrorBoundary label="Settings" resetKey={view}><SettingsView state={displayedState} canonicalState={state} setState={applyProjectedUpdate} onResolveConflict={resolveConflict} onRestoreBackup={restoreBackup} onReset={resetAll} syncStatus={syncStatus} syncFailure={syncFailure} onRetrySync={retrySync} lastSyncedAt={lastSyncedAt} offlineReady={offlineReady} updateReady={updateReady} /></ViewErrorBoundary></TabsContent>
         </div>

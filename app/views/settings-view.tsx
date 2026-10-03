@@ -42,6 +42,8 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
   useEffect(() => { void listSnapshots().then(setSnapshots).catch(() => undefined); }, []);
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState("");
   const [newGoal, setNewGoal] = useState("");
   const [scheduleDate, setScheduleDate] = useState(localDate());
   const [scheduleLabel, setScheduleLabel] = useState("");
@@ -84,6 +86,7 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
   return (
     <div className="page-stack">
       <section className="topline"><div><h1>Settings</h1></div></section>
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}><DialogContent className="profile-editor-dialog border-white/10 bg-[#151713] text-white"><DialogHeader><DialogTitle>Coach profile</DialogTitle><DialogDescription className="text-white/55">Use paragraphs or bullet points. Save when ready; Cancel keeps your existing profile.</DialogDescription></DialogHeader><label htmlFor="profile-draft" className="text-sm font-semibold">Your background and coaching preferences</label><Textarea id="profile-draft" autoFocus value={profileDraft} onChange={event => setProfileDraft(event.target.value)} className="profile-draft" placeholder={"ABOUT ME\nTraining experience and activities…\n\nLONG-TERM DIRECTION\nGoals and what matters most…\n\nSCHEDULE & EQUIPMENT\nDays, time available, and gym access…\n\nPREFERENCES & LIMITATIONS\nWorkout style, warm-ups, and relevant restrictions…"} /><DialogFooter><Button variant="outline" onClick={() => setProfileOpen(false)}>Cancel</Button><Button onClick={() => { updateCoachProfile(profileDraft); setProfileOpen(false); toast.success("Coach profile updated"); }}>Save profile</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open) setRestoreCandidate(null); }}><DialogContent className="border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Adds {restoreAdditions} workouts; removes {restoreRemovals} workouts according to backup deletion records. Current data is snapshotted before applying.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button onClick={async () => { if (!restoreCandidate) return; try { await onRestoreBackup(restoreCandidate); setRestoreCandidate(null); toast.success("Backup merged"); } catch { toast.error("Restore could not be saved"); } }}>Merge backup</Button></DialogFooter></DialogContent></Dialog>
       {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">Other changes continue syncing. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
       <section className="settings-panel">
@@ -98,30 +101,33 @@ export function SettingsView({ state, canonicalState, setState, onResolveConflic
         <p className="mt-4 text-xs leading-5 text-white/35">Last downloaded backup: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location.</p>
       </section>
       <details className="page-disclosure"><summary><span>Recovery copies<small>Download a local checkpoint before restoring it</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {snapshot.reason}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
-      <details className="settings-panel profile-editor">
+      <details id="training-goals" className="settings-panel profile-editor">
         <summary><span><strong>Training goals</strong><small>Included in every coach brief</small></span><ChevronDown /></summary>
         <div className="pt-4">
+        <p className="mb-3 text-sm leading-6 text-white/55">Rank your goals from most to least important. Your coach brief includes this order.</p>
         <div className="space-y-2">
-          {state.goals.map((goal, index) => <div key={index} className="goal-edit"><Input aria-label={`Training goal ${index + 1}`} value={goal} onChange={(event) => updateGoals((goals) => goals.map((item, goalIndex) => goalIndex === index ? event.target.value : item))} className="border-white/8 bg-black/15" /><Button type="button" variant="ghost" size="icon-sm" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon-sm" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon-sm" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} className="text-white/25 hover:bg-red-400/10 hover:text-red-300" aria-label={`Remove goal ${index + 1}`}><X /></Button></div>)}
+          {state.goals.map((goal, index) => <div key={index} className="goal-edit"><span className="goal-rank" aria-label={`Priority ${index + 1}`}>{index + 1}</span><Textarea rows={2} aria-label={`Training goal ${index + 1}`} value={goal} onChange={(event) => updateGoals((goals) => goals.map((item, goalIndex) => goalIndex === index ? event.target.value : item))} className="goal-text border-white/8 bg-black/15" /><Button type="button" variant="ghost" size="icon-sm" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon-sm" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} className="text-white/42 hover:bg-white/8 hover:text-white disabled:opacity-20" aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon-sm" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} className="text-white/25 hover:bg-red-400/10 hover:text-red-300" aria-label={`Remove goal ${index + 1}`}><X /></Button></div>)}
           <div className="flex gap-2"><Input value={newGoal} onChange={(event) => setNewGoal(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && newGoal.trim()) { updateGoals((goals) => [...goals, newGoal.trim()]); setNewGoal(""); } }} placeholder="Add another goal…" className="border-white/8 bg-black/15" /><Button onClick={() => { if (!newGoal.trim()) return; updateGoals((goals) => [...goals, newGoal.trim()]); setNewGoal(""); }} className="bg-white/8 text-white hover:bg-white/12"><Plus /></Button></div>
         </div>
         </div>
       </details>
-      <details className="settings-panel profile-editor">
+      <details id="coach-profile" className="settings-panel profile-editor">
         <summary>
-          <span><strong>Coach profile</strong><small>Background used when you start a new ChatGPT chat</small></span>
+          <span><strong>Coach profile</strong><small>Your background and long-term coaching preferences</small></span>
           <ChevronDown />
         </summary>
         <div className="mt-5">
+          <p className="mb-3 text-sm leading-6 text-white/55">Describe your experience, long-term goals, usual schedule, equipment, and lasting preferences. Put today’s readiness in the coach brief.</p>
+          <Button type="button" variant="outline" className="mb-3" onClick={() => { setProfileDraft(state.coachProfile); setProfileOpen(true); }}>Open larger editor</Button>
           <Textarea
             value={state.coachProfile}
             onChange={(event) => updateCoachProfile(event.target.value)}
             placeholder={DEFAULT_COACH_PROFILE}
-            className="min-h-80 border-white/8 bg-black/15 text-sm leading-6"
+            className="coach-profile-text border-white/8 bg-black/15"
             aria-label="Editable coach profile"
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm leading-5 text-white/42">Keep durable preferences here. Put today’s sleep, soreness, and upcoming PT in the Coach brief form.</p>
+            <p className="text-sm leading-5 text-white/42">Changes save automatically on this device. Your profile is included when you choose Start a new chat.</p>
             <Button type="button" variant="ghost" size="sm" onClick={() => updateCoachProfile(DEFAULT_COACH_PROFILE)} className="text-white/50 hover:bg-white/7 hover:text-white"><RotateCcw /> Insert starter guidance</Button>
           </div>
         </div>
