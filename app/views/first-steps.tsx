@@ -15,20 +15,19 @@ INTENSITY|easy
 NOTES|Format example only. Choose movements and effort suitable for you.
 [/FITLOG]`;
 
-export function FirstSteps({ state, view, onSetup, onCoach, onSample, onImport, alwaysAvailable = false }: {
+export function FirstSteps({ state, view, onSetup, onCoach, onSample, onImport }: {
   state: TrainingState;
   view: MainView;
   onSetup: (section: "coach-profile" | "training-goals") => void;
   onCoach: () => void;
   onSample: () => void;
   onImport?: () => void;
-  alwaysAvailable?: boolean;
 }) {
-  if (!alwaysAvailable && state.workouts.some(workout => workout.status === "completed")) return null;
+  if (state.workouts.some(workout => workout.status === "completed")) return null;
   const profileReady = Boolean(state.coachProfile.trim());
   const goalsReady = state.goals.some(goal => goal.trim());
   const heading = view === "history" ? "Your history starts with your first session" : view === "progress" ? "Your progress starts with logged results" : "Start your coaching loop";
-  return <details className="first-steps" open={!alwaysAvailable && (view !== "today" || !profileReady || !goalsReady)}>
+  return <details className="first-steps" open={view !== "settings" && (view !== "today" || !profileReady || !goalsReady)}>
     <summary><span>{heading}</span><span aria-hidden="true">⌄</span></summary>
     <p>{view === "progress" ? "Completed sets build charts and strength comparisons. A missing result means there is no data yet." : view === "history" ? "Imported plans stay on Today. Complete a workout to see what you actually did here." : "No history needed. Set your direction, ask your AI, then log what you do."}</p>
     <ol>
@@ -42,6 +41,6 @@ export function FirstSteps({ state, view, onSetup, onCoach, onSample, onImport, 
     <small className="first-steps-note">The example opens for review. It adds no workout or history unless you choose to start or save it.</small>
     <p>Prefer to train without AI? Use Blank workout or an activity shortcut on Today.</p>
     <p>On iPhone, add this app using Safari’s Share → Add to Home Screen. Your log stays in this browser; it does not sync. In Settings, use Share backup / Save to Files to keep a separate recovery copy.</p>
-    <small className="first-steps-note">For your next AI conversation, build a fresh brief with your recent results. You can reopen this guide in Settings at any time.</small>
+    <small className="first-steps-note">For your next AI conversation, build a fresh brief with your recent results. This starter guide disappears after your first completed workout.</small>
   </details>;
 }

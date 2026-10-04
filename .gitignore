@@ -7,3 +7,4 @@ coach-loop-backup-*.json
 coach-loop-training-*.csv
 coach-loop-history-*.txt
 .DS_Store
+.release-checks/

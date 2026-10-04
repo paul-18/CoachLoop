@@ -1,49 +1,54 @@
-COACH LOOP v87 — FIRST-USE GUIDE AND OPTIONAL GOAL IDEAS
+COACH LOOP v88 — SHELL SPLIT AND RELEASE QC
 
-Apply over v86 (GitHub baseline 664080cb6bd6b5eace61c9ea72f59d28586802a2).
-This ZIP contains changed source files at the repository root. Extracting replaces
-matching files; it does not make another app folder. No synthetic JSON is included.
+Apply over published v87 (baseline f544cf0ab6f2155b57847ed811b1cdb38ac236d4).
+This is an overlay ZIP: matching files are replaced, with no duplicate app folder.
+No source files are deleted. No dependency or lockfile changes are needed.
+Your stored training data format is unchanged.
 
-1. In the app, save a full JSON backup privately to Files before updating.
+1. Save your full JSON backup privately in Files before updating.
 2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v87-GitHub-Update.zip beside package.json and commit.
-   The ZIP alone does not install the update. Continue in Codespace below.
-3. In your existing Codespace terminal in /workspaces/CoachLoop, run each command
-   ONE AT A TIME. Wait until the prompt returns; stop on any error.
+   Upload CoachLoop-v88-GitHub-Update.zip beside package.json and commit.
+   Uploading a ZIP alone does not install the update: extract it below.
+3. Open your existing Codespace terminal in /workspaces/CoachLoop.
+   Run each command ONE AT A TIME. Wait for the prompt; stop on any error.
 
 git status --short
 
-   If this lists local changes, preserve them first. If empty:
+   If local changes appear, preserve them before proceeding. If empty:
 
 git pull --ff-only
 node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-   Expect v86. If another release appears, stop and reconcile the source first.
+   Expect v87. If another release appears, stop and reconcile before applying.
 
-unzip -o CoachLoop-v87-GitHub-Update.zip
+unzip -o CoachLoop-v88-GitHub-Update.zip
 npx --yes pnpm@11.25.0 install --frozen-lockfile
-npx --yes pnpm@11.25.0 exec tsc --noEmit
-npx --yes pnpm@11.25.0 run lint
-npx --yes pnpm@11.25.0 run test
-npx --yes pnpm@11.25.0 run build
-node scripts/check-pwa.mjs
+npx --yes pnpm@11.25.0 run release:check
 
-4. After ALL checks pass:
+   The new command runs TypeScript, lint, all tests, production build, PWA
+   generation and PWA behavior checks. It must end "Release checks passed".
+   Its local report is .release-checks/summary.md. These generated files are ignored.
+   The existing bundle-size warning is non-blocking if all checks pass.
 
-git rm CoachLoop-v87-GitHub-Update.zip
-git add app/app-release.ts app/workout-app.tsx app/views/first-steps.tsx app/views/goal-examples.tsx app/views/settings-view.tsx app/views/today-view.tsx scripts/generate-qc-history.ts tests/first-steps.test.ts tests/release-journeys.test.cjs README.md UPDATE-INSTRUCTIONS.txt V87-UPDATE-NOTES.md V87-QC.md
+4. Only after all checks pass:
+
+git rm CoachLoop-v88-GitHub-Update.zip
+git add app tests scripts package.json .github/workflows/checks.yml .github/workflows/pages.yml .gitignore README.md UPDATE-INSTRUCTIONS.txt V88-UPDATE-NOTES.md V88-QC.md
 git --no-pager diff --cached --stat
 
-   Expect source/docs/tests plus ZIP deletion only.
-   No private backups, generated synthetic JSON, dist or node_modules.
+   Check only intended source/tests/docs/workflow changes and the ZIP deletion
+   are staged. No personal backups, dist, node_modules or generated QC reports.
 
-git commit -m "Improve v87 first-use guide and optional goal drafts"
+git commit -m "Split v88 shell and strengthen release QC"
 git push
 
-5. GitHub -> Actions -> latest Publish Coach Loop PWA run: wait for green.
+5. GitHub -> Actions -> newest Publish Coach Loop PWA run: wait for green.
+   The run summary now shows a QC table, and a QC report ZIP appears under
+   Artifacts (retained 14 days). Failed checks stop publication.
 6. Installed app online -> finish edits/training -> wait for Saved -> Settings
    -> Check updates -> Restart to update. Close another window if requested.
-   Confirm v87. Do not clear website data or reinstall to update.
-7. Follow V87-QC.md for first-use and iPhone checks.
+   Confirm v88. Do not clear storage or reinstall as an update method.
+7. Follow V88-QC.md. With completed history, Settings should now start normally
+   without the starter guide. The guide is only for logs without a completed workout.
 
-The existing chunk-size warning does not fail a successful build.
+No account, cloud sync or AI API has been added. Keep backups private.

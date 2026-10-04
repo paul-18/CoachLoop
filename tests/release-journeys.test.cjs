@@ -1,30 +1,7 @@
 /* Real React DOM + isolated synthetic IndexedDB. This is not an iOS browser test. */
 const test = require('node:test'), assert = require('node:assert/strict');
-const { JSDOM } = require('jsdom');
-const { indexedDB, IDBKeyRange } = require('fake-indexeddb');
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(check, label) {
-  for (let i = 0; i < 100; i++) { if (await check()) return; await wait(20); }
-  assert.ok(await check(), label);
-}
-function environment() {
-  const dom = new JSDOM('<div id="root"></div>', { url: 'https://example.test/CoachLoop/', pretendToBeVisual: true });
-  const bound = new Set(['getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']);
-  for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'HTMLInputElement', 'HTMLDetailsElement', 'SVGElement', 'Node', 'NodeFilter', 'MutationObserver', 'Event', 'CustomEvent', 'MouseEvent', 'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']) {
-    Object.defineProperty(globalThis, key, { value: bound.has(key) ? dom.window[key].bind(dom.window) : dom.window[key], configurable: true });
-  }
-  Object.assign(globalThis, { indexedDB, IDBKeyRange, localStorage: dom.window.localStorage, sessionStorage: dom.window.sessionStorage, ResizeObserver: class { observe() {} disconnect() {} unobserve() {} } });
-  window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-  window.scrollTo = () => {};
-  dom.window.HTMLElement.prototype.scrollIntoView = () => {};
-  Object.defineProperty(navigator, 'locks', { value: { request: async (_name, _options, callback) => callback({}) } });
-  return dom;
-}
-function tab(name) {
-  const button = [...document.querySelectorAll('[role="tab"]')].find(b => b.textContent === name);
-  assert.ok(button, name);
-  button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-}
+const { indexedDB } = require('fake-indexeddb');
+const { environment, until, tab, wait } = require("./helpers/dom-environment.cjs");
 
 test('new-user guide routes to goals; example drafts cancel safely, append on Save, and persist after remount', async () => {
   const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
@@ -67,6 +44,93 @@ test('new-user guide routes to goals; example drafts cancel safely, append on Sa
     assert.ok(document.querySelector('.coach-goals').textContent.includes(first), 'saved priorities appear on Coach');
     assert.equal(document.querySelector('.coach-goals').open, false, 'Coach priorities stay collapsed');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
+});
+
+test('Settings rejects bad backups, previews/cancels restore, merges newer goals, replaces completely, exports and reopens', async () => {
+  const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
+  const App = require('../app/workout-app.tsx').default;
+  const { defaultState, makeWorkout, makeSet } = require('../app/domain/training-types.ts');
+  const { parseBackup, serializeBackup } = require('../app/persistence/backup-tools.ts');
+  const storage = require('../app/persistence/training-storage.ts');
+  const current = defaultState(), backup = defaultState();
+  const now = '2026-10-04T12:00:00.000Z', older = '2026-09-01T12:00:00.000Z';
+  current.goals = ['Current priority']; current.coachProfile = 'Current athlete context';
+  current.goalsUpdatedAt = current.coachProfileUpdatedAt = now;
+  current.workouts = Array.from({ length: 40 }, (_, i) => {
+    const workout = makeWorkout('lb', 120, `Existing history ${i}`);
+    Object.assign(workout, { status: 'completed', completedAt: now, date: '2026-10-01' });
+    workout.exercises[0].sets = [makeSet('lb', { completed: true, loadType: 'weighted', actualWeight: 100, actualReps: '5' })];
+    return workout;
+  });
+  backup.goals = ['Backup priority']; backup.coachProfile = 'Backup athlete context';
+  backup.goalsUpdatedAt = backup.coachProfileUpdatedAt = backup.settingsUpdatedAt = older;
+  backup.settings.colorTheme = 'peach';
+  backup.bodyweightEntries = [{ id: 'backup-weight', date: '2026-09-01', weight: 170, unit: 'lb', updatedAt: older }];
+  const restoredWorkout = makeWorkout('lb', 120, 'Backup session');
+  Object.assign(restoredWorkout, { status: 'completed', completedAt: older, date: '2026-09-01' });
+  backup.workouts = [restoredWorkout];
+  await storage.saveTrainingState(current);
+  const downloads = [], originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
+  URL.createObjectURL = blob => { downloads.push(blob); return 'blob:release-backup'; };
+  URL.revokeObjectURL = () => {};
+  dom.window.HTMLAnchorElement.prototype.click = () => {};
+  let root = createRoot(document.getElementById('root'));
+  const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
+  const upload = async text => {
+    const input = document.querySelector('input[type="file"]'); assert.ok(input);
+    Object.defineProperty(input, 'files', { value: [{ size: Buffer.byteLength(text), text: async () => text }], configurable: true });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(50);
+  };
+  try {
+    root.render(React.createElement(App));
+    await until(() => document.querySelector('[role="tab"]'), 'existing log opens');
+    tab('Settings'); await until(() => button('Download full backup'), 'Settings opens');
+    assert.equal(document.querySelector('.first-steps'), null, '40-session log has no starter guide above Settings');
+    for (const text of ['{broken', JSON.stringify({ version: 1, evidenceVersion: 999 })]) {
+      await upload(text);
+      assert.equal(document.querySelector('[role="dialog"]'), null, 'bad backup never reaches restore confirmation');
+      assert.deepEqual((await storage.loadTrainingState()).goals, current.goals);
+    }
+    const text = serializeBackup(backup);
+    await upload(text);
+    await until(() => button('Merge backup'), 'valid backup has review');
+    assert.match(document.querySelector('[role="dialog"]').textContent, /Adds 1 workouts/);
+    button('Cancel').click(); await until(() => !document.querySelector('[role="dialog"]'), 'preview cancels');
+    assert.equal((await storage.loadTrainingState()).workouts.length, 40);
+    await upload(text); button('Merge backup').click();
+    await until(async () => (await storage.loadTrainingState()).workouts.length === 41, 'merge commits');
+    await until(() => button('Download full backup'), 'UI returns after restore');
+    const merged = await storage.loadTrainingState();
+    assert.deepEqual(merged.goals, current.goals); assert.equal(merged.coachProfile, current.coachProfile);
+    assert.equal(merged.bodyweightEntries.length, 1);
+    await upload(text); button('Merge backup').click();
+    await until(() => button('Download full backup') && !document.querySelector('[role="dialog"]'), 'duplicate merge completes');
+    assert.equal((await storage.loadTrainingState()).workouts.length, 41, 'duplicate backup does not duplicate workouts');
+    await upload(text);
+    const method = document.querySelector('select[aria-label="Restore method"]');
+    method.value = 'replace'; method.dispatchEvent(new Event('change', { bubbles: true }));
+    await until(() => button('Complete restore'), 'complete restore selected');
+    button('Complete restore').click();
+    await until(async () => (await storage.loadTrainingState()).workouts.length === 1, 'complete restore commits');
+    await until(() => button('Download full backup'), 'restored Settings opens');
+    const replaced = await storage.loadTrainingState();
+    assert.deepEqual(replaced.goals, backup.goals); assert.equal(replaced.coachProfile, backup.coachProfile);
+    assert.deepEqual(replaced.bodyweightEntries, backup.bodyweightEntries); assert.equal(replaced.settings.colorTheme, 'peach');
+    const copies = await storage.listSnapshots();
+    const checkpoint = await storage.loadSnapshot(copies.find(c => c.reason === 'before-restore').id);
+    assert.ok(checkpoint.state.workouts.some(w => w.name.startsWith('Existing history')), 'pre-restore checkpoint retains prior log');
+    button('Download full backup').click();
+    const exported = parseBackup(await downloads.at(-1).text());
+    assert.deepEqual(exported.goals, backup.goals); assert.equal(exported.coachProfile, backup.coachProfile);
+    assert.deepEqual(exported.bodyweightEntries, backup.bodyweightEntries); assert.equal(exported.workouts.length, 1);
+    root.unmount(); await wait(30); root = createRoot(document.getElementById('root')); root.render(React.createElement(App));
+    await until(() => document.querySelector('[role="tab"]'), 'relaunch opens');
+    tab('Coach'); await until(() => document.querySelector('.coach-goals'), 'Coach opens after reload');
+    assert.ok(document.querySelector('.coach-goals').textContent.includes('Backup priority'));
+    tab('Settings'); await until(() => button('Download full backup'), 'Settings returns');
+    assert.equal(document.querySelector('.first-steps'), null, 'guide stays absent after restored completed history');
+  } finally { root.unmount(); await wait(30); dom.window.close(); URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke; }
 });
 
 test('merged-session UI finishes first, resumes second after remount, discards it, and starts again', async () => {

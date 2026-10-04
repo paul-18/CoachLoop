@@ -30,11 +30,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
-      - run: node scripts/check-pwa.mjs
+      - run: pnpm release:check
+      - name: Save QC report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coach-loop-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .release-checks/
+          include-hidden-files: true
+          retention-days: 14
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

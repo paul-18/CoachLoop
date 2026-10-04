@@ -6,6 +6,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "release:check": "node scripts/check-release.mjs",
     "install:ci": "pnpm install --frozen-lockfile",
     "build": "vite build && node scripts/build-pwa.mjs",
     "dev": "vite --host 0.0.0.0",
