@@ -1,4 +1,5 @@
 import { orderedQuickLogOptions } from "../domain/quick-log-order";
+import { GoalExamples } from "./goal-examples";
 import { useStorageHealth } from "../pwa/use-storage-health";
 import { parseBackup, serializeBackup, restoredState, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
 import { exportTrainingCsv } from "../interchange/training-csv";
@@ -174,6 +175,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
           {state.goals.map((goal, index) => <div key={index} className="goal-read-card"><p>{goal}</p><div className="goal-actions"><Button type="button" variant="outline" size="sm" onClick={() => setTextEdit({ kind: "goal", index, value: goal })}>Edit</Button><Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} aria-label={`Remove goal ${index + 1}`}><X /></Button></div></div>)}
           {!state.goals.length && <p className="text-sm text-white/60">No goals yet.</p>}
           <Button variant="outline" onClick={() => setTextEdit({ kind: "new-goal", value: "" })}><Plus /> Add goal</Button>
+          <GoalExamples onChoose={(value) => setTextEdit({ kind: "new-goal", value })} />
         </div>
         </div>
       </details>

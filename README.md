@@ -116,6 +116,10 @@ Installing as a Home Screen app gives you an icon, full-screen use, and offline 
 
 Example order: strength → muscle growth → running endurance. Tell your AI to respect the ranking when goals compete for time or recovery.
 
+Need ideas? Expand **Example goals** to try a consistency, strength, or cardio draft. Edit it for your own baseline and schedule, then tap **Save**. Cancel adds nothing; examples never replace your existing goals.
+
+The first-use guide walks through profile → ranked goals → AI brief → FITLOG import → logged results and Finish workout. Reopen the collapsed **Start your coaching loop** guide in Settings whenever you need it. You can also use Blank workout or Quick log without an AI.
+
 On **Coach**, tap **Your priorities** to expand your full ranked goals. Keep it collapsed when you want a simpler screen. Profile and goal editors support multiline text with Save and Cancel.
 
 ### 3. Set workout defaults
@@ -299,6 +303,8 @@ Start a new chat with **Start a new chat → Copy full context**.
 ---
 
 ## Updates
+
+v87 adds a complete first-use guide, optional editable goal ideas, and a guide you can reopen in Settings. See [v87 notes](V87-UPDATE-NOTES.md) and [QC steps](V87-QC.md).
 
 Open the app online periodically. Updates are checked on return to the foreground, or open **Settings → On this device → Check updates**.
 

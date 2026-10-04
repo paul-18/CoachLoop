@@ -19,4 +19,7 @@ test("first-use guide is available in empty tabs and an example does not invent 
   assert.equal(state.workouts.length, 0);
   state.workouts.push({ ...sample, status: "completed" });
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state, view: "today", onSetup: () => {}, onCoach: () => {}, onSample: () => {} })), "");
+  const help = renderToStaticMarkup(createElement(FirstSteps, { state, view: "settings", alwaysAvailable: true, onSetup: () => {}, onCoach: () => {}, onSample: () => {} }));
+  assert.match(help, /Log results, then finish/);
+  assert.doesNotMatch(help, /<details[^>]* open=/, 'returning users can reopen the collapsed guide without a forced onboarding flow');
 });

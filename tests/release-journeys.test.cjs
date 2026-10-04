@@ -16,6 +16,7 @@ function environment() {
   Object.assign(globalThis, { indexedDB, IDBKeyRange, localStorage: dom.window.localStorage, sessionStorage: dom.window.sessionStorage, ResizeObserver: class { observe() {} disconnect() {} unobserve() {} } });
   window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
   window.scrollTo = () => {};
+  dom.window.HTMLElement.prototype.scrollIntoView = () => {};
   Object.defineProperty(navigator, 'locks', { value: { request: async (_name, _options, callback) => callback({}) } });
   return dom;
 }
@@ -24,6 +25,49 @@ function tab(name) {
   assert.ok(button, name);
   button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
 }
+
+test('new-user guide routes to goals; example drafts cancel safely, append on Save, and persist after remount', async () => {
+  const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
+  const App = require('../app/workout-app.tsx').default;
+  const { defaultState } = require('../app/domain/training-types.ts');
+  const storage = require('../app/persistence/training-storage.ts');
+  await storage.saveTrainingState(defaultState());
+  let root = createRoot(document.getElementById('root'));
+  const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
+  try {
+    root.render(React.createElement(App));
+    await until(() => button('Add goals'), 'first-use guide opens');
+    assert.equal(document.querySelector('.today-bodyweight-nudge'), null, 'brand-new user has no overdue bodyweight reminder');
+    button('Add goals').click();
+    await until(() => document.querySelector('#training-goals')?.open, 'guide opens training goals in Settings');
+    document.querySelector('#training-goals details').open = true;
+    button('Try consistency goal').click();
+    await until(() => document.querySelector('textarea'), 'example opens editor');
+    assert.match(document.querySelector('textarea').value, /8 weeks/);
+    assert.deepEqual((await storage.loadTrainingState()).goals, [], 'opening draft writes nothing');
+    button('Cancel').click();
+    await until(() => !document.querySelector('textarea'), 'Cancel closes');
+    assert.deepEqual((await storage.loadTrainingState()).goals, []);
+    button('Try consistency goal').click();
+    await until(() => document.querySelector('textarea'), 'second draft opens');
+    button('Save').click();
+    await until(async () => (await storage.loadTrainingState()).goals.length === 1, 'first goal commits');
+    const first = (await storage.loadTrainingState()).goals[0];
+    button('Try strength goal').click();
+    await until(() => document.querySelector('textarea'), 'next example opens');
+    button('Save').click();
+    await until(async () => (await storage.loadTrainingState()).goals.length === 2, 'second goal appends');
+    const saved = await storage.loadTrainingState();
+    assert.equal(saved.goals[0], first); assert.match(saved.goals[1], /controlled technique/);
+    assert.equal(saved.workouts.length, 0); assert.equal(saved.coachProfile, '');
+    root.unmount(); await wait(30);
+    root = createRoot(document.getElementById('root')); root.render(React.createElement(App));
+    await until(() => document.querySelector('[role="tab"]'), 'relaunch opens');
+    tab('Coach'); await wait(30);
+    assert.ok(document.querySelector('.coach-goals').textContent.includes(first), 'saved priorities appear on Coach');
+    assert.equal(document.querySelector('.coach-goals').open, false, 'Coach priorities stay collapsed');
+  } finally { root.unmount(); await wait(30); dom.window.close(); }
+});
 
 test('merged-session UI finishes first, resumes second after remount, discards it, and starts again', async () => {
   const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');

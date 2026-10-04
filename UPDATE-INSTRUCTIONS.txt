@@ -1,26 +1,26 @@
-COACH LOOP v86 — CLEARER FITLOG REP INSTRUCTIONS
+COACH LOOP v87 — FIRST-USE GUIDE AND OPTIONAL GOAL IDEAS
 
-Apply over v85 (GitHub commit c57411004384591151d9539e2fa2970ea4568b5c).
-This ZIP is a small overlay: no duplicate app folder and no source deletions.
-The parser, navigation, storage and workout calculations are unchanged.
+Apply over v86 (GitHub baseline 664080cb6bd6b5eace61c9ea72f59d28586802a2).
+This ZIP contains changed source files at the repository root. Extracting replaces
+matching files; it does not make another app folder. No synthetic JSON is included.
 
-1. Save a full JSON backup privately in Files; never upload it to GitHub.
+1. In the app, save a full JSON backup privately to Files before updating.
 2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v86-GitHub-Update.zip beside package.json and commit.
-   Uploading the ZIP alone still publishes the OLD app. Extract the source below.
-3. In your existing Codespace terminal at /workspaces/CoachLoop, run each command
-   separately. Wait for completion and stop on any failure.
+   Upload CoachLoop-v87-GitHub-Update.zip beside package.json and commit.
+   The ZIP alone does not install the update. Continue in Codespace below.
+3. In your existing Codespace terminal in /workspaces/CoachLoop, run each command
+   ONE AT A TIME. Wait until the prompt returns; stop on any error.
 
 git status --short
 
-   If this lists local changes, preserve them before proceeding. If empty:
+   If this lists local changes, preserve them first. If empty:
 
 git pull --ff-only
 node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-   Expect v85. If it shows a newer release, stop and reconcile before applying.
+   Expect v86. If another release appears, stop and reconcile the source first.
 
-unzip -o CoachLoop-v86-GitHub-Update.zip
+unzip -o CoachLoop-v87-GitHub-Update.zip
 npx --yes pnpm@11.25.0 install --frozen-lockfile
 npx --yes pnpm@11.25.0 exec tsc --noEmit
 npx --yes pnpm@11.25.0 run lint
@@ -28,25 +28,22 @@ npx --yes pnpm@11.25.0 run test
 npx --yes pnpm@11.25.0 run build
 node scripts/check-pwa.mjs
 
-4. Only after all checks pass:
+4. After ALL checks pass:
 
-git rm CoachLoop-v86-GitHub-Update.zip
-git add app/interchange/fitlog.ts app/app-release.ts tests/fitlog-guidance.test.ts README.md UPDATE-INSTRUCTIONS.txt V86-UPDATE-NOTES.md
+git rm CoachLoop-v87-GitHub-Update.zip
+git add app/app-release.ts app/workout-app.tsx app/views/first-steps.tsx app/views/goal-examples.tsx app/views/settings-view.tsx app/views/today-view.tsx scripts/generate-qc-history.ts tests/first-steps.test.ts tests/release-journeys.test.cjs README.md UPDATE-INSTRUCTIONS.txt V87-UPDATE-NOTES.md V87-QC.md
 git --no-pager diff --cached --stat
 
-   Review the staged list: no private backups, dist or node_modules.
+   Expect source/docs/tests plus ZIP deletion only.
+   No private backups, generated synthetic JSON, dist or node_modules.
 
-git commit -m "Clarify v86 numeric FITLOG reps and per-side notes"
+git commit -m "Improve v87 first-use guide and optional goal drafts"
 git push
 
-5. GitHub -> Actions -> newest Publish Coach Loop PWA run: wait for green.
-6. Installed app online -> finish training -> wait for Saved -> Settings ->
-   Check updates -> Restart to update. Close another app window if requested.
-   Confirm v86. Do not clear website data to update.
-7. Coach -> Copy format: verify the valid Pallof Press example and numeric-only
-   rule. Build both a new-chat and continuing-chat brief; both should include it.
-   Paste the fresh format into an existing AI chat before requesting workouts.
-   Previously copied prompts do not update themselves.
+5. GitHub -> Actions -> latest Publish Coach Loop PWA run: wait for green.
+6. Installed app online -> finish edits/training -> wait for Saved -> Settings
+   -> Check updates -> Restart to update. Close another window if requested.
+   Confirm v87. Do not clear website data or reinstall to update.
+7. Follow V87-QC.md for first-use and iPhone checks.
 
-The existing chunk-size warning is non-blocking if the build succeeds.
-See V86-UPDATE-NOTES.md for scope and checks. Existing v85 iPhone QC still applies.
+The existing chunk-size warning does not fail a successful build.
