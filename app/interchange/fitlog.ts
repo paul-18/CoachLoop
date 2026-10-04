@@ -135,7 +135,14 @@ REST|180
 NOTES|Keep the descent controlled.
 
 SET|reps or rep range|load|RPE or RIR target|optional WARMUP
-Use a whole rep count or range such as 6-8. For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. REST accepts seconds, 2 min or 1:30. For unilateral work, explain per-side reps in NOTES. Use structured mobility for timed stretches/holds. Assisted lifting loads are not yet supported; do not encode assistance as added load.
+The SET reps column must contain ONLY a positive whole number or increasing range, such as 10 or 8-10. Never include "each side", "/side", seconds, units or other text in that column. Invalid example (do not output): SET|10 each side|10 lb total|RPE 7.
+For unilateral work, use numeric reps per side and put the side instruction in NOTES:
+EXERCISE|Pallof Press
+SET|10|10 lb total|RPE 7
+REST|45
+NOTES|Perform 10 reps per side. Enter actual reps per side when logging.
+Do not double 10 reps per side into 20. The app does not store a per-side multiplier; volume calculations use the entered numeric reps without automatically doubling them.
+For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. REST accepts seconds, 2 min or 1:30. Use structured mobility for timed stretches/holds. Assisted lifting loads are not yet supported; do not encode assistance as added load.
 
 2. Continuous cardio:
 CARDIO|Easy run
@@ -173,6 +180,7 @@ Use MOVE|movement|prescription for each movement. Do not bury a whole routine in
 
 export const FITLOG_REMINDER = `Return exactly one [FITLOG:1] ... [/FITLOG] block in performance order, starting WORKOUT|name|YYYY-MM-DD. Keep v1 fields and separators.
 Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; REST|seconds. Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. Rep ranges require actual reps during logging. Assistance loads are not supported.
+SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). Never write "10 each side", "10/side", seconds or other text in the reps column. For unilateral work, use SET|10|10 lb total|RPE 7 and NOTES|Perform 10 reps per side. Enter actual reps per side when logging. Do not double the numeric target; the app does not automatically double per-side reps in volume calculations.
 Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; REST|seconds. Mobility: MOBILITY|name; MOVE|movement|prescription.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 

@@ -1,37 +1,26 @@
-COACH LOOP v85 — FOCUSED RELIABILITY UPDATE
+COACH LOOP v86 — CLEARER FITLOG REP INSTRUCTIONS
 
-Prepared against paul-18/CoachLoop main at
-03662d113caaf36febf6d3d0e657a03427e5bd5d (v84).
-This is an overlay: matching files are replaced in the same app, with no
-duplicate app folder. No repository files need deletion for this update.
-Keep your eight themes, gold coverage scale, Coach goals and local-only design.
+Apply over v85 (GitHub commit c57411004384591151d9539e2fa2970ea4568b5c).
+This ZIP is a small overlay: no duplicate app folder and no source deletions.
+The parser, navigation, storage and workout calculations are unchanged.
 
-BEFORE STARTING
-1. In the app, finish your workout and wait for Saved.
-2. Settings -> Download full backup / Save to Files.
-   Confirm the file is saved privately. Never upload it to this public repo.
-3. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v85-Reliability-Update.zip beside package.json and commit.
-   The publishing run for this ZIP-only commit still uses the OLD source.
-   v85 is published only after extracting and committing the code below.
-
-IN YOUR EXISTING CODESPACE
-Use /workspaces/CoachLoop. Run ONE command at a time; wait for its prompt to
-return. Stop on any failure. Keep a copy of this ZIP outside GitHub as well.
+1. Save a full JSON backup privately in Files; never upload it to GitHub.
+2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
+   Upload CoachLoop-v86-GitHub-Update.zip beside package.json and commit.
+   Uploading the ZIP alone still publishes the OLD app. Extract the source below.
+3. In your existing Codespace terminal at /workspaces/CoachLoop, run each command
+   separately. Wait for completion and stop on any failure.
 
 git status --short
 
-If there are local changes, stop and preserve them before continuing.
-If the output is empty:
+   If this lists local changes, preserve them before proceeding. If empty:
 
 git pull --ff-only
 node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-This should show v84. If it shows a newer version, stop: this update was
-prepared for v84 and should be reconciled with the newer source first.
+   Expect v85. If it shows a newer release, stop and reconcile before applying.
 
-unzip -l CoachLoop-v85-Reliability-Update.zip
-unzip -o CoachLoop-v85-Reliability-Update.zip
+unzip -o CoachLoop-v86-GitHub-Update.zip
 npx --yes pnpm@11.25.0 install --frozen-lockfile
 npx --yes pnpm@11.25.0 exec tsc --noEmit
 npx --yes pnpm@11.25.0 run lint
@@ -39,32 +28,25 @@ npx --yes pnpm@11.25.0 run test
 npx --yes pnpm@11.25.0 run build
 node scripts/check-pwa.mjs
 
-The chunk-size warning is non-blocking when the build completes successfully.
-Do not disable frozen-lockfile or update pnpm to resolve an unrelated warning.
+4. Only after all checks pass:
 
-ONLY AFTER ALL CHECKS PASS
-
-git rm CoachLoop-v85-Reliability-Update.zip
-git add app tests scripts .github/workflows/checks.yml README.md UPDATE-INSTRUCTIONS.txt V85-UPDATE-NOTES.md V85-IPHONE-QC.md
+git rm CoachLoop-v86-GitHub-Update.zip
+git add app/interchange/fitlog.ts app/app-release.ts tests/fitlog-guidance.test.ts README.md UPDATE-INSTRUCTIONS.txt V86-UPDATE-NOTES.md
 git --no-pager diff --cached --stat
 
-Review the staged list. No personal JSON backups, dist or node_modules should
-be included. The ZIP deletion is deliberate: source remains, and your
-downloaded ZIP can be kept outside the repo.
+   Review the staged list: no private backups, dist or node_modules.
 
-git commit -m "Improve v85 workout recovery, backups and offline reliability"
+git commit -m "Clarify v86 numeric FITLOG reps and per-side notes"
 git push
 
-AFTER PUBLISHING
-1. GitHub -> Actions -> newest Publish Coach Loop PWA run: wait for green.
-2. Open the installed app online. Finish any workout and wait for Saved.
-3. Settings -> Check updates -> Restart to update.
-   Close the other Coach Loop window if asked. This is a deliberate restart;
-   there is no forced reload in the middle of training.
-4. Confirm v85 in Settings, then follow V85-IPHONE-QC.md.
-5. Do not clear website data or uninstall the app just to get this update.
+5. GitHub -> Actions -> newest Publish Coach Loop PWA run: wait for green.
+6. Installed app online -> finish training -> wait for Saved -> Settings ->
+   Check updates -> Restart to update. Close another app window if requested.
+   Confirm v86. Do not clear website data to update.
+7. Coach -> Copy format: verify the valid Pallof Press example and numeric-only
+   rule. Build both a new-chat and continuing-chat brief; both should include it.
+   Paste the fresh format into an existing AI chat before requesting workouts.
+   Previously copied prompts do not update themselves.
 
-TEST LIMITS
-Automated tests use synthetic data. React DOM tests are not iOS Safari tests.
-Header rotation, keyboard behavior and Save to Files still need your iPhone QC.
-No cloud services, API credentials or real training backups are in this ZIP.
+The existing chunk-size warning is non-blocking if the build succeeds.
+See V86-UPDATE-NOTES.md for scope and checks. Existing v85 iPhone QC still applies.

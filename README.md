@@ -173,6 +173,8 @@ INTENSITY|easy
 
 This is a format example, not a personalized prescription. Change its date, load and activities before using it. The in-app **Copy format** button provides the current full instructions.
 
+The SET reps column accepts only numbers or ranges, such as `10` or `8-10`. For unilateral work, use `SET|10|10 lb total|RPE 7` and put “Perform 10 reps per side” in the exercise NOTES. Do not write `10 each side` or `10/side` in the reps column. Log reps per side consistently; the app does not automatically double them when calculating volume.
+
 If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 ---
@@ -304,7 +306,7 @@ When **Restart to update** appears, finish any active workout, close the editor 
 
 The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
-Keep a current backup before moving to a different app address. The app release is shown in Settings. v85 improves unfinished-workout recovery, checkpoint downloads, release-verified offline cache repair and header sizing on rotation. Coverage totals and explanations use the same aliases and refresh with the local day. v84 added eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
+Keep a current backup before moving to a different app address. The app release is shown in Settings. v86 clarifies numeric-only FITLOG reps and per-side instructions in both new-chat briefs and continuing-chat reminders. It does not change the parser, stored workouts or volume calculations. v85 improves unfinished-workout recovery, checkpoint downloads, release-verified offline cache repair and header sizing on rotation. Coverage totals and explanations use the same aliases and refresh with the local day. v84 added eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
 
 For a release, check both a fresh install and an update from the previous version, with synthetic data first. Pull requests now run non-deploying checks; publishing from main still runs typecheck, lint, tests, build and PWA checks. See [v85 release notes](V85-UPDATE-NOTES.md) and [iPhone QC](V85-IPHONE-QC.md). Do not use your live log for destructive failure testing.
 
