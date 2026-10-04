@@ -9,7 +9,7 @@ async function until(check, label) {
 function environment() {
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://example.test/CoachLoop/', pretendToBeVisual: true });
   const bound = new Set(['getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']);
-  for (const key of ['window', 'document', 'navigator', 'HTMLElement', 'HTMLInputElement', 'HTMLDetailsElement', 'SVGElement', 'Node', 'NodeFilter', 'MutationObserver', 'Event', 'CustomEvent', 'MouseEvent', 'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+  for (const key of ['window', 'document', 'navigator', 'Element', 'HTMLElement', 'HTMLInputElement', 'HTMLDetailsElement', 'SVGElement', 'Node', 'NodeFilter', 'MutationObserver', 'Event', 'CustomEvent', 'MouseEvent', 'KeyboardEvent', 'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame']) {
     Object.defineProperty(globalThis, key, { value: bound.has(key) ? dom.window[key].bind(dom.window) : dom.window[key], configurable: true });
   }
   Object.assign(globalThis, { indexedDB, IDBKeyRange, localStorage: dom.window.localStorage, sessionStorage: dom.window.sessionStorage, ResizeObserver: class { observe() {} disconnect() {} unobserve() {} } });

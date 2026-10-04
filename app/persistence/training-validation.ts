@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { COLOR_THEMES, type ColorTheme } from "../domain/display-preferences";
-import type { TrainingState } from "../domain/training-types";
+import type { TrainingState, WorkoutSession } from "../domain/training-types";
 
 import { safeConflictPath } from "./conflict-path";
 const finite = z.number().finite();
@@ -132,14 +132,27 @@ const legacyStateBoundary = z.object({
 export const validateLocalState = (raw: unknown): TrainingState =>
   legacyStateBoundary.parse(raw) as unknown as TrainingState;
 
-export const validateSyncedState = (raw: unknown): TrainingState => {
-  const state = storedStateBoundary.parse(raw) as TrainingState;
-  const unique = (ids: string[], label: string) => { if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ${label} IDs`); };
-  const disjoint = (live: string[], deleted: string[] = [], label: string) => {
+const unique = (ids: string[], label: string) => { if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ${label} IDs`); };
+const disjoint = (live: string[], deleted: string[] = [], label: string) => {
     const tombstones = new Set(deleted);
     const overlap = live.find(id => tombstones.has(id));
     if (overlap) throw new Error(`${label} ${overlap}: live record is also marked deleted. Keep the original backup for recovery.`);
-  };
+};
+function validateWorkoutIntegrity(w: WorkoutSession) {
+  disjoint(w.exercises.map(e => e.id), w.deletedExerciseIds, "Exercise");
+  disjoint(w.cardio.map(a => a.id), w.deletedActivityIds, "Activity");
+  unique([...w.exercises, ...w.cardio].map(b => b.id), "block");
+  const blocks = new Set([...w.exercises, ...w.cardio].map(b => b.id));
+  unique(w.blockOrder.map(b => b.id), "block order");
+  if (w.blockOrder.some(b => !blocks.has(b.id) || !(b.type === "exercise" ? w.exercises : w.cardio).some(x => x.id === b.id))) throw new Error("Invalid workout block reference");
+  for (const exercise of w.exercises) {
+    disjoint(exercise.sets.map(s => s.id), exercise.deletedSetIds, "Set");
+    unique(exercise.sets.map(s => s.id), "set");
+    if (exercise.sets.some(s => s.completed && s.skipped)) throw new Error("A set cannot be completed and skipped");
+  }
+  for (const activity of w.cardio) unique((activity.efforts ?? []).map(e => e.id), "effort");
+}
+function validateStateIntegrity(state: TrainingState) {
   unique(state.workouts.map(w => w.id), "workout");
   disjoint(state.workouts.map(w => w.id), state.deletedWorkoutIds, "Workout");
   unique(state.bodyweightEntries.map(e => e.id), "bodyweight");
@@ -147,20 +160,51 @@ export const validateSyncedState = (raw: unknown): TrainingState => {
   unique((state.waistEntries ?? []).map(e => e.id), "waist");
   unique((state.benchmarks ?? []).map(e => e.id), "benchmark");
   for (const b of state.benchmarks ?? []) unique((b.attempts ?? []).map(a => a.id), "benchmark attempt");
-  for (const w of state.workouts) {
-    disjoint(w.exercises.map(e => e.id), w.deletedExerciseIds, "Exercise");
-    disjoint(w.cardio.map(a => a.id), w.deletedActivityIds, "Activity");
-    unique([...w.exercises, ...w.cardio].map(b => b.id), "block");
-    const blocks = new Set([...w.exercises, ...w.cardio].map(b => b.id));
-    unique(w.blockOrder.map(b => b.id), "block order");
-    if (w.blockOrder.some(b => !blocks.has(b.id) || !(b.type === "exercise" ? w.exercises : w.cardio).some(x => x.id === b.id))) throw new Error("Invalid workout block reference");
-    for (const exercise of w.exercises) {
-      disjoint(exercise.sets.map(s => s.id), exercise.deletedSetIds, "Set");
-      unique(exercise.sets.map(s => s.id), "set");
-      if (exercise.sets.some(s => s.completed && s.skipped)) throw new Error("A set cannot be completed and skipped");
-    }
-    for (const activity of w.cardio) unique((activity.efforts ?? []).map(e => e.id), "effort");
-  }
   if (state.activeWorkoutId && !state.workouts.some(w => w.id === state.activeWorkoutId && w.status === "active")) throw new Error("Active workout reference is invalid");
+}
+export const validateSyncedState = (raw: unknown): TrainingState => {
+  const state = storedStateBoundary.parse(raw) as TrainingState;
+  validateStateIntegrity(state);
+  state.workouts.forEach(validateWorkoutIntegrity);
   return state;
 };
+
+/** Only this module can admit immutable candidates to the internal save path.
+ * Imported/loaded/restored data and final confirmations still use the full
+ * validator. Unchanged workout objects are reused only after deep freezing. */
+declare const validatedBrand: unique symbol;
+export type ValidatedState = TrainingState & { readonly [validatedBrand]: true };
+const admittedStates = new WeakSet<object>();
+const admittedWorkouts = new WeakSet<object>();
+const frozenObjects = new WeakSet<object>();
+function freezeJson(value: unknown): void {
+  if (!value || typeof value !== "object" || frozenObjects.has(value)) return;
+  if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new Error("Training data must contain plain records, not mutable class instances");
+  Object.values(value).forEach(freezeJson);
+  Object.freeze(value); frozenObjects.add(value);
+}
+function admit(state: TrainingState): ValidatedState {
+  freezeJson(state);
+  state.workouts.forEach(w => admittedWorkouts.add(w));
+  admittedStates.add(state);
+  return state as ValidatedState;
+}
+export function assertValidatedState(state: TrainingState): asserts state is ValidatedState {
+  if (!admittedStates.has(state)) throw new Error("Internal save requires a validated immutable candidate");
+}
+export const validatedState = (raw: unknown): ValidatedState => admit(validateSyncedState(raw));
+const workoutList = z.array(z.unknown());
+export function validateStateEdit(current: ValidatedState, candidate: TrainingState): ValidatedState {
+  assertValidatedState(current);
+  if (candidate === current) return current;
+  // Check every non-workout section and all cross-record references on each edit.
+  const state = storedStateBoundary.parse({ ...candidate, workouts: [] }) as TrainingState;
+  state.workouts = workoutList.parse(candidate.workouts).map(raw => {
+    if (raw && typeof raw === "object" && admittedWorkouts.has(raw)) return raw as WorkoutSession;
+    const workout = workoutSchema.parse(raw) as WorkoutSession;
+    validateWorkoutIntegrity(workout);
+    return workout;
+  });
+  validateStateIntegrity(state);
+  return admit(state);
+}

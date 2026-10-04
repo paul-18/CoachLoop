@@ -57,7 +57,7 @@ test('invalid completed-set edit loses credit; aborted Finish keeps editor/draft
     await until(async () => (await storage.loadTrainingState()).workouts[0].exercises[0].sets[0].completed === false, 'invalid actual loses credit');
     assert.match(document.body.textContent, /Incomplete draft/);
     inputValue(dom, reps, '8'); await wait(20);
-    document.querySelector('[aria-label="Complete set 1"]').click();
+    document.querySelector('[aria-label="Complete Barbell Bench Press, set 1"]').click();
     await until(async () => (await storage.loadTrainingState()).workouts[0].exercises[0].sets[0].actualReps === '8', 'corrected actual durable');
     IDBObjectStore.prototype.put = function(value, key) {
       if (value?.workouts?.[0]?.status === 'completed') throw new DOMException('QC aborted final save', 'QuotaExceededError');

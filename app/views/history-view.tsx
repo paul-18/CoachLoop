@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Copy, Download, History, MoreHorizontal, Redo2, SquarePen, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -34,15 +34,16 @@ import { performedDuration, performedDistance, hasCompletedActivityWork } from "
 import { WorkoutVolume } from "./workout-editor";
 
 const historyUiKey = "coach-loop-history-view";
-function savedHistoryUi(): { search: string; filter: "all" | "completed" | "skipped"; expanded: string | null } {
+function savedHistoryUi(): { search: string; filter: "all" | "completed" | "skipped"; expanded: string | null; page: number | null } {
   try {
     const saved = JSON.parse(sessionStorage.getItem(historyUiKey) ?? "null") as Record<string, unknown> | null;
     return {
       search: typeof saved?.search === "string" ? saved.search : "",
       filter: saved?.filter === "completed" || saved?.filter === "skipped" ? saved.filter : "all",
       expanded: typeof saved?.expanded === "string" ? saved.expanded : null,
+      page: typeof saved?.page === "number" && Number.isSafeInteger(saved.page) && saved.page >= 0 ? saved.page : null,
     };
-  } catch { return { search: "", filter: "all", expanded: null }; }
+  } catch { return { search: "", filter: "all", expanded: null, page: null }; }
 }
 
 function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSession; unit: Unit; history: WorkoutSession[] }) {
@@ -127,25 +128,30 @@ export function HistoryView({
   const [search, setSearch] = useState(initialUi.search);
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "skipped">(initialUi.filter);
   const [expanded, setExpanded] = useState<string | null>(initialUi.expanded);
-  useEffect(() => {
-    try { sessionStorage.setItem(historyUiKey, JSON.stringify({ search, filter: statusFilter, expanded })); } catch { /* Optional view memory. */ }
-  }, [search, statusFilter, expanded]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
   const [exportExercise, setExportExercise] = useState("");
-  const exportFilter = { from: exportFrom, to: exportTo, exercise: exportExercise };
-  const exportText = exportCompletedHistory(state, exportFilter);
-  const exportExercises = [...new Set(state.workouts.filter((workout) => workout.status === "completed").flatMap((workout) => workout.exercises.filter((exercise) => exercise.sets.some((set) => set.completed)).map((exercise) => exercise.name.trim())))].sort((a, b) => a.localeCompare(b));
-  const workouts = [...state.workouts]
+  const exportText = useMemo(() => exportOpen ? exportCompletedHistory(state, { from: exportFrom, to: exportTo, exercise: exportExercise }) : "", [exportOpen, state, exportFrom, exportTo, exportExercise]);
+  const exportExercises = useMemo(() => exportOpen ? [...new Set(state.workouts.filter((workout) => workout.status === "completed").flatMap((workout) => workout.exercises.filter((exercise) => exercise.sets.some((set) => set.completed)).map((exercise) => exercise.name.trim())))].sort((a, b) => a.localeCompare(b)) : [], [state.workouts, exportOpen]);
+  const workouts = useMemo(() => [...state.workouts]
     .filter((workout) => workout.status === "completed" || workout.status === "skipped")
     .filter((workout) => statusFilter === "all" || workout.status === statusFilter)
     .filter((workout) => {
       const haystack = `${workout.name} ${workout.skipReason} ${workout.exercises.map((exercise) => exercise.name).join(" ")} ${workout.cardio.map((item) => item.name).join(" ")}`.toLowerCase();
       return haystack.includes(search.toLowerCase());
     })
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.skippedAt ?? "").localeCompare(a.completedAt ?? a.skippedAt ?? ""));
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.skippedAt ?? "").localeCompare(a.completedAt ?? a.skippedAt ?? "")), [state.workouts, search, statusFilter]);
+  const pageSize = 50;
+  const [requestedPage, setPage] = useState(() => initialUi.page ?? Math.floor(Math.max(0, workouts.findIndex(w => w.id === initialUi.expanded)) / pageSize));
+  const page = Math.min(requestedPage, Math.max(0, Math.ceil(workouts.length / pageSize) - 1));
+  const visibleWorkouts = workouts.slice(page * pageSize, (page + 1) * pageSize);
+  const historyStart = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    try { sessionStorage.setItem(historyUiKey, JSON.stringify({ search, filter: statusFilter, expanded, page })); } catch { /* Optional view memory. */ }
+  }, [search, statusFilter, expanded, page]);
+  const pageControls = workouts.length > pageSize ? <nav aria-label="History pages" className="flex flex-wrap items-center gap-3"><Button variant="outline" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous 50</Button><p role="status" aria-live="polite" className="text-sm text-white/65">Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, workouts.length)} of {workouts.length}</p><Button variant="outline" disabled={(page + 1) * pageSize >= workouts.length} onClick={() => setPage(page + 1)}>Next 50</Button></nav> : null;
 
   return (
     <div className="page-stack">
@@ -158,11 +164,12 @@ export function HistoryView({
           <DialogFooter className="gap-2 sm:gap-0"><Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={async () => { if (await copyText(exportText)) toast.success("History copied"); else toast.error("Could not copy. Select the history text and copy it manually."); }}><Copy /> Copy text</Button><Button className="bg-[var(--lime)] font-bold text-[#11140d] hover:bg-[var(--lime)]/90" onClick={() => downloadText(exportText, `coach-loop-history-${localDate()}.txt`, "text/plain;charset=utf-8")}><Download /> Download .txt</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      <Input aria-label="Search workouts or exercises" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
-      <div className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/45">{workouts.length} sessions</span></div>
+      <Input aria-label="Search workouts or exercises" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
+      <div ref={historyStart} className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setPage(0); }}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/45">{workouts.length} sessions</span></div>
+      {pageControls}
       {workouts.length ? (
         <div className="space-y-3">
-          {workouts.map((workout) => {
+          {visibleWorkouts.map((workout) => {
             const isOpen = expanded === workout.id;
             return (
               <article key={workout.id} className="history-card">
@@ -207,7 +214,8 @@ export function HistoryView({
       ) : (
         <EmptyPanel icon={History} title={search ? "No matching sessions" : "Your history starts here"} text={search ? "Try a different exercise or workout name." : "Complete a workout and it will become available for search, review, editing, and ChatGPT exports."} />
       )}
-      <DailyReview state={state} onOpen={id=>{setSearch("");setStatusFilter("all");setExpanded(id);}} />
+      {pageControls && <Button variant="outline" onClick={() => historyStart.current?.scrollIntoView({ block: "start", behavior: "instant" })}>Back to history pages</Button>}
+      <DailyReview state={state} onOpen={id=>{ const all = state.workouts.filter(w => w.status === "completed" || w.status === "skipped").sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.skippedAt ?? "").localeCompare(a.completedAt ?? a.skippedAt ?? "")); setSearch("");setStatusFilter("all");setExpanded(id);setPage(Math.floor(Math.max(0, all.findIndex(w => w.id === id)) / pageSize)); }} />
     </div>
   );
 }

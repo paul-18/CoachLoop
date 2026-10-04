@@ -150,6 +150,7 @@ function PlateVisualizer({
 }
 
 function SetRow({
+  exerciseName,
   isNext,
   set,
   index,
@@ -161,6 +162,7 @@ function SetRow({
   onSkip,
   onRemove,
 }: {
+  exerciseName: string;
   isNext: boolean;
   set: TrainingSet;
   index: number;
@@ -173,13 +175,17 @@ function SetRow({
   onRemove: () => void;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
+  const optionsTrigger = useRef<HTMLButtonElement>(null);
+  const context = `${exerciseName || "Unnamed exercise"}, ${set.warmup ? "warm-up " : ""}set ${index + 1}`;
+  const evidenceError = (set.completed || set.actualReps.trim() || set.rpe.trim() || set.rir.trim()) ? setEvidenceError(set) : null;
+  const errorId = `evidence-${set.id}`;
   const targetEffort = set.plannedRpe ? `RPE ${set.plannedRpe}` : set.plannedRir ? `RIR ${set.plannedRir}` : "";
   return (
     <>
-    <div className={`set-row compact-set-row ${set.completed ? "is-complete" : set.skipped ? "is-skipped" : ""} ${isNext ? "is-next" : ""}`} aria-label={isNext ? "Next unfinished set" : undefined}>
+    <div className={`set-row compact-set-row ${set.completed ? "is-complete" : set.skipped ? "is-skipped" : ""} ${isNext ? "is-next" : ""}`} role="group" aria-label={`${context}${isNext ? ", next unfinished set" : ""}`}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="ghost" className="set-number" aria-label={`Options for set ${index + 1}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{set.warmup ? "W" : index + 1}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} onCloseAutoFocus={(event) => event.preventDefault()} className="border-white/10 bg-[#20231e] text-white">
+        <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{set.warmup ? "W" : index + 1}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
           <DropdownMenuItem className="min-h-11" onSelect={onSkip}>{set.skipped ? "Restore skipped set" : "Skip this set"}</DropdownMenuItem>
           {!!increment && set.loadType !== "bodyweight" && <><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(((set.actualWeight ?? set.plannedWeight ?? 0) + increment).toFixed(4)), loadType:"weighted"})}>+ {increment} {set.unit}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(Math.max(0,(set.actualWeight ?? set.plannedWeight ?? 0)-increment).toFixed(4)), loadType:"weighted"})}>− {increment} {set.unit}</DropdownMenuItem></>}
           {onMatchPrevious && <DropdownMenuItem className="min-h-11" onSelect={onMatchPrevious}><CopyPlus /> Match previous set</DropdownMenuItem>}
@@ -194,6 +200,8 @@ function SetRow({
         <DecimalInput
           min={0}
           max={5000}
+          aria-label={`${context}, actual weight in ${set.unit === "lb" ? "pounds" : "kilograms"}${set.weightMode === "per_hand" ? " per hand" : set.weightMode === "added" ? " added" : " total"}${set.loadType === "bodyweight" ? ", bodyweight only" : ""}`}
+          aria-describedby={evidenceError ? errorId : undefined}
           value={set.actualWeight}
           disabled={set.loadType === "bodyweight"}
           onValueChange={(actualWeight) => onChange({
@@ -207,6 +215,9 @@ function SetRow({
         <span>Reps</span>
         <Input
           id={`reps-${set.id}`}
+          aria-label={`${context}, actual reps`}
+          aria-invalid={Boolean(evidenceError && !/^[1-9]\d*$/.test(set.actualReps.trim()))}
+          aria-describedby={evidenceError ? errorId : undefined}
           inputMode="numeric"
           value={set.actualReps}
           onChange={(event) => onChange({ actualReps: event.target.value })}
@@ -217,14 +228,15 @@ function SetRow({
         type="button"
         size="icon"
         onClick={onToggle}
-        aria-label={set.completed ? `Mark set ${index + 1} incomplete` : `Complete set ${index + 1}`}
+        aria-label={set.completed ? `Mark ${context} incomplete` : `Complete ${context}`}
+        aria-pressed={set.completed}
         className={set.completed ? "set-check complete" : "set-check"}
       >
         {set.skipped ? <span aria-label="Skipped">—</span> : <Check />}
       </Button>
     </div>
-    {(set.completed || set.actualReps.trim() || set.rpe.trim() || set.rir.trim()) && setEvidenceError(set) && <p className="px-3 text-xs text-amber-100" role="status">{set.completed ? "Older result needs review; its original text is preserved. " : "Incomplete draft: "}{setEvidenceError(set)}</p>}
-    <Dialog open={noteOpen} onOpenChange={setNoteOpen}><DialogContent className="border-white/10 bg-[#151713] text-white sm:max-w-sm"><DialogHeader><DialogTitle>Set {index + 1} note</DialogTitle><DialogDescription className="text-white/50">Only for this set. Included in History and the coach brief.</DialogDescription></DialogHeader><Textarea aria-label={`Note for set ${index + 1}`} value={set.notes} onChange={(event) => onChange({ notes: event.target.value })} placeholder="Technique, pain, or what changed…" className="min-h-20 border-white/10 bg-black/20" /><Button type="button" onClick={() => setNoteOpen(false)} className="bg-[var(--lime)] text-[#11140d]">Done</Button></DialogContent></Dialog>
+    {evidenceError && <p id={errorId} className="px-3 text-xs text-amber-100" role="status" aria-live="polite">{context}: {set.completed ? "Older result needs review; its original text is preserved. " : "Incomplete draft: "}{evidenceError}</p>}
+    <Dialog open={noteOpen} onOpenChange={setNoteOpen}><DialogContent onCloseAutoFocus={event => { event.preventDefault(); optionsTrigger.current?.focus(); }} className="border-white/10 bg-[#151713] text-white sm:max-w-sm"><DialogHeader><DialogTitle>{context} note</DialogTitle><DialogDescription className="text-white/50">Only for this set. Included in History and the coach brief.</DialogDescription></DialogHeader><Textarea aria-label={`Note for ${context}`} value={set.notes} onChange={(event) => onChange({ notes: event.target.value })} placeholder="Technique, pain, or what changed…" className="min-h-20 border-white/10 bg-black/20" /><Button type="button" onClick={() => setNoteOpen(false)} className="bg-[var(--lime)] text-[#11140d]">Done</Button></DialogContent></Dialog>
     </>
   );
 }
@@ -367,6 +379,7 @@ function ExerciseEditor({
         {exercise.sets.map((set, index) => (
           <div key={set.id}>
             <SetRow
+              exerciseName={exercise.name}
               isNext={set.id === nextSetId}
               set={set}
               increment={set.unit === (exercise.sets[0]?.unit ?? defaultUnit) && set.weightMode === exercise.sets[0]?.weightMode ? increment : 0}

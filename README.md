@@ -235,6 +235,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 **Backups**
 
 - Use **Settings → Download full backup** regularly and store the JSON somewhere safe (Files, iCloud Drive).
+- Choose **Verify saved backup** to inspect the JSON saved in Files without restoring or changing your log. It reports compatibility, counts and dates; it does not confirm latest-export matching.
 - To move to another device, open Coach Loop there and choose **Restore JSON backup**, then review the preview.
 - **Merge** combines records and keeps newer revisions. An older backup may therefore leave newer local goals, profile or measurements unchanged.
 - **Complete restore** makes workouts, goals, coach profile, measurements and settings match the backup. Current-only records are removed, so download a current backup first. A local recovery copy is also saved before the restore.
@@ -305,7 +306,9 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v89 fixes backup merge/review integrity, waits for durable final workout saves, converts bodyweight drafts when changing units, protects completed-set evidence, and hardens delayed update activation and FITLOG validation. See [v89 notes](V89-UPDATE-NOTES.md) and [device QC steps](V89-QC.md). v88 split the app shell, added release QC reports, and removed the starter guide after completed history; those improvements remain.
+v90 adds **Settings → Verify saved backup**, clearer exercise/set/unit labels, and faster routine edits by validating changed workouts while retaining integrity checks. History shows 50 sessions per page; search and exports still cover the whole log. See [v90 notes](V90-UPDATE-NOTES.md) and [device QC steps](V90-QC.md). v89's durable final saves, restore review, completed-evidence protection and controlled updates remain. v88's app-shell split remains too.
+
+After saving a JSON file in Files, use **Verify saved backup** to inspect compatibility, counts and dates without restoring it. A readable, compatible file is not proof it matches your latest export or every recorded value is correct. Keep it privately and test restoration on a disposable profile for a full recovery check.
 
 The workout header shows Saving, Saved or Not saved. Finish, history-edit confirmation, saved/imported plans and new-workout opening wait for the local transaction before reporting success. If a final save fails, the editable workout or import preview is retained. Routine input edits still save automatically. A saved transaction protects against ordinary write failure; it cannot prevent browser-storage eviction, so external backups remain important.
 

@@ -1,60 +1,57 @@
-COACH LOOP v89 — DATA INTEGRITY AND FINAL-SAVE RELIABILITY
+COACH LOOP v90 — PERFORMANCE, BACKUP VERIFICATION AND ACCESSIBILITY
 
-Apply over published v88 (verified source tree 268dbb645e9d832df4cc9c069f39ef2efd94d314).
-This is an overlay: matching files are replaced in place, not a second app.
-No source files are deleted. Dependencies, lockfile and database name/version
-are unchanged. No user workouts or personal backups are included.
+Apply over v89 at c60470cea3d871a6bf8f2835bafe68d5dc769534.
+Matching files are replaced in place, not a second app. No source deletions,
+dependency, lockfile or database migration. No personal backups included.
 
-1. In the app, Settings -> Download full backup. Save it privately in Files.
-   Do not upload that personal JSON to GitHub. Keep it until device QC passes.
+1. App -> Settings -> Download full backup or Share backup / Save to Files.
+   Save the personal JSON privately, outside GitHub. Keep it until QC passes.
 
 2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v89-GitHub-Update.zip beside package.json, then commit.
-   The ZIP alone is not installed; extract it in your existing Codespace below.
+   Upload CoachLoop-v90-GitHub-Update.zip beside package.json and commit.
+   The ZIP must then be extracted in your existing Codespace below.
 
-3. Open the Codespace terminal in /workspaces/CoachLoop.
-   Run ONE command at a time. Wait for the prompt, and stop on an error.
+3. Codespace terminal in /workspaces/CoachLoop: ONE command at a time.
+   Wait for the prompt. Stop on an error.
 
 git status --short
 
-   If changes appear, preserve them before continuing. If empty:
+   Preserve uncommitted changes before continuing. If empty:
 
 git pull --ff-only
 node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-   Expect v88. Stop if it shows another release: reconcile before extracting.
+   Expect v89. If another release appears, stop and reconcile first.
 
-unzip -o CoachLoop-v89-GitHub-Update.zip
+unzip -o CoachLoop-v90-GitHub-Update.zip
 npx --yes pnpm@11.25.0 install --frozen-lockfile
 npx --yes pnpm@11.25.0 run release:check
 
-   It must finish "Release checks passed". This includes typecheck, lint, all
-   tests, build, PWA generation and the worker behavior harness. The existing
-   bundle-size warning is not a publishing failure when these checks pass.
-   Generated reports under .release-checks are ignored; do not commit them.
+   Must end with "Release checks passed": typecheck, lint, tests, build and
+   PWA checks. A bundle-size warning alone is not a publishing failure.
+   Reports under .release-checks are ignored; do not commit them.
 
 4. Only after checks pass, run one at a time:
 
-git rm CoachLoop-v89-GitHub-Update.zip
-git add app tests README.md UPDATE-INSTRUCTIONS.txt V89-UPDATE-NOTES.md V89-QC.md
+git rm CoachLoop-v90-GitHub-Update.zip
+git add app tests scripts README.md UPDATE-INSTRUCTIONS.txt V90-UPDATE-NOTES.md V90-QC.md
 git --no-pager diff --cached --stat
 
-   Review intended code/tests/docs and ZIP deletion only. No private JSON,
-   node_modules, dist, or generated QC reports should be staged.
+   Review intended files and ZIP deletion only. No private JSON, benchmark
+   reports, node_modules or dist should be staged. No dependencies were added.
 
-git commit -m "Fix v89 restore integrity, durable saves and update recovery"
+git commit -m "Improve v90 edit performance, backup verification and accessibility"
 git push
 
-5. GitHub -> Actions -> newest Publish Coach Loop PWA: wait for green.
-   Read the QC summary/artifact if anything fails. Do not bypass the checks.
+5. GitHub -> Actions -> newest Publish Coach Loop PWA -> wait for green.
+   If it fails, read the failing step/report; do not bypass release checks.
 
-6. Installed app online -> finish any workout and close editors -> wait for
-   Saved -> Settings -> Check updates -> Restart to update. Close another
-   Coach Loop window if asked. Confirm v89 in Settings or Today.
-   Closing all windows remains a fallback. Never clear website data to update.
+6. Installed app online -> finish workouts, close editors, wait for Saved.
+   Settings -> Check updates -> Restart to update. Close other windows if
+   asked. Confirm v90 and follow V90-QC.md. Closing all windows is a fallback;
+   never clear storage or reinstall to force an ordinary update.
 
-7. Follow V89-QC.md, especially mass conversion, Finish/reopen, history date,
-   backup preview, and installed iPhone tabs/top safe areas.
-
-This is local-only. No account, cloud sync, AI API, persistent backup nag,
-automatic chunk-error reload or new update banner has been added.
+Verify saved backup is read-only; it does not restore or prove latest-export
+matching. History has 50 sessions per page, with full-history search/export.
+Updates remain Settings-only. Physical iPhone, VoiceOver and Files completion
+need device QC. Node benchmarks are not phone performance promises.

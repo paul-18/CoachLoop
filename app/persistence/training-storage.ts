@@ -1,6 +1,6 @@
 import { uid, type TrainingState } from "../domain/training-types";
 
-import { validateSyncedState } from "./training-validation";
+import { assertValidatedState, validateSyncedState, type ValidatedState } from "./training-validation";
 import { localScopeSuffix } from "./local-scope";
 const DB_NAME = `coach-loop${localScopeSuffix()}`;
 const DB_VERSION = 3;
@@ -81,7 +81,16 @@ let pendingSave: Promise<unknown> = Promise.resolve();
 let queuedState: TrainingState | null = null;
 let draining: Promise<void> | null = null;
 export const saveTrainingState = (state: TrainingState): Promise<void> => {
-  queuedState = structuredClone(validateSyncedState(state));
+  return enqueueState(structuredClone(validateSyncedState(state)));
+};
+/** Internal immutable candidates need neither a second parse nor a pre-queue
+ * clone. IndexedDB still performs its own structured clone at store.put. */
+export const saveValidatedState = (state: ValidatedState): Promise<void> => {
+  assertValidatedState(state);
+  return enqueueState(state);
+};
+const enqueueState = (snapshot: TrainingState): Promise<void> => {
+  queuedState = snapshot;
   if (!draining) {
     draining = pendingSave.catch(() => undefined).then(async () => {
       while (queuedState) {

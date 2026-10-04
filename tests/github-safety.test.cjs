@@ -116,7 +116,7 @@ async function settle(h, render) {
 test('unreadable local storage opens recovery instead of writing an empty log', async () => {
   localEnvironment();const h=hooks();let writes=0;
   const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts', {react:h.react,sonner:{toast:{error(){}}},'./training-storage':{
-    loadTrainingState:async()=>{throw new Error('Storage unavailable');},saveTrainingState:async()=>writes++
+    loadTrainingState:async()=>{throw new Error('Storage unavailable');},saveValidatedState:async()=>writes++
   }});
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};
   render();await settle(h,render);
@@ -126,7 +126,7 @@ test('unreadable local storage opens recovery instead of writing an empty log', 
 test('local edits reject invalid values, save latest evidence when hidden, and never sync', async () => {
   const listeners=localEnvironment();const h=hooks();const writes=[];let errors=0;
   const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts', {react:h.react,sonner:{toast:{error(){errors++;}}},'./training-storage':{
-    loadTrainingState:async()=>types.defaultState(),saveTrainingState:async(state)=>writes.push(structuredClone(state))
+    loadTrainingState:async()=>types.defaultState(),saveValidatedState:async(state)=>writes.push(structuredClone(state))
   }});
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};
   render();await settle(h,render);
@@ -143,7 +143,7 @@ test('local edits reject invalid values, save latest evidence when hidden, and n
 test('failed local saves are visible and returning to foreground retries the latest state', async () => {
   const listeners=localEnvironment();const h=hooks();let fail=true;
   const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts', {react:h.react,sonner:{toast:{error(){}}},'./training-storage':{
-    loadTrainingState:async()=>types.defaultState(),saveTrainingState:async()=>{if(fail)throw new Error('Quota exceeded');}
+    loadTrainingState:async()=>types.defaultState(),saveValidatedState:async()=>{if(fail)throw new Error('Quota exceeded');}
   }});
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};
   render();await settle(h,render);assert.equal(api.localSaveStatus,'error');
@@ -152,7 +152,7 @@ test('failed local saves are visible and returning to foreground retries the lat
 
 test('failed restore leaves displayed and latest state unchanged', async () => {
   localEnvironment();const h=hooks();let rejectWrite=false;
-  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>types.defaultState(),saveTrainingState:async(state)=>{if(rejectWrite && state.goals.includes('Restored goal'))throw new Error('Storage full');},saveSnapshot:async()=>{}}});
+  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>types.defaultState(),saveValidatedState:async(state)=>{if(rejectWrite && state.goals.includes('Restored goal'))throw new Error('Storage full');},saveSnapshot:async()=>{}}});
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};render();await settle(h,render);
   const original=structuredClone(api.state),backup=types.defaultState();backup.goals=['Restored goal'];backup.goalsUpdatedAt='2026-10-03T12:00:00.000Z';
   // Pre-restore checkpoint succeeds; only the new state write fails.
@@ -182,7 +182,7 @@ test('deliberate update saves first, rejects another window and reloads exactly 
 test('complete restore commits before display replacement and preserves the pre-restore checkpoint', async () => {
   localEnvironment();const h=hooks(), checkpoints=[];let durable=types.defaultState(),rejectWrite=false;
   durable.goals=['Current'];durable.goalsUpdatedAt='2026-10-03T12:00:00.000Z';
-  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>durable,saveTrainingState:async(state)=>{if(rejectWrite && state.goals.includes('Backup'))throw new Error('Storage full');durable=structuredClone(state);},saveSnapshot:async(state)=>checkpoints.push(structuredClone(state))}});
+  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>durable,saveValidatedState:async(state)=>{if(rejectWrite && state.goals.includes('Backup'))throw new Error('Storage full');durable=structuredClone(state);},saveSnapshot:async(state)=>checkpoints.push(structuredClone(state))}});
   let api;const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};render();await settle(h,render);
   const backup=types.defaultState();backup.goals=['Backup'];backup.goalsUpdatedAt='2026-09-01T12:00:00.000Z';
   rejectWrite=true;await assert.rejects(api.restoreBackup(backup,false,'replace'),/Storage full/);render();assert.deepEqual(api.state.goals,['Current']);assert.deepEqual(durable.goals,['Current']);
@@ -193,7 +193,7 @@ test('restore commits the exact reviewed recovery IDs and refuses a stale previe
   localEnvironment(); const h=hooks(); let durable=types.defaultState();
   const backup=types.defaultState(), workout=types.makeWorkout('lb',120,'Recover exact review');
   backup.workouts=[workout]; durable.deletedWorkoutIds=[workout.id];
-  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>durable,saveTrainingState:async(next)=>{durable=structuredClone(next);},saveSnapshot:async()=>{}}});
+  const loaded=moduleUnderTest('app/persistence/use-training-persistence.ts',{react:h.react,sonner:{toast:{error(){},success(){}}},'./training-storage':{loadTrainingState:async()=>durable,saveValidatedState:async(next)=>{durable=structuredClone(next);},saveSnapshot:async()=>{}}});
   let api; const render=()=>{api=h.render(()=>loaded.useTrainingPersistence());h.effects();};
   render(); await settle(h,render);
   const {reviewRestore}=req(root+'/app/persistence/backup-review.ts');

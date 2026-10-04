@@ -6,12 +6,12 @@ import { restoredState, type RestoreMode } from "./backup-tools";
 import type { ReviewedRestore } from "./backup-review";
 import { prepareLoadedState } from "./migrations";
 import { resolveFieldConflict } from "./field-conflicts";
-import { validateLocalState, validateSyncedState } from "./training-validation";
-import { loadTrainingState, resetTrainingData, saveSnapshot, saveTrainingState } from "./training-storage";
+import { validateLocalState, validateSyncedState, validatedState, validateStateEdit, type ValidatedState } from "./training-validation";
+import { loadTrainingState, resetTrainingData, saveSnapshot, saveValidatedState } from "./training-storage";
 
 /** GitHub Pages edition: local IndexedDB only. Backups are exported in Settings. */
 export function useTrainingPersistence() {
-  const [state, setReactState] = useState<TrainingState>(defaultState);
+  const [state, setReactState] = useState<ValidatedState>(() => validatedState(defaultState()));
   const latestStateRef = useRef(state);
   const [busy, setBusy] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -23,12 +23,13 @@ export function useTrainingPersistence() {
 
   const setState = useCallback((update: SetStateAction<TrainingState>) => {
     if (operation.current) { toast.error("Wait for recovery to finish"); return; }
-    let next = typeof update === "function" ? update(latestStateRef.current) : update;
-    try { next = validateSyncedState(next); }
+    const next = typeof update === "function" ? update(latestStateRef.current) : update;
+    let checked: ValidatedState;
+    try { checked = validateStateEdit(latestStateRef.current, next); }
     catch { toast.error("This change is invalid; your saved log was kept"); return; }
-    latestStateRef.current = next;
+    latestStateRef.current = checked;
     setLocalSaveStatus("saving");
-    setReactState(next);
+    setReactState(checked);
   }, []);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export function useTrainingPersistence() {
         validateLocalState(stored);
         await saveSnapshot(stored, "before-evidence-migration");
       }
-      const next = prepareLoadedState(stored ?? defaultState());
+      const next = validatedState(prepareLoadedState(stored ?? defaultState()));
       if (disposed) return;
       latestStateRef.current = next;
       setReactState(next);
@@ -53,7 +54,7 @@ export function useTrainingPersistence() {
     let current = true;
     // IndexedDB status follows the start and completion of an external save.
     setLocalSaveStatus("saving");
-    void Promise.resolve().then(() => saveTrainingState(state)).then(
+    void Promise.resolve().then(() => saveValidatedState(state)).then(
       () => { if (current && !operation.current) setLocalSaveStatus("saved"); },
       () => { if (current && !operation.current) setLocalSaveStatus("error"); },
     );
@@ -62,7 +63,7 @@ export function useTrainingPersistence() {
 
   useEffect(() => {
     if (!ready) return;
-    const flush = () => { if (!operation.current) void saveTrainingState(latestStateRef.current).catch(() => setLocalSaveStatus("error")); };
+    const flush = () => { if (!operation.current) void saveValidatedState(latestStateRef.current).catch(() => setLocalSaveStatus("error")); };
     const whenHidden = () => { if (document.visibilityState === "hidden") flush(); };
     document.addEventListener("visibilitychange", whenHidden);
     window.addEventListener("pagehide", flush);
@@ -80,7 +81,7 @@ export function useTrainingPersistence() {
   const resetAll = async () => {
     if (operation.current) return;
     operation.current = true; setBusy(true);
-    const cleared = defaultState();
+    const cleared = validatedState(defaultState());
     try {
       await resetTrainingData(cleared);
       latestStateRef.current = cleared; setReactState(cleared); setLocalSaveStatus("saved");
@@ -91,8 +92,8 @@ export function useTrainingPersistence() {
   const flushLatest = async () => {
     if (operation.current) throw new Error("Recovery is still running");
     try {
-      let candidate: TrainingState;
-      do { candidate = latestStateRef.current; await saveTrainingState(candidate); } while (candidate !== latestStateRef.current);
+      let candidate: ValidatedState;
+      do { candidate = latestStateRef.current; await saveValidatedState(candidate); } while (candidate !== latestStateRef.current);
       setLocalSaveStatus("saved");
     } catch (error) { setLocalSaveStatus("error"); throw error; }
   };
@@ -103,8 +104,8 @@ export function useTrainingPersistence() {
     if (operation.current) throw new Error("A save or recovery operation is already running");
     operation.current = true; setCommitting(true); setLocalSaveStatus("saving");
     try {
-      const next = validateSyncedState(typeof update === "function" ? update(latestStateRef.current) : update);
-      await saveTrainingState(next);
+      const next = validatedState(typeof update === "function" ? update(latestStateRef.current) : update);
+      await saveValidatedState(next);
       latestStateRef.current = next; setReactState(next); setLocalSaveStatus("saved");
       return next;
     } catch (error) { setLocalSaveStatus("error"); throw error; }
@@ -116,10 +117,10 @@ export function useTrainingPersistence() {
     try {
       validateSyncedState(backup);
       if (reviewed && JSON.stringify(reviewed.base) !== JSON.stringify(latestStateRef.current)) throw new Error("Your log changed after preview. Review the restore again before applying it.");
-      await saveTrainingState(latestStateRef.current);
+      await saveValidatedState(latestStateRef.current);
       await saveSnapshot(latestStateRef.current, "before-restore");
-      const next = reviewed ? validateSyncedState(reviewed.next) : restoredState(latestStateRef.current, backup, mode, recover);
-      await saveTrainingState(next);
+      const next = validatedState(reviewed ? reviewed.next : restoredState(latestStateRef.current, backup, mode, recover));
+      await saveValidatedState(next);
       latestStateRef.current = next;
       setReactState(next);
       setLocalSaveStatus("saved");
