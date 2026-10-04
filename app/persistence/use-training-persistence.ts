@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type SetStateAction } from "r
 import { toast } from "sonner";
 import { defaultState, type TrainingState } from "../domain/training-types";
 import { restoredState, type RestoreMode } from "./backup-tools";
+import type { ReviewedRestore } from "./backup-review";
 import { prepareLoadedState } from "./migrations";
 import { resolveFieldConflict } from "./field-conflicts";
 import { validateLocalState, validateSyncedState } from "./training-validation";
@@ -13,6 +14,7 @@ export function useTrainingPersistence() {
   const [state, setReactState] = useState<TrainingState>(defaultState);
   const latestStateRef = useRef(state);
   const [busy, setBusy] = useState(false);
+  const [committing, setCommitting] = useState(false);
   const operation = useRef(false);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -47,21 +49,20 @@ export function useTrainingPersistence() {
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || operation.current) return;
     let current = true;
     // IndexedDB status follows the start and completion of an external save.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSaveStatus("saving");
     void Promise.resolve().then(() => saveTrainingState(state)).then(
-      () => { if (current) setLocalSaveStatus("saved"); },
-      () => { if (current) setLocalSaveStatus("error"); },
+      () => { if (current && !operation.current) setLocalSaveStatus("saved"); },
+      () => { if (current && !operation.current) setLocalSaveStatus("error"); },
     );
     return () => { current = false; };
   }, [state, ready, localSaveRetry]);
 
   useEffect(() => {
     if (!ready) return;
-    const flush = () => { void saveTrainingState(latestStateRef.current).catch(() => setLocalSaveStatus("error")); };
+    const flush = () => { if (!operation.current) void saveTrainingState(latestStateRef.current).catch(() => setLocalSaveStatus("error")); };
     const whenHidden = () => { if (document.visibilityState === "hidden") flush(); };
     document.addEventListener("visibilitychange", whenHidden);
     window.addEventListener("pagehide", flush);
@@ -89,18 +90,35 @@ export function useTrainingPersistence() {
   };
   const flushLatest = async () => {
     if (operation.current) throw new Error("Recovery is still running");
-    let candidate: TrainingState;
-    do { candidate = latestStateRef.current; await saveTrainingState(candidate); } while (candidate !== latestStateRef.current);
-    setLocalSaveStatus("saved");
+    try {
+      let candidate: TrainingState;
+      do { candidate = latestStateRef.current; await saveTrainingState(candidate); } while (candidate !== latestStateRef.current);
+      setLocalSaveStatus("saved");
+    } catch (error) { setLocalSaveStatus("error"); throw error; }
   };
-  const restoreBackup = async (backup: TrainingState, recover = false, mode: RestoreMode = "merge") => {
+  /** Final confirmations publish success only after the transaction commits.
+   * Keep the editable draft in memory on failure; prevent old lifecycle saves
+   * from overtaking the final write while this operation is locked. */
+  const commitState = async (update: SetStateAction<TrainingState>) => {
+    if (operation.current) throw new Error("A save or recovery operation is already running");
+    operation.current = true; setCommitting(true); setLocalSaveStatus("saving");
+    try {
+      const next = validateSyncedState(typeof update === "function" ? update(latestStateRef.current) : update);
+      await saveTrainingState(next);
+      latestStateRef.current = next; setReactState(next); setLocalSaveStatus("saved");
+      return next;
+    } catch (error) { setLocalSaveStatus("error"); throw error; }
+    finally { operation.current = false; setCommitting(false); }
+  };
+  const restoreBackup = async (backup: TrainingState, recover = false, mode: RestoreMode = "merge", reviewed?: ReviewedRestore) => {
     if (operation.current) throw new Error("Recovery is already running");
     operation.current = true; setBusy(true);
     try {
       validateSyncedState(backup);
+      if (reviewed && JSON.stringify(reviewed.base) !== JSON.stringify(latestStateRef.current)) throw new Error("Your log changed after preview. Review the restore again before applying it.");
       await saveTrainingState(latestStateRef.current);
       await saveSnapshot(latestStateRef.current, "before-restore");
-      const next = restoredState(latestStateRef.current, backup, mode, recover);
+      const next = reviewed ? validateSyncedState(reviewed.next) : restoredState(latestStateRef.current, backup, mode, recover);
       await saveTrainingState(next);
       latestStateRef.current = next;
       setReactState(next);
@@ -114,7 +132,7 @@ export function useTrainingPersistence() {
   };
 
   return {
-    state, setState, busy, flushLatest, displayedState: state, applyProjectedUpdate: setState,
+    state, setState, busy, committing, commitState, flushLatest, displayedState: state, applyProjectedUpdate: setState,
     resolveConflict, restoreBackup, saveRecoveryCopy,
     loadError, ready, syncFailure: null, localSaveStatus, setLocalSaveRetry,
     syncStatus: "synced" as const, lastSyncedAt: null, resetMismatch: false,

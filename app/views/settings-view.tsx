@@ -1,14 +1,15 @@
 import { orderedQuickLogOptions } from "../domain/quick-log-order";
 import { GoalExamples } from "./goal-examples";
 import { useStorageHealth } from "../pwa/use-storage-health";
-import { parseBackup, serializeBackup, restoredState, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
+import { parseBackup, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
+import { reviewRestore, restoreDetails, sharedProvenance, type ReviewedRestore } from "../persistence/backup-review";
 import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { ChevronDown, ChevronUp, DatabaseBackup, Download, FileJson, Import, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -66,7 +67,7 @@ function ConflictReviewItem({ conflict, onResolve }: { conflict: FieldConflict; 
   </div>;
 }
 
-export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady, release, localSaveStatus, updateBlocked, onCheckUpdates, onApplyUpdate }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean, mode?: RestoreMode) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean; release?: string | null; localSaveStatus?: "saving" | "saved" | "error"; updateBlocked?: boolean; onCheckUpdates?: () => Promise<void>; onApplyUpdate?: () => Promise<void> }) {
+export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady, release, localSaveStatus, updateBlocked, onCheckUpdates, onApplyUpdate }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean, mode?: RestoreMode, reviewed?: ReviewedRestore) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean; release?: string | null; localSaveStatus?: "saving" | "saved" | "error"; updateBlocked?: boolean; onCheckUpdates?: () => Promise<void>; onApplyUpdate?: () => Promise<void> }) {
   useEffect(() => {
     if (!openSection) return;
     const target = document.getElementById(openSection);
@@ -128,7 +129,10 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
     }
   };
-  const restorePreview = restoreCandidate ? restoredState(canonicalState, restoreCandidate, restoreMode, recover) : null;
+  const restoreReview = useMemo(() => restoreCandidate ? reviewRestore(canonicalState, restoreCandidate, restoreMode, recover) : { review: null, error: "" }, [canonicalState, restoreCandidate, restoreMode, recover]);
+  const restorePreview = restoreReview.review?.next ?? null;
+  const details = useMemo(() => restorePreview ? restoreDetails(canonicalState, restorePreview) : [], [canonicalState, restorePreview]);
+  const provenance = useMemo(() => restorePreview ? sharedProvenance(restorePreview) : [], [restorePreview]);
   const restoreAdditions = restorePreview?.workouts.filter((workout) => !canonicalState.workouts.some((item) => item.id === workout.id)).length ?? 0;
   const restoreRemovals = canonicalState.workouts.filter((workout) => !restorePreview?.workouts.some((item) => item.id === workout.id)).length;
   const changes = restorePreview ? backupChanges(canonicalState, restorePreview) : null;
@@ -140,8 +144,11 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <p className="text-sm text-white/65">{restoreMode === "replace" ? "Replaces the current workouts, goals, coach profile, measurements and settings with exactly what is in the backup. Current records absent from the backup are removed." : "Combines both logs. Newer local goals, profile and measurements can win over older backup values."}</p>
         <p className="text-sm text-white/65">Adds {restoreAdditions} workouts; removes {restoreRemovals}; changes {changes?.changed ?? 0} existing workouts. Other changed sections: {changes?.sections.join(", ") || "none"}.</p>
         <p className="text-sm text-white/65">After restore: {restorePreview?.goals.length ?? 0} goals, {restorePreview?.bodyweightEntries.length ?? 0} bodyweight entries; coach profile {restorePreview?.coachProfile?.trim() ? "included" : "empty"}.</p>
+        {restoreReview.error && <p role="alert" className="text-sm text-red-200">Could not preview this method: {restoreReview.error} Your log has not changed. You can cancel or choose Complete restore.</p>}
+        {provenance.length > 0 && <p className="text-sm text-amber-100">Possible duplicates share an old import origin. All distinct workouts are kept: {provenance.map(group => group.map(w => `${w.name} (${w.date})`).join(", ")).join("; ")}. Review them after restore before deleting anything.</p>}
+        {restorePreview && <details><summary className="min-h-11 cursor-pointer">Review exact changes</summary><div className="space-y-3 break-words text-sm text-white/70">{details.map(item => <details key={item.id}><summary className="min-h-11 cursor-pointer">{item.date} · {item.name}</summary><ul className="list-disc space-y-2 pl-5">{item.lines.map((line, i) => <li key={i}>{line}</li>)}</ul></details>)}{changes?.sections.map(key => <details key={key}><summary className="min-h-11 cursor-pointer">{key}</summary><p>Current: {JSON.stringify(canonicalState[key])}</p><p>After restore: {JSON.stringify(restorePreview[key])}</p></details>)}</div></details>}
         {restoreMode === "merge" && <><label className="flex min-h-11 items-center gap-3"><Checkbox checked={recover} disabled={restoring} onCheckedChange={value => setRecover(value === true)} />Recover deleted records with new IDs</label><p className="text-sm text-white/60">Use recovery only for accidental deletions. Ordinary merge keeps deletion protection.</p></>}
-        <DialogFooter><Button disabled={restoring} variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button disabled={restoring} onClick={async () => { if (!restoreCandidate) return; setRestoring(true); try { await onRestoreBackup(restoreCandidate, recover, restoreMode); setRestoreCandidate(null); toast.success("Backup restored and saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Restore could not be saved; original log retained"); } finally { setRestoring(false); } }}>{restoring ? "Saving…" : restoreMode === "replace" ? "Complete restore" : "Merge backup"}</Button></DialogFooter></DialogContent></Dialog>
+        <DialogFooter><Button disabled={restoring} variant="outline" onClick={() => setRestoreCandidate(null)}>Cancel</Button><Button disabled={restoring || !restoreReview.review} onClick={async () => { if (!restoreCandidate || !restoreReview.review) return; setRestoring(true); try { await onRestoreBackup(restoreCandidate, recover, restoreMode, restoreReview.review); setRestoreCandidate(null); toast.success("Backup restored and saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Restore could not be saved; original log retained"); } finally { setRestoring(false); } }}>{restoring ? "Saving…" : restoreMode === "replace" ? "Complete restore" : "Merge backup"}</Button></DialogFooter></DialogContent></Dialog>
       {Boolean(state.pendingConflicts?.length) && <section className="settings-panel"><h2 className="text-lg font-bold">Needs review · {state.pendingConflicts?.length}</h2><p className="mt-1 text-sm text-white/55">This backup contains unresolved edits. Choose one value for each field.</p><div className="mt-4 space-y-3">{state.pendingConflicts?.map((conflict) => <ConflictReviewItem key={conflict.id} conflict={conflict} onResolve={onResolveConflict} />)}</div></section>}
       <section className="settings-panel">
         <div className="settings-title"><div><h2>On this device</h2></div><DatabaseBackup className="text-[var(--lime)]" /></div>

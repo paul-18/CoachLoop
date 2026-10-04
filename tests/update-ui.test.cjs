@@ -44,6 +44,8 @@ test('update UI blocks active workouts and failed saves; successful restart comm
     assert.equal(activation, 0, 'save failure must not activate update');
     assert.deepEqual((await storage.loadTrainingState()).goals, finished.goals);
     IDBObjectStore.prototype.put = put;
+    [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Retry save').click();
+    await until(() => restart() && !restart().disabled, 'retry confirms a saved log before restart');
     restart().click();
     await until(() => activation === 1, 'successful flush activates once');
     assert.match(document.querySelector('[role="status"]').textContent, /Applying update/);
@@ -52,7 +54,7 @@ test('update UI blocks active workouts and failed saves; successful restart comm
     const retained = await storage.loadTrainingState();
     assert.deepEqual(retained.goals, finished.goals); assert.equal(retained.coachProfile, finished.coachProfile);
     assert.equal(retained.workouts[0].id, workout.id); assert.equal(retained.workouts[0].status, 'completed');
-    assert.ok(document.body.textContent.includes('v88'));
+    assert.ok(document.body.textContent.includes(require('../app/app-release.ts').APP_RELEASE));
   } finally {
     IDBObjectStore.prototype.put = put; root.unmount(); await wait(30); dom.window.close();
     if (previousModule) require.cache[offlinePath] = previousModule; else delete require.cache[offlinePath];

@@ -53,12 +53,14 @@ export function ImportWorkoutDialog({
   text: string;
   onTextChange: (value: string) => void;
   state: TrainingState;
-  onStart: (workout: WorkoutSession) => void;
-  onSave: (workout: WorkoutSession) => void;
+  onStart: (workout: WorkoutSession) => Promise<void>;
+  onSave: (workout: WorkoutSession) => Promise<void>;
 }) {
   const [preview, setPreview] = useState<WorkoutSession | null>(null);
   const [error, setError] = useState("");
   const [warningsReviewed, setWarningsReviewed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -85,9 +87,16 @@ export function ImportWorkoutDialog({
     ? state.workouts.find((workout) => workout.importFingerprint === preview.importFingerprint)
     : undefined;
   const needsWarningReview = Boolean(preview?.importWarnings?.length) && !warningsReviewed;
+  const apply = async (start: boolean) => {
+    if (!preview || saving) return;
+    setSaving(true); setSaveError("");
+    try { await (start ? onStart(preview) : onSave(preview)); onOpenChange(false); onTextChange(""); }
+    catch { setSaveError("Could not save this import. Your preview and pasted text are retained; retry when storage is available."); }
+    finally { setSaving(false); }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={value => { if (!saving) onOpenChange(value); }}>
       <DialogContent className="max-h-[88dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
         <DialogHeader className="border-b border-white/8 p-6 pb-5 text-left">
           <DialogTitle className="text-xl font-black tracking-[-0.035em]">
@@ -98,7 +107,8 @@ export function ImportWorkoutDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 p-6">
+        <div className="space-y-5 p-6" inert={saving}>
+          {saveError && <p role="alert" className="text-sm text-red-200">{saveError}</p>}
           {!preview ? (
             <>
               <Textarea
@@ -175,6 +185,8 @@ export function ImportWorkoutDialog({
                     {block.activity.plannedDurationMin ? `${block.activity.plannedDurationMin} min` : "Duration open"}
                     {block.activity.plannedDistanceKm ? ` · ${block.activity.plannedDistanceKm} km` : ""}
                     {block.activity.intensity ? ` · ${block.activity.intensity}` : ""}
+                    {block.activity.ruckLoad !== null ? ` · Pack load ${block.activity.ruckLoad} ${block.activity.ruckLoadUnit}` : ""}
+                    {(block.activity.effortRestSec ?? 0) > 0 ? ` · Effort rest ${block.activity.effortRestSec}s` : ""}
                   </p>
                   {block.activity.intervals && <RunPlan text={block.activity.intervals} />}
                   {!!block.activity.efforts?.length && <ol className="mt-3 space-y-2 text-sm text-white/75">{block.activity.efforts.map((e, index) => <li key={e.id}>{index + 1}. {[e.plannedDistanceM !== null ? `${e.plannedDistanceM} m` : "", e.plannedDurationSec !== null ? `${e.plannedDurationSec} sec` : "", e.plannedLoad !== null ? `${e.plannedLoad} ${block.activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ")}</li>)}</ol>}
@@ -189,28 +201,20 @@ export function ImportWorkoutDialog({
         <DialogFooter className="border-t border-white/8 p-5">
           {preview ? (
             <>
-              <Button variant="ghost" onClick={() => setPreview(null)} className="text-white/65 hover:bg-white/6 hover:text-white">
+              <Button disabled={saving} variant="ghost" onClick={() => setPreview(null)} className="text-white/65 hover:bg-white/6 hover:text-white">
                 Back to text
               </Button>
               <Button
-                onClick={() => {
-                  onSave(preview);
-                  onOpenChange(false);
-                  onTextChange("");
-                }}
+                onClick={() => void apply(false)}
                 variant="outline"
-                disabled={needsWarningReview}
+                disabled={needsWarningReview || saving}
                 className="border-white/10 bg-white/[0.025] font-bold text-white hover:bg-white/8"
               >
-                <Save /> Save for later
+                <Save /> {saving ? "Saving…" : "Save for later"}
               </Button>
               <Button
-                onClick={() => {
-                  onStart(preview);
-                  onOpenChange(false);
-                  onTextChange("");
-                }}
-                disabled={Boolean(state.activeWorkoutId) || needsWarningReview}
+                onClick={() => void apply(true)}
+                disabled={Boolean(state.activeWorkoutId) || needsWarningReview || saving}
                 className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"
               >
                 <Play /> Start workout
@@ -305,8 +309,8 @@ const initialCoachOptions = (): CoachOptions => ({
   energy: "",
   sleep: "",
   soreness: "",
-  timeAvailable: "75 minutes",
-  equipment: "Full gym",
+  timeAvailable: "",
+  equipment: "",
   restrictions: "",
   schedule: "",
   request: "",
@@ -327,17 +331,20 @@ export function CoachDialog({
 }) {
   const [options, setOptions] = useState<CoachOptions>(initialCoachOptions);
   const wasOpen = useRef(false);
+  const today = useLocalDay();
+  const openedDay = useRef(today);
 
-  const prompt = useMemo(() => buildCoachPrompt(state, options), [state, options]);
+  const prompt = useMemo(() => buildCoachPrompt(state, options, today), [state, options, today]);
 
   useEffect(() => {
     if (!open) { wasOpen.current = false; return; }
-    if (wasOpen.current) return;
+    if (wasOpen.current && openedDay.current === today) return;
     wasOpen.current = true;
+    openedDay.current = today;
     const saved = state.settings.coachCheckIn;
-    const checkIn = currentCoachCheckIn(saved);
+    const checkIn = currentCoachCheckIn(saved, today);
     setOptions({ ...initialCoachOptions(), mode: state.settings.lastCoachBriefAt ? "continue" : "new", energy: checkIn.energy, sleep: checkIn.sleep, soreness: checkIn.soreness, restrictions: checkIn.restrictions, schedule: checkIn.schedule });
-  }, [open, state.settings.coachCheckIn, state.settings.lastCoachBriefAt]);
+  }, [open, today, state.settings.coachCheckIn, state.settings.lastCoachBriefAt]);
 
   const field = <K extends keyof CoachOptions>(key: K, value: CoachOptions[K]) =>
     setOptions((current) => ({ ...current, [key]: value }));

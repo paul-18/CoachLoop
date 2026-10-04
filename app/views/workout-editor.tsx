@@ -26,6 +26,7 @@ import { completedSetValues, convertWeight, completedActivityValues, exerciseIde
 import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
 
 import { DecimalInput, formatDate, formatDuration, orderedWorkoutBlocks } from "./shared";
+import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
 import { workoutCompletionSummary } from "../domain/completion";
@@ -222,6 +223,7 @@ function SetRow({
         {set.skipped ? <span aria-label="Skipped">—</span> : <Check />}
       </Button>
     </div>
+    {(set.completed || set.actualReps.trim() || set.rpe.trim() || set.rir.trim()) && setEvidenceError(set) && <p className="px-3 text-xs text-amber-100" role="status">{set.completed ? "Older result needs review; its original text is preserved. " : "Incomplete draft: "}{setEvidenceError(set)}</p>}
     <Dialog open={noteOpen} onOpenChange={setNoteOpen}><DialogContent className="border-white/10 bg-[#151713] text-white sm:max-w-sm"><DialogHeader><DialogTitle>Set {index + 1} note</DialogTitle><DialogDescription className="text-white/50">Only for this set. Included in History and the coach brief.</DialogDescription></DialogHeader><Textarea aria-label={`Note for set ${index + 1}`} value={set.notes} onChange={(event) => onChange({ notes: event.target.value })} placeholder="Technique, pain, or what changed…" className="min-h-20 border-white/10 bg-black/20" /><Button type="button" onClick={() => setNoteOpen(false)} className="bg-[var(--lime)] text-[#11140d]">Done</Button></DialogContent></Dialog>
     </>
   );
@@ -263,20 +265,16 @@ function ExerciseEditor({
   const latestExercise = useRef(exercise);
   useLayoutEffect(() => { latestExercise.current = exercise; }, [exercise]);
   const updateSet = (setId: string, changes: Partial<TrainingSet>) => {
-    const changesActual = "actualWeight" in changes || "actualReps" in changes || "rpe" in changes || "rir" in changes;
     const updatedAt = new Date().toISOString();
     const current = latestExercise.current;
     const next = {
       ...current,
       updatedAt,
-      sets: current.sets.map((set) => set.id === setId ? {
-        ...set,
-        ...changes,
-        completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : set.completedAsPlanned,
-        updatedAt,
-      } : set),
+      sets: current.sets.map((set) => set.id === setId ? editedSet(set, changes, updatedAt) : set),
     };
     latestExercise.current = next;
+    const before = current.sets.find(s => s.id === setId), after = next.sets.find(s => s.id === setId);
+    if (before?.completed && after && !after.completed && setEvidenceError(after)) toast.info("This set is now incomplete. Correct its actual values and mark it complete again.");
     onChange(next);
   };
   const removeSet = (setId: string) => {
@@ -610,6 +608,7 @@ export function WorkoutVolume({ workout, unit }: { workout: WorkoutSession; unit
 }
 
 export function WorkoutEditor({
+  saveStatus,
   workout,
   state,
   onUpdate,
@@ -621,13 +620,16 @@ export function WorkoutEditor({
   workout: WorkoutSession;
   state: TrainingState;
   onUpdate: (workout: WorkoutSession) => void;
-  onFinish: () => void;
+  saveStatus?: "saving" | "saved" | "error";
+  onFinish: () => Promise<void>;
   onDiscard?: () => void;
   onBack: () => void;
   onIncrement: (key: string, value: number) => void;
 }) {
   const [substitutionId, setSubstitutionId] = useState<string|null>(null);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const isEditingHistory = Boolean(workout.completedAt);
@@ -784,7 +786,7 @@ export function WorkoutEditor({
         <Button variant="ghost" size="icon" onClick={onBack} className="text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
-          <p className="mt-1 truncate text-xs text-white/55" title={`${doneCount} of ${totalCount} items complete${skippedSets ? `, ${skippedSets} skipped` : ""}`}>{doneCount}/{totalCount} done{skippedSets ? ` · ${skippedSets} skipped` : ""}</p>
+          <p role="status" className="mt-1 truncate text-xs text-white/55" title={`${doneCount} of ${totalCount} items complete${skippedSets ? `, ${skippedSets} skipped` : ""}`}>{doneCount}/{totalCount} done{skippedSets ? ` · ${skippedSets} skipped` : ""} · {saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
         <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "bg-[var(--lime)]/10 text-[var(--lime)]" : "text-white/45 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => setFinishOpen(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => setFinishOpen(true)} className="bg-[var(--lime)] px-2 text-[#11140d]">Done</Button></div>
       </header>
@@ -863,7 +865,7 @@ export function WorkoutEditor({
               <AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Keep workout</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { setRestUntil(null); onDiscard(); }}>Discard</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>}
-          <AlertDialog open={finishOpen} onOpenChange={setFinishOpen}>
+          <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); }}>
             <Button onClick={() => setFinishOpen(true)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/45">{workoutCompletionSummary(workout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
@@ -875,7 +877,8 @@ export function WorkoutEditor({
                 <div className="finish-fields"><details className="log-notes"><summary>Session effort · optional{workout.sessionRpe ? ` · ${workout.sessionRpe}/10` : ""}</summary><Input aria-label="Session effort out of 10" inputMode="decimal" value={workout.sessionRpe} placeholder="—" onChange={(event) => onUpdate({ ...workout, sessionRpe: event.target.value })} /></details>
                 <label className="field-label">Notes · optional<Textarea value={workout.notes} onChange={(event) => onUpdate({ ...workout, notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label></div>
               </div>
-              <AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction onClick={() => { setRestUntil(null); onFinish(); }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{finishLabel}</AlertDialogAction></AlertDialogFooter>
+              {finishError && <p role="alert" className="text-sm text-red-200">{finishError}</p>}
+              <AlertDialogFooter><AlertDialogCancel disabled={finishing} className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction disabled={finishing} onClick={async event => { event.preventDefault(); setFinishing(true); setFinishError(""); try { await onFinish(); setRestUntil(null); setFinishOpen(false); } catch { setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings."); } finally { setFinishing(false); } }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{finishing ? "Saving…" : finishLabel}</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>

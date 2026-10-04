@@ -10,7 +10,7 @@ import { formatDate, type MainView } from "../views/shared";
 import type { useTrainingPersistence } from "../persistence/use-training-persistence";
 
 export function useWorkoutController(persistence: ReturnType<typeof useTrainingPersistence>, setView: Dispatch<SetStateAction<MainView>>) {
-  const { state, displayedState, setState, applyProjectedUpdate, saveRecoveryCopy } = persistence;
+  const { state, displayedState, setState, applyProjectedUpdate, saveRecoveryCopy, commitState, latestStateRef } = persistence;
   const [workoutOpen, setWorkoutOpen] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const historyScrollRef = useRef<number | null>(null);
@@ -29,18 +29,15 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const putWorkout = (workout: WorkoutSession) =>
     applyProjectedUpdate((current) => ({ ...current, workouts: current.workouts.map((item) => item.id === workout.id ? { ...workout, updatedAt: new Date().toISOString() } : item) }));
 
-  const startWorkout = (workout: WorkoutSession) => {
-    let next;
-    try { next = startWorkoutState(state, workout); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Could not start this workout"); return; }
-    setState(next);
+  const startWorkout = async (workout: WorkoutSession) => {
+    const before = latestStateRef.current;
+    await commitState(current => startWorkoutState(current, workout));
     setWorkoutOpen(true);
-    saveRecoveryCopy(state, "before-start");
+    saveRecoveryCopy(before, "before-start");
   };
 
-  const savePlannedWorkout = (workout: WorkoutSession) => {
-    if (state.workouts.some(w => w.id === workout.id)) return;
-    if (workout.source === "fitlog") setLastImportId(workout.id);
+  const savePlannedWorkout = async (workout: WorkoutSession) => {
+    if (latestStateRef.current.workouts.some(w => w.id === workout.id)) return;
     const planned: WorkoutSession = {
       ...workout,
       status: "planned",
@@ -50,13 +47,14 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
       skipReason: "",
       updatedAt: new Date().toISOString(),
     };
-    setState((current) => ({ ...current, workouts: [planned, ...current.workouts] }));
+    await commitState((current) => ({ ...current, workouts: [planned, ...current.workouts] }));
+    if (workout.source === "fitlog") setLastImportId(workout.id);
     toast.success("Workout saved for later");
   };
 
   const startPlannedWorkout = (id: string) => {
     const workout = state.workouts.find((item) => item.id === id && item.status === "planned");
-    if (workout) startWorkout(workout);
+    if (workout) void startWorkout(workout).catch(saveFailure);
   };
 
   const reschedulePlan = (id: string, date: string) => {
@@ -79,21 +77,21 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     if (importReplacement) window.setTimeout(() => setImportOpen(true), 0);
   };
 
-  const startBlank = () => startWorkout(makeWorkout(state.settings.defaultUnit, state.settings.defaultRestSec));
+  const saveFailure = (error: unknown) => toast.error(`${error instanceof Error ? error.message : "Could not save"}. Your draft is retained; retry when storage is available.`);
+  const startBlank = () => { void startWorkout(makeWorkout(state.settings.defaultUnit, state.settings.defaultRestSec)).catch(saveFailure); };
   const quickCardio = (type: CardioEntry["activityType"]) => {
     const workout = makeWorkout(state.settings.defaultUnit, state.settings.defaultRestSec, `${makeCardio(type).name} session`);
     const activity = makeCardio(type);
     workout.exercises = [];
     workout.cardio = [activity];
     workout.blockOrder = [{ type: "activity", id: activity.id }];
-    startWorkout(workout);
+    void startWorkout(workout).catch(saveFailure);
   };
 
-  const finishWorkout = (updatedWorkout?: WorkoutSession) => {
-    const finishingWorkout = updatedWorkout ?? activeWorkout;
+  const finishWorkout = async (updatedWorkout?: WorkoutSession) => {
+    const finishingWorkout = updatedWorkout ?? selectedActiveWorkout(latestStateRef.current);
     if (!finishingWorkout) return;
-    const next = finishWorkoutState(state, finishingWorkout);
-    setState(next);
+    const next = await commitState(current => finishWorkoutState(current, finishingWorkout));
     saveRecoveryCopy(next, "workout-complete");
     setWorkoutOpen(false);
     setView("history");
@@ -102,9 +100,9 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
   const discardWorkout = () => {
     if (!activeWorkout) return;
-    setState((current) => discardWorkoutState(current, activeWorkout.id));
-    setWorkoutOpen(false);
-    toast.success("Workout discarded");
+    void commitState(current => discardWorkoutState(current, activeWorkout.id)).then(() => {
+      setWorkoutOpen(false); toast.success("Workout discarded");
+    }).catch(saveFailure);
   };
 
   const editWorkout = (id: string) => {
@@ -124,15 +122,15 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
       });
     });
   };
-  const finishEditor = (updated?: WorkoutSession) => {
+  const finishEditor = async (updated?: WorkoutSession) => {
     if (editingWorkoutId) {
-      if (updated) putWorkout(updated);
+      await commitState(current => updated ? { ...current, workouts: current.workouts.map(item => item.id === updated.id ? { ...updated, updatedAt: new Date().toISOString() } : item) } : current);
       leaveEditor();
       setView("history");
       toast("History edit complete");
       return;
     }
-    finishWorkout(updated);
+    await finishWorkout(updated);
   };
 
   const repeatWorkout = (id: string) => {
@@ -141,26 +139,28 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     if (!original) return;
     if (original.hyrox) {
       const fresh = makeHyroxWorkout(original.hyrox.division, original.hyrox.segments, original.hyrox.setupLabel);
-      startWorkout(fresh);
+      void startWorkout(fresh).catch(saveFailure);
       return;
     }
     const repeated = repeatWorkoutDraft(original);
-    startWorkout(repeated);
+    void startWorkout(repeated).catch(saveFailure);
   };
 
-  const replanWorkout = (id: string) => {
+  const replan = async (id: string) => {
     const original = state.workouts.find((workout) => workout.id === id && workout.status === "skipped");
     if (!original) return;
     if (original.hyrox) {
-      savePlannedWorkout(makeHyroxWorkout(original.hyrox.division, original.hyrox.segments, original.hyrox.setupLabel));
+      await savePlannedWorkout(makeHyroxWorkout(original.hyrox.division, original.hyrox.segments, original.hyrox.setupLabel));
       setView("today");
       return;
     }
     const replanned = replanWorkoutDraft(original);
-    setState((current) => ({ ...current, workouts: [replanned, ...current.workouts] }));
+    await commitState((current) => ({ ...current, workouts: [replanned, ...current.workouts] }));
     setView("today");
     toast.success("Workout returned to your planned queue");
   };
+
+  const replanWorkout = (id: string) => { void replan(id).catch(saveFailure); };
 
   const deleteWorkout = (id: string) => {
     setState((current) => ({
@@ -174,6 +174,6 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
 
 
-  const resumeWorkout = (id: string) => { setState(current => resumeWorkoutState(current, id)); setWorkoutOpen(true); };
+  const resumeWorkout = (id: string) => { void commitState(current => resumeWorkoutState(current, id)).then(() => setWorkoutOpen(true)).catch(saveFailure); };
   return { workoutOpen, setWorkoutOpen, editingWorkoutId, importOpen, setImportOpen, importDraft, setImportDraft, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
 }

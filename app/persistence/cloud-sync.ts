@@ -1,4 +1,5 @@
 import type { CardioEntry, ExerciseBlock, ExerciseMuscleTarget, TrainingSet, TrainingState, WorkoutSession } from "../domain/training-types";
+import { normalizedBlockOrder } from "../domain/block-order";
 export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error";
 
 const workoutTime = (workout: WorkoutSession) =>
@@ -37,13 +38,14 @@ const mergeWorkout = (left: WorkoutSession, right: WorkoutSession): WorkoutSessi
     const current = exercises.get(exercise.id);
     exercises.set(exercise.id, current ? mergeExercise(current, exercise) : exercise);
   }
-  return {
+  const merged = {
     ...newer,
     deletedExerciseIds,
     deletedActivityIds,
     exercises: [...exercises.values()].filter((exercise) => !deletedExerciseIds.includes(exercise.id)),
     cardio: mergeById<CardioEntry>(left.cardio, right.cardio).filter((activity) => !deletedActivityIds.includes(activity.id)),
   };
+  return { ...merged, blockOrder: normalizedBlockOrder(merged) };
 };
 
 export const mergeTrainingStates = (
@@ -63,18 +65,8 @@ export const mergeTrainingStates = (
     workouts.set(workout.id, current ? mergeWorkout(current, workout) : workout);
   }
 
-  const originKeys = new Map<string, WorkoutSession>();
-  for (const workout of workouts.values()) {
-    if (!workout.originKey) continue;
-    const current = originKeys.get(workout.originKey);
-    if (!current || workoutTime(workout) >= workoutTime(current)) {
-      originKeys.set(workout.originKey, workout);
-    }
-  }
-
-  const deduped = [...workouts.values()].filter(
-    (workout) => !workout.originKey || originKeys.get(workout.originKey)?.id === workout.id,
-  );
+  // Provenance is not identity: distinct IDs must retain their own evidence.
+  const deduped = [...workouts.values()];
   const exerciseMuscleOverrides = { ...(remote.exerciseMuscleOverrides ?? {}) };
   Object.entries(local.exerciseMuscleOverrides ?? {}).forEach(([key, localTarget]) => {
     const remoteTarget = exerciseMuscleOverrides[key];
@@ -158,4 +150,3 @@ export const mergeTrainingStates = (
 /** Merge an imported backup into current state so stale backups cannot undo deletes or newer edits. */
 export const mergeRestoredState = (current: TrainingState, backup: TrainingState): TrainingState =>
   mergeTrainingStates(current, backup);
-

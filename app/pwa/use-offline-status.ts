@@ -1,43 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createUpdateCoordinator } from "./update-coordinator";
 
 export function useOfflineStatus() {
   const [offlineReady, setOfflineReady] = useState<"checking" | "ready" | "failed">("checking");
   const [updateReady, setUpdateReady] = useState(false);
   const [release, setRelease] = useState<string | null>(null);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
-  const refreshing = useRef(false);
+  const coordinator = useRef<ReturnType<typeof createUpdateCoordinator> | null>(null);
   const checkUpdates = useCallback(async () => {
-    await registrationRef.current?.update();
+    if (!registrationRef.current) throw new Error("Offline installation is not ready yet. Open online and try again.");
+    await registrationRef.current.update();
   }, []);
-  const applyUpdate = useCallback(async (save: () => Promise<void>) => {
-    if (refreshing.current) return;
-    const waiting = registrationRef.current?.waiting;
-    if (!waiting) throw new Error("No downloaded update is ready yet");
-    refreshing.current = true;
-    const channel = new MessageChannel();
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    let reload: () => void = () => undefined;
-    try {
-      await save();
-      await new Promise<void>((resolve, reject) => {
-        reload = () => { resolve(); window.location.reload(); };
-        navigator.serviceWorker.addEventListener("controllerchange", reload, { once: true });
-        timeout = setTimeout(() => reject(new Error("Update timed out; close all Coach Loop windows and reopen as a fallback")), 15_000);
-        channel.port1.onmessage = event => {
-          if (event.data?.applied === false) reject(new Error(event.data.reason));
-        };
-        waiting.postMessage({ type: "COACH_LOOP_APPLY_UPDATE" }, [channel.port2]);
-      });
-    } finally {
-      if (timeout) clearTimeout(timeout);
-      navigator.serviceWorker.removeEventListener("controllerchange", reload);
-      refreshing.current = false;
-      channel.port1.close(); channel.port2.close();
-    }
-
+  const applyUpdate = useCallback(async (save: () => Promise<void>, safe: () => boolean = () => false) => {
+    if (!coordinator.current) throw new Error("Updates are not available in this window yet");
+    await coordinator.current.apply(save, safe);
   }, []);
   useEffect(() => {
     if (!import.meta.env?.PROD || !("serviceWorker" in navigator)) return;
+    coordinator.current = createUpdateCoordinator({ workerEvents: navigator.serviceWorker, pageEvents: document,
+      waiting: () => registrationRef.current?.waiting ?? null, controller: () => navigator.serviceWorker.controller,
+      visible: () => document.visibilityState === "visible", reload: () => window.location.reload() });
     let disposed = false;
     let registration: ServiceWorkerRegistration | undefined;
     let observedWorker: ServiceWorker | null = null;
@@ -64,7 +46,7 @@ export function useOfflineStatus() {
     };
     const refresh = () => {
       if (!registration || disposed) return;
-      setUpdateReady(!!registration.waiting && !!navigator.serviceWorker.controller);
+      setUpdateReady((!!registration.waiting && !!navigator.serviceWorker.controller) || !!coordinator.current?.hasPending());
       void checkOfflineReady(registration).then(result => { if (!disposed) { setOfflineReady(result.ready ? "ready" : "failed"); setRelease(result.release); } }).catch(() => { if (!disposed) setOfflineReady("failed"); });
     };
     const onState = () => { if (["installed", "activated"].includes(observedWorker?.state ?? "")) refresh(); };
@@ -87,6 +69,7 @@ export function useOfflineStatus() {
     if (document.readyState === "complete") void register(); else window.addEventListener("load", register, { once: true });
     document.addEventListener("visibilitychange", foreground); window.addEventListener("online", foreground);
     return () => {
+      coordinator.current?.dispose(); coordinator.current = null;
       disposed = true; window.removeEventListener("load", register); window.removeEventListener("online", foreground); document.removeEventListener("visibilitychange", foreground);
       navigator.serviceWorker.removeEventListener("controllerchange", refresh); registration?.removeEventListener("updatefound", onUpdate); observedWorker?.removeEventListener("statechange", onState);
     };

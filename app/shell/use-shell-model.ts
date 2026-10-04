@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTrainingPersistence } from "../persistence/use-training-persistence";
 import { useOfflineStatus } from "../pwa/use-offline-status";
 import { useShellNavigation } from "./use-shell-navigation";
@@ -14,6 +14,10 @@ export function useShellModel() {
   const offline = useOfflineStatus();
   const [updating, setUpdating] = useState(false);
   const { ready, state, flushLatest } = persistence;
+  const canRestart = useRef<() => boolean>(() => false);
+  useLayoutEffect(() => {
+    canRestart.current = () => !persistence.busy && !persistence.committing && !workouts.workoutOpen && !persistence.latestStateRef.current.workouts.some(w => w.status === "active") && !workouts.importOpen && !workouts.hyroxOpen && !workouts.coachOpen && !workouts.skipWorkout && !document.querySelector('[role="dialog"], [role="alertdialog"]') && !document.activeElement?.matches('input, textarea, select, [contenteditable="true"]');
+  });
   useEffect(() => {
     if (!ready) return;
     document.documentElement.dataset.coachTheme = state.settings.colorTheme ?? "lime";
@@ -22,7 +26,7 @@ export function useShellModel() {
   const restart = async () => { await flushLatest(); window.location.reload(); };
   const onApplyUpdate = async () => {
     setUpdating(true);
-    try { await offline.applyUpdate(flushLatest); }
+    try { await offline.applyUpdate(flushLatest, () => canRestart.current()); }
     catch (error) { setUpdating(false); throw error; }
   };
   return { persistence, navigation, workouts, progress, offline, updating, restart, onApplyUpdate };

@@ -1,4 +1,5 @@
 import { localDate, type TrainingState } from "./training-types";
+import { hasTrainingEvidence } from "./completion";
 
 const WEEKLY_DAYS = 5;
 
@@ -18,7 +19,7 @@ function priorWeek(start: string) {
 export function trainingWeekStreak(state: TrainingState, today = localDate()) {
   const weeks = new Map<string, Set<string>>();
   for (const workout of state.workouts) {
-    if (workout.status !== "completed" || workout.date > today || !/^\d{4}-\d{2}-\d{2}$/.test(workout.date)) continue;
+    if (workout.status !== "completed" || !hasTrainingEvidence(workout) || workout.date > today || !/^\d{4}-\d{2}-\d{2}$/.test(workout.date)) continue;
     const key = monday(workout.date);
     if (!weeks.has(key)) weeks.set(key, new Set());
     weeks.get(key)!.add(workout.date);

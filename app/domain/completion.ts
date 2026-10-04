@@ -19,6 +19,31 @@ export const parseExactReps = (value: string) => {
   return Number.isFinite(number) && number > 0 ? number : null;
 };
 
+/** Validation for actual evidence, not editable prescription ranges. Legacy
+ * records remain readable; an invalid new edit becomes an incomplete draft. */
+export function setEvidenceError(set: TrainingSet): string | null {
+  if (!/^[1-9]\d*$/.test(set.actualReps.trim())) return "Enter actual reps as a positive whole number";
+  if (set.rpe.trim() && set.rir.trim()) return "Use either RPE or RIR, not both";
+  const effort = (text: string, min: number, max: number) => !text.trim() || (/^\d+(?:\.\d+)?$/.test(text.trim()) && Number(text) >= min && Number(text) <= max);
+  if (!effort(set.rpe, 1, 10)) return "Actual RPE must be a number from 1 to 10";
+  if (!effort(set.rir, 0, 10)) return "Actual RIR must be a number from 0 to 10";
+  return null;
+}
+
+export function editedSet(set: TrainingSet, changes: Partial<TrainingSet>, updatedAt: string): TrainingSet {
+  const changesActual = ["actualWeight", "actualReps", "rpe", "rir"].some(key => key in changes);
+  const next = { ...set, ...changes, updatedAt, completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : set.completedAsPlanned };
+  // Clearing/typing an actual is allowed, but cannot remain credited as done.
+  if (changesActual && next.completed && setEvidenceError(next)) {
+    next.completed = false; next.completedAsPlanned = false;
+  }
+  return next;
+}
+
+export const hasWorkingStrength = (workout: WorkoutSession) => workout.exercises.some(e => e.sets.some(s => s.completed && !s.skipped && !s.warmup && parseExactReps(s.actualReps) !== null));
+export const hasTrainingActivity = (workout: WorkoutSession) => workout.cardio.some(hasCompletedActivityWork) || !!workout.hyrox?.segments.some(s => s.splitMs !== null);
+export const hasTrainingEvidence = (workout: WorkoutSession) => hasWorkingStrength(workout) || hasTrainingActivity(workout);
+
 export const performedReps = (set: TrainingSet) =>
   set.actualReps;
 
@@ -34,9 +59,12 @@ export const completedSetValues = (set: TrainingSet) => {
   if (/^\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?$/.test(set.plannedReps.trim()) && !/^[1-9]\d*$/.test(enteredReps)) {
     throw new Error(`Enter the reps you performed for the ${set.plannedReps} rep target.`);
   }
+  const actualReps = enteredReps ? set.actualReps : set.plannedReps;
+  const error = setEvidenceError({ ...set, actualReps });
+  if (error) throw new Error(error);
   return {
     completedAsPlanned: !enteredReps && set.actualWeight === null && !set.rpe.trim() && !set.rir.trim(),
-    actualReps: enteredReps ? set.actualReps : set.plannedReps,
+    actualReps,
     actualWeight: set.actualWeight ?? set.plannedWeight,
   };
 };

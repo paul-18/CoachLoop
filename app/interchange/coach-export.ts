@@ -1,4 +1,4 @@
-import { performedDuration, performedDistance } from "../domain/completion";
+import { performedDuration, performedDistance, hasTrainingEvidence } from "../domain/completion";
 import { hyroxExport } from "../domain/hyrox";
 import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
@@ -64,6 +64,7 @@ const compactSetLines = (sets: TrainingSet[], includePlanned: boolean, plannedWo
 
 export const workoutToText = (workout: WorkoutSession, includePlanned = true) => {
   const lines = [`${workout.date} — ${workout.name}`];
+  if (workout.status === "completed" && !hasTrainingEvidence(workout)) lines.push("Saved session · no completed working training evidence recorded (excluded from training-day counts).");
   if (workout.hyrox) return [...lines, ...hyroxExport(workout, true), ...(workout.notes ? [`Your notes: ${workout.notes}`] : [])].join("\n");
   const exerciseById = new Map(workout.exercises.map((item) => [item.id, item]));
   const activityById = new Map(workout.cardio.map((item) => [item.id, item]));
@@ -151,8 +152,8 @@ const personalRecords = (state: TrainingState) =>
 export const buildCoachPrompt = (
   state: TrainingState,
   options: CoachOptions,
+  today = localDate(),
 ) => {
-  const today = localDate();
   const cutoff = new Date(`${today}T12:00:00`);
   cutoff.setDate(cutoff.getDate() - Math.max(0, options.days - 1));
   const cutoffDate = options.since ?? localDate(cutoff);
@@ -205,8 +206,8 @@ ${state.coachProfile.trim() || DEFAULT_COACH_PROFILE}`
 CURRENT DATE
 ${today}
 
-GOALS
-${state.goals.map((goal) => `- ${goal}`).join("\n") || "- No goals recorded"}
+GOALS — RANKED IN PRIORITY ORDER
+${state.goals.map((goal, index) => `${index + 1}. ${goal}`).join("\n") || "- No goals recorded"}
 
 RECORDED STRENGTH BENCHMARKS — ALL TIME
 ${records.length ? records.join("\n") : "- No recorded strength PRs yet"}

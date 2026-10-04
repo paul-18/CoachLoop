@@ -52,7 +52,9 @@ test('all real tab screens open repeatedly with offline network state and unique
    const blank=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Blank workout'));assert.ok(blank);blank.click();
    for(let i=0;i<50&&!document.querySelector('[role="alert"]');i++)await wait(20);
    const warning=[...document.querySelectorAll('[role="alert"]')].find(e=>e.textContent.includes('Latest changes are not saved'));assert.ok(warning,'failed workout write displays its warning');
-   assert.equal(warning.style.top,'calc(var(--app-safe-top, 0px) + 8px)');
+   assert.ok(document.querySelector('.app-main').contains(warning),'failed start warning stays inside the safe-area-padded shell');
+   assert.equal(document.querySelector('.workout-shell'),null,'failed start must not open an unsaved workout');
+   assert.equal((await require('../app/persistence/training-storage.ts').loadTrainingState()).workouts.length,1,'saved history remains unchanged');
    IDBObjectStore.prototype.put=put;warning.querySelector('button').click();
    for(let i=0;i<50&&document.body.textContent.includes('Latest changes are not saved');i++)await wait(20);
    assert.equal(document.body.textContent.includes('Latest changes are not saved'),false,'successful retry dismisses warning');

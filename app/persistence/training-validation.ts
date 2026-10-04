@@ -135,18 +135,27 @@ export const validateLocalState = (raw: unknown): TrainingState =>
 export const validateSyncedState = (raw: unknown): TrainingState => {
   const state = storedStateBoundary.parse(raw) as TrainingState;
   const unique = (ids: string[], label: string) => { if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ${label} IDs`); };
+  const disjoint = (live: string[], deleted: string[] = [], label: string) => {
+    const tombstones = new Set(deleted);
+    const overlap = live.find(id => tombstones.has(id));
+    if (overlap) throw new Error(`${label} ${overlap}: live record is also marked deleted. Keep the original backup for recovery.`);
+  };
   unique(state.workouts.map(w => w.id), "workout");
+  disjoint(state.workouts.map(w => w.id), state.deletedWorkoutIds, "Workout");
   unique(state.bodyweightEntries.map(e => e.id), "bodyweight");
   unique(state.bodyweightEntries.map(e => e.date), "bodyweight date");
   unique((state.waistEntries ?? []).map(e => e.id), "waist");
   unique((state.benchmarks ?? []).map(e => e.id), "benchmark");
   for (const b of state.benchmarks ?? []) unique((b.attempts ?? []).map(a => a.id), "benchmark attempt");
   for (const w of state.workouts) {
+    disjoint(w.exercises.map(e => e.id), w.deletedExerciseIds, "Exercise");
+    disjoint(w.cardio.map(a => a.id), w.deletedActivityIds, "Activity");
     unique([...w.exercises, ...w.cardio].map(b => b.id), "block");
     const blocks = new Set([...w.exercises, ...w.cardio].map(b => b.id));
     unique(w.blockOrder.map(b => b.id), "block order");
     if (w.blockOrder.some(b => !blocks.has(b.id) || !(b.type === "exercise" ? w.exercises : w.cardio).some(x => x.id === b.id))) throw new Error("Invalid workout block reference");
     for (const exercise of w.exercises) {
+      disjoint(exercise.sets.map(s => s.id), exercise.deletedSetIds, "Set");
       unique(exercise.sets.map(s => s.id), "set");
       if (exercise.sets.some(s => s.completed && s.skipped)) throw new Error("A set cannot be completed and skipped");
     }

@@ -241,6 +241,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 - Full JSON backup export and restore use the same **50 MB** limit. Larger-than-10-MB backups are supported, but allow extra time on a phone. If your log exceeds 50 MB, the app refuses to create a file labelled a restorable full backup; keep the log and request a split-backup solution rather than clearing storage.
 - If the saved log cannot open, the error screen offers **individual recovery checkpoint JSON files**, plus a diagnostic bundle containing the saved raw data and all readable checkpoints. Restore an individual checkpoint on a working installation; the diagnostic bundle is not a normal backup. Keep both kinds of file private.
 - Neither restore option creates ongoing sync between devices.
+- Expand **Review exact changes** before restoring to inspect changed results, notes and other sections. Distinct workout IDs are preserved even if they share an old import origin. Contradictory live/deleted records are rejected; keep the original file for recovery. A failed merge preview leaves Cancel and Complete restore available. The app saves the exact reviewed candidate and requires a new review if your log changes meanwhile.
 - Local recovery copies live on the same device, so they don't replace an external backup.
 - Clearing browser site data or losing your device can erase locally stored training.
 - Keep private backups **out of this public repository**.
@@ -304,7 +305,11 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v88 splits the app shell into focused controllers and screen components, adds a repeatable release QC command and CI reports, and removes the starter guide once you have completed history. See [v88 notes](V88-UPDATE-NOTES.md) and [device QC steps](V88-QC.md). v87 introduced the fuller first-use guide and optional editable goal ideas.
+v89 fixes backup merge/review integrity, waits for durable final workout saves, converts bodyweight drafts when changing units, protects completed-set evidence, and hardens delayed update activation and FITLOG validation. See [v89 notes](V89-UPDATE-NOTES.md) and [device QC steps](V89-QC.md). v88 split the app shell, added release QC reports, and removed the starter guide after completed history; those improvements remain.
+
+The workout header shows Saving, Saved or Not saved. Finish, history-edit confirmation, saved/imported plans and new-workout opening wait for the local transaction before reporting success. If a final save fails, the editable workout or import preview is retained. Routine input edits still save automatically. A saved transaction protects against ordinary write failure; it cannot prevent browser-storage eviction, so external backups remain important.
+
+Changing a completed set to invalid actual reps or effort makes it an incomplete draft. Correct it and mark it complete again. Actual reps require a positive whole count; actual RPE is 1–10 and RIR is 0–10, using one effort scale at a time. Existing ambiguous legacy results are preserved and flagged for review. Empty sessions and warm-up-only lifting do not count as training days; completed child efforts still count when their parent activity is unfinished. Empty saved sessions remain in History and backups.
 
 To check a release locally, run `pnpm release:check`. This runs typecheck, lint, tests, build and PWA checks, then writes a report under `.release-checks/`. GitHub Actions uses the same checks and retains its QC report for 14 days. Passing automated checks should be followed by the device QC above.
 
@@ -312,11 +317,17 @@ Open the app online periodically. Updates are checked on return to the foregroun
 
 When **Restart to update** appears, finish any active workout, close the editor and wait for **Saved on this device**. Tap it for one intentional restart. Another open Coach Loop window must be closed first. The app does not automatically restart during a workout.
 
+If a requested activation takes longer than the waiting screen allows, the request remains pending. On return, the app checks for that exact worker and saves again before restarting. An active workout, open editor, focused input or failed save defers it. **Restart to update** remains available in Settings for retry. There is no automatic update restart without an earlier deliberate request.
+
 The first upgrade from an older edition can still require closing all Safari and Home Screen windows, then reopening online, because that old edition lacks this button. Closing all windows remains a fallback if activation fails. Never clear website data to update: that deletes the local log.
 
 Keep a current backup before moving to a different app address. The app release is shown in Settings. v86 clarifies numeric-only FITLOG reps and per-side instructions in both new-chat briefs and continuing-chat reminders. It does not change the parser, stored workouts or volume calculations. v85 improves unfinished-workout recovery, checkpoint downloads, release-verified offline cache repair and header sizing on rotation. Coverage totals and explanations use the same aliases and refresh with the local day. v84 added eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
 
 For a release, check both a fresh install and an update from the previous version, with synthetic data first. Pull requests now run non-deploying checks; publishing from main still runs typecheck, lint, tests, build and PWA checks. See [v85 release notes](V85-UPDATE-NOTES.md) and [iPhone QC](V85-IPHONE-QC.md). Do not use your live log for destructive failure testing.
+
+### Developer setup
+
+Use Node 24 and the pinned pnpm version from `package.json`. From the repository root, run `npx --yes pnpm@11.25.0 install --frozen-lockfile`, then `npx --yes pnpm@11.25.0 run dev` for local development or `npx --yes pnpm@11.25.0 run release:check` before publishing. Local backups contain private data; keep them out of commits. The current upload procedure is [UPDATE-INSTRUCTIONS.txt](UPDATE-INSTRUCTIONS.txt); older release notes are historical.
 
 For repository owners, see [upload and cleanup instructions](UPDATE-INSTRUCTIONS.txt).
 

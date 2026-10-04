@@ -233,6 +233,7 @@ export const parseFitlog = (
   if (workoutHeaders.length !== 1) {
     throw new Error("Each FITLOG block must contain exactly one WORKOUT line.");
   }
+  if (lines[0] !== workoutHeaders[0]) throw new Error(`Line ${lines[0]?.number}: WORKOUT must be the first line inside FITLOG.`);
 
   let name = "Imported workout";
   let date = localDate();
@@ -243,6 +244,7 @@ export const parseFitlog = (
   const warnedLoadSemantics = new Set<string>();
   let currentExercise: ExerciseBlock | null = null;
   let currentCardio: CardioEntry | null = null;
+  const scalarFields = new Set<string>();
   const appendCoachNote = (current: ExerciseBlock | CardioEntry, note: string) => {
     current.coachNotes = [current.coachNotes, note].filter(Boolean).join(" ");
   };
@@ -253,7 +255,15 @@ export const parseFitlog = (
     const value = parts.join("|").trim();
 
     try {
+      const arity: Record<string, number> = { WORKOUT: 2, EXERCISE: 1, CARDIO: 1, MOBILITY: 1, MOVE: 2, REST: 1, TYPE: 1, DURATION: 1, DISTANCE: 1, RUCKLOAD: 1, HR: 1, ELEVATION: 1, PACE: 1, INTENSITY: 1, INTERVALS: 1, NOTES: 1 };
+      if (command && arity[command] !== undefined && parts.length !== arity[command]) throw new Error(`${command}: expected ${arity[command]} pipe-separated field${arity[command] === 1 ? "" : "s"}. Do not put pipe characters inside text.`);
+      if (["EXERCISE", "CARDIO", "MOBILITY"].includes(command ?? "")) scalarFields.clear();
+      if (command && ["TYPE", "DURATION", "DISTANCE", "RUCKLOAD", "HR", "ELEVATION", "PACE", "INTENSITY", "INTERVALS"].includes(command) && currentCardio) {
+        if (scalarFields.has(command)) throw new Error(`${command}: this field was already supplied for this activity. Use one value.`);
+        scalarFields.add(command);
+      }
       if (command === "WORKOUT") {
+        if (!parts[0]) throw new Error("WORKOUT: enter a workout name");
         const importedDate = parts[1] ?? "";
         if (!validMeasurementDate(importedDate)) {
           throw new Error("WORKOUT: use a valid calendar date in YYYY-MM-DD format.");
@@ -339,7 +349,7 @@ export const parseFitlog = (
           throw new Error("EFFORT: use metres, load with lb/kg, and optional seconds, such as EFFORT|20 m|90 lb|10 sec. Leave unused columns blank.");
         }
         const unit = load ? /^kg$/i.test(load[2]) ? "kg" : "lb" : null;
-        if (unit && (currentCardio.efforts?.length ?? 0) && currentCardio.effortLoadUnit !== unit) {
+        if (unit && currentCardio.efforts?.some(e => e.plannedLoad !== null) && currentCardio.effortLoadUnit !== unit) {
           throw new Error("EFFORT: use the same load unit for every effort in an activity.");
         }
         if (unit) currentCardio.effortLoadUnit = unit;
