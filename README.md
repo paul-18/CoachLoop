@@ -145,11 +145,11 @@ Ask your AI → import the plan → log what you actually do → review → send
 
 | Step | What you do |
 | --- | --- |
-| **1. Ask** | Send your coach brief to the AI and discuss the next session. |
-| **2. Import** | Copy the AI's **complete** FITLOG block. In **Coach → Paste or save workout** or **Today → Import workout**, paste it and check the preview before starting or saving. |
-| **3. Train** | Log actual reps, loads, effort, and activity results. Mark work complete as you go. If you change the plan, log what you really did. |
-| **4. Review** | Check **History** and **Progress**. Download a backup regularly. |
-| **5. Continue** | In **Coach → Build coach brief**, choose **Continue existing chat**, copy the recent update, and paste it into the *same* conversation. Choose **Start a new chat** whenever the AI needs the full background again. |
+| **1.&nbsp;Ask** | Send your coach brief to the AI and discuss the next session. |
+| **2.&nbsp;Import** | Copy the AI's **complete** FITLOG block. In **Coach → Paste or save workout** or **Today → Import workout**, paste it and check the preview before starting or saving. |
+| **3.&nbsp;Train** | Log actual reps, loads, effort, and activity results. Mark work complete as you go. If you change the plan, log what you really did. |
+| **4.&nbsp;Review** | Check **History** and **Progress**. Download a backup regularly. |
+| **5.&nbsp;Continue** | In **Coach → Build coach brief**, choose **Continue existing chat**, copy the recent update, and paste it into the *same* conversation. Choose **Start a new chat** whenever the AI needs the full background again. |
 
 ### Brief shortcuts
 
@@ -306,7 +306,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v90 adds **Settings → Verify saved backup**, clearer exercise/set/unit labels, and faster routine edits by validating changed workouts while retaining integrity checks. History shows 50 sessions per page; search and exports still cover the whole log. See [v90 notes](V90-UPDATE-NOTES.md) and [device QC steps](V90-QC.md). v89's durable final saves, restore review, completed-evidence protection and controlled updates remain. v88's app-shell split remains too.
+v90 adds **Settings → Verify saved backup**, clearer exercise/set/unit labels, and faster routine edits by validating changed workouts while retaining integrity checks. History shows 50 sessions per page; search and exports still cover the whole log. See [v90 notes](docs/releases/V90-UPDATE-NOTES.md) and [device QC steps](docs/releases/V90-QC.md). v89's durable final saves, restore review, completed-evidence protection and controlled updates remain. v88's app-shell split remains too.
 
 After saving a JSON file in Files, use **Verify saved backup** to inspect compatibility, counts and dates without restoring it. A readable, compatible file is not proof it matches your latest export or every recorded value is correct. Keep it privately and test restoration on a disposable profile for a full recovery check.
 
@@ -326,7 +326,7 @@ The first upgrade from an older edition can still require closing all Safari and
 
 Keep a current backup before moving to a different app address. The app release is shown in Settings. v86 clarifies numeric-only FITLOG reps and per-side instructions in both new-chat briefs and continuing-chat reminders. It does not change the parser, stored workouts or volume calculations. v85 improves unfinished-workout recovery, checkpoint downloads, release-verified offline cache repair and header sizing on rotation. Coverage totals and explanations use the same aliases and refresh with the local day. v84 added eight accent themes and compact exercise trend labels; v83 introduced the gold coverage scale and extra portrait workout-header clearance. Long chart labels are shortened visually, while the exercise history dialog preserves their full names.
 
-For a release, check both a fresh install and an update from the previous version, with synthetic data first. Pull requests now run non-deploying checks; publishing from main still runs typecheck, lint, tests, build and PWA checks. See [v85 release notes](V85-UPDATE-NOTES.md) and [iPhone QC](V85-IPHONE-QC.md). Do not use your live log for destructive failure testing.
+For a release, check both a fresh install and an update from the previous version, with synthetic data first. Pull requests now run non-deploying checks; publishing from main still runs typecheck, lint, tests, build and PWA checks. See [v85 release notes](docs/releases/V85-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V85-IPHONE-QC.md). Do not use your live log for destructive failure testing.
 
 ### Developer setup
 
@@ -353,3 +353,6 @@ Coach Loop is a logging tool and a way to move text between you and an AI. It is
 
 
 *Created using AI.*
+
+
+[Documentation archive](docs/README.md): release notes, version-specific QC checklists, general iPhone testing and maintenance records.

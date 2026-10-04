@@ -34,7 +34,7 @@ npx --yes pnpm@11.25.0 run release:check
 4. Only after checks pass, run one at a time:
 
 git rm CoachLoop-v90-GitHub-Update.zip
-git add app tests scripts README.md UPDATE-INSTRUCTIONS.txt V90-UPDATE-NOTES.md V90-QC.md
+git add app tests scripts README.md UPDATE-INSTRUCTIONS.txt docs/releases/V90-UPDATE-NOTES.md docs/releases/V90-QC.md
 git --no-pager diff --cached --stat
 
    Review intended files and ZIP deletion only. No private JSON, benchmark
