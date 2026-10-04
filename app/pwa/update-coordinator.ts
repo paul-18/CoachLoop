@@ -5,6 +5,7 @@ interface UpdateEnvironment {
   controller: () => ServiceWorker | null;
   visible: () => boolean;
   reload: () => void;
+  onStatus?: (message: string) => void;
 }
 interface Intent {
   worker: ServiceWorker;
@@ -22,6 +23,7 @@ interface Intent {
 export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_000) {
   let intent: Intent | null = null;
   let requesting = false, reconciling = false, reloaded = false, disposed = false;
+  const notice = (message: string) => { if (!disposed) env.onStatus?.(message); };
   const clear = (current: Intent) => {
     clearTimeout(current.timer); current.channel.port1.close(); current.channel.port2.close();
     if (intent === current) intent = null;
@@ -33,8 +35,11 @@ export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_0
     try {
       await current.save();
       if (intent !== current || disposed || !env.visible() || !current.safe() || env.controller() !== current.worker) return;
-      reloaded = true; clear(current); current.resolve(); env.reload();
-    } catch (error) { current.reject(error instanceof Error ? error : new Error("Save failed; update restart is deferred")); }
+      reloaded = true; clear(current); notice(""); current.resolve(); env.reload();
+    } catch (error) {
+      notice("Restart deferred: the latest changes could not be saved. Retry saving, then restart here. Your log has not been reloaded.");
+      current.reject(error instanceof Error ? error : new Error("Save failed; update restart is deferred"));
+    }
     finally { reconciling = false; }
   };
   const resume = () => { void reconcile(); };
@@ -63,17 +68,20 @@ export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_0
         const current: Intent = {
           worker, save, safe, resolve, reject, channel,
           timer: setTimeout(() => {
+            notice("Update activation is still pending. The requested restart waits for a visible, idle, saved window. Retry here when ready.");
             reject(new Error("Update is still applying. This requested restart will wait for a visible, idle, saved window. Closing all windows remains a fallback."));
           }, timeoutMs),
         };
         intent = current;
+        notice("Restart requested. Waiting for activation and a final successful save; keep editors closed.");
         channel.port1.onmessage = event => {
           if (event.data?.applied === false && intent === current) {
+            notice(event.data.reason ?? "Update refused. Close the other Coach Loop window and retry here.");
             clear(current); reject(new Error(event.data.reason ?? "Update was refused by another open window"));
           }
         };
         try { worker.postMessage({ type: "COACH_LOOP_APPLY_UPDATE" }, [channel.port2]); }
-        catch (error) { clear(current); reject(error); }
+        catch (error) { clear(current); notice("Update activation could not be requested. Check updates and try again."); reject(error); }
       });
     } finally { requesting = false; }
   };

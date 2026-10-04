@@ -83,14 +83,27 @@ async function cacheCurrentResponse(cache, request, response) {
   await cache.put(request, response.clone());
   return true;
 }
+function releaseUnavailable(document = false) {
+  const message = "Coach Loop files for this version are unavailable. Go online and try again. Your training log remains on this device; do not clear website data.";
+  return new Response(document ? '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coach Loop — files unavailable</title><body style="font:18px system-ui;padding:24px;max-width:36em;margin:auto"><h1>Coach Loop could not open</h1><p>' + message + '</p><p><a href="' + ROOT.href + '">Try again</a></p></body></html>' : message, { status: 503, headers: { "content-type": document ? "text/html; charset=utf-8" : "text/plain; charset=utf-8", "cache-control": "no-store" } });
+}
 async function assetResponse(request) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
   const prior = (await caches.keys()).filter(name => name.startsWith(PREFIX) && name !== CACHE).reverse();
-  for (const name of prior) { const response = await (await caches.open(name)).match(request); if (response) return response; }
-  const response = await fetch(request);
-  await cacheCurrentResponse(cache, request, response).catch(() => undefined);
+  const currentAsset = ASSETS.some(path => new URL(path, ROOT).href === request.url);
+  for (const name of prior) {
+    const response = await (await caches.open(name)).match(request);
+    if (response && (!currentAsset || await responseMatchesRelease(request, response))) {
+      if (currentAsset) await cache.put(request, response.clone()).catch(() => undefined);
+      return response;
+    }
+  }
+  let response;
+  try { response = await fetch(request); } catch { return releaseUnavailable(); }
+  if (currentAsset && !await responseMatchesRelease(request, response)) return releaseUnavailable();
+  if (currentAsset) await cache.put(request, response.clone()).catch(() => undefined);
   return response;
 }
 self.addEventListener("fetch", event => {
@@ -103,8 +116,10 @@ self.addEventListener("fetch", event => {
       const cached = await cache.match(ROOT);
       if (cached) return cached;
       const freshRequest = new Request(ROOT, { cache: "reload" });
-      const response = await fetch(freshRequest);
-      await cacheCurrentResponse(cache, freshRequest, response).catch(() => undefined);
+      let response;
+      try { response = await fetch(freshRequest); } catch { return releaseUnavailable(true); }
+      if (!await responseMatchesRelease(freshRequest, response)) return releaseUnavailable(true);
+      await cache.put(freshRequest, response.clone()).catch(() => undefined);
       return response;
     })());
   } else if (url.pathname.startsWith(ROOT.pathname + "assets/") || ASSETS.some(path => new URL(path, ROOT).href === url.href)) {

@@ -231,6 +231,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 - Your training is never sent to an AI automatically. You decide what to copy and share.
 - The website is public, but every visitor gets their own local log.
+- Other projects on the same `paul-18.github.io` hostname share a browser origin. Keep their scripts trusted; a different repository path is not storage security isolation. See [hosting and storage boundaries](docs/maintenance/HOSTING-AND-STORAGE.md).
 
 **Backups**
 
@@ -305,6 +306,10 @@ Start a new chat with **Start a new chat → Copy full context**.
 ---
 
 ## Updates
+
+v91 prevents incompatible files being served during offline-cache repair, hardens save-queue handoff while preserving failed-Finish behavior, shows pending/failed update restart feedback in Settings, and warns when FITLOG activity TYPE is inferred. It also removes unused dependencies and improves release tooling. See [v91 notes](docs/releases/V91-UPDATE-NOTES.md), [iPhone QC](docs/releases/V91-QC.md) and [v91 upload steps](docs/releases/V91-UPLOAD.txt).
+
+For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 
 v90 adds **Settings → Verify saved backup**, clearer exercise/set/unit labels, and faster routine edits by validating changed workouts while retaining integrity checks. History shows 50 sessions per page; search and exports still cover the whole log. See [v90 notes](docs/releases/V90-UPDATE-NOTES.md) and [device QC steps](docs/releases/V90-QC.md). v89's durable final saves, restore review, completed-evidence protection and controlled updates remain. v88's app-shell split remains too.
 

@@ -1,0 +1,74 @@
+COACH LOOP v91 — UPLOAD STEPS
+
+This overlay is for v90 at commit 301144e3ac6da95ec364ead6ac51a972d54edad4.
+It replaces matching files in place. No database migration or personal data.
+Required deletion: scripts/cleanup-repo.mjs (retired one-shot helper).
+
+1. In the app, save a private JSON backup to Files and verify it. Keep it.
+
+2. Open your existing Codespace. Terminal should be /workspaces/CoachLoop.
+   Run ONE command at a time. Wait for the prompt and STOP on any error.
+
+git status --short
+
+   If nonempty, preserve your changes first. If clean:
+
+git pull --ff-only
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect commit 301144e3ac6da95ec364ead6ac51a972d54edad4 and v90.
+   If different/newer, stop and reconcile instead of overwriting newer work.
+
+3. Download CoachLoop-v91-GitHub-Update.zip to your computer.
+   Drag it into the CODESPACE Explorer at repository root beside package.json.
+   Alternatively right-click the root folder -> Upload.
+   Do NOT upload/commit the ZIP through the GitHub website.
+   Your first git status was before this upload; the ZIP becomes ignored after
+   extraction because this update adds *.zip to .gitignore.
+
+4. Run one at a time:
+
+unzip -o CoachLoop-v91-GitHub-Update.zip
+git rm scripts/cleanup-repo.mjs
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Must end with "Release checks passed". This includes typecheck, lint,
+   tests, production build, generated PWA and worker behavior.
+   The bundle-size warning alone is not a failure. Stop on actual failures.
+
+5. Only after checks pass, stage the exact files with this ONE command:
+
+git add .github/workflows/checks.yml .github/workflows/pages.yml .gitignore README.md UPDATE-INSTRUCTIONS.txt app/app-release.ts app/interchange/csv-export.ts app/interchange/fitlog.ts app/persistence/training-storage.ts app/persistence/use-training-persistence.ts app/pwa/update-coordinator.ts app/pwa/use-offline-status.ts app/shell/app-screens.tsx app/views/settings-view.tsx docs/README.md docs/maintenance/HOSTING-AND-STORAGE.md docs/maintenance/REPOSITORY-CLEANUP.md docs/releases/V91-QC.md docs/releases/V91-UPDATE-NOTES.md docs/releases/V91-UPLOAD.txt package.json pnpm-lock.yaml scripts/build-pwa.mjs scripts/check-pwa.mjs tests/update-coordinator.test.ts tests/v91-journeys.test.cjs tests/v91-storage.test.ts
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect intended source/docs/dependency/workflow changes plus deletion of
+   scripts/cleanup-repo.mjs. No private JSON, dist, node_modules, reports or ZIP.
+   If the stat opens a pager, press q; --no-pager above avoids that.
+
+git commit -m "Harden Coach Loop v91 cache integrity and release maintenance"
+git push
+
+6. GitHub -> Actions -> newest Publish Coach Loop PWA -> correct commit, green.
+   Production deployment now queues rather than cancelling one already running.
+   It may wait behind another run. Do not repeatedly trigger new runs.
+
+7. Installed app ONLINE: finish workouts, close editors, wait for Saved.
+   Settings -> Check updates -> Restart to update. Close other windows if asked.
+   Confirm v91, then follow docs/releases/V91-QC.md.
+   Closing all windows is a fallback. Never clear storage/uninstall to update.
+
+8. Once applied successfully, the ignored local ZIP can be removed:
+
+rm CoachLoop-v91-GitHub-Update.zip
+
+   This deletion does not affect Git. Older ZIP commits remain historical.
+   No history rewrite or app-address change is included.
+
+All notes stay in docs/. Root UPDATE-INSTRUCTIONS.txt is now reusable.
+Your data/schema, iPhone CSS, goals, themes and fixed navigation are retained.
+Near-limit backup memory, physical Safari/Files/VoiceOver and other sites on
+your GitHub Pages origin remain verification tasks, not certified fixes.

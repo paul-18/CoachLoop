@@ -245,6 +245,7 @@ export const parseFitlog = (
   let currentExercise: ExerciseBlock | null = null;
   let currentCardio: CardioEntry | null = null;
   const scalarFields = new Set<string>();
+  const inferredActivities: { activity: CardioEntry; line: number; explicit: boolean }[] = [];
   const appendCoachNote = (current: ExerciseBlock | CardioEntry, note: string) => {
     current.coachNotes = [current.coachNotes, note].filter(Boolean).join(" ");
   };
@@ -362,6 +363,7 @@ export const parseFitlog = (
         }];
       } else if (command === "CARDIO") {
         currentCardio = makeCardio(normalizeType(value), value || "Cardio");
+        inferredActivities.push({ activity: currentCardio, line: line.number, explicit: false });
         cardio.push(currentCardio);
         blockOrder.push({ type: "activity", id: currentCardio.id });
         currentExercise = null;
@@ -376,6 +378,8 @@ export const parseFitlog = (
         if (!allowed.includes(type)) throw new Error("TYPE: choose a supported activity such as run, water_polo, circuit, or ruck");
         if (currentCardio.ruckLoad !== null && type !== "ruck") throw new Error("TYPE conflicts with RUCKLOAD; use ruck");
         currentCardio.activityType = type as CardioEntry["activityType"];
+        const inferred = inferredActivities.find(item => item.activity === currentCardio);
+        if (inferred) inferred.explicit = true;
         currentCardio.loggingStyle = makeCardio(currentCardio.activityType).loggingStyle;
       } else if (command === "DURATION" && currentCardio) {
         currentCardio.plannedDurationMin = parseNonNegativeNumber(value, "DURATION");
@@ -428,6 +432,9 @@ export const parseFitlog = (
     if (!exercise.sets.length) {
       throw new Error(`${exercise.name} has no SET lines.`);
     }
+  }
+  for (const { activity, line, explicit } of inferredActivities) {
+    if (!explicit) warnings.push(`Line ${line} · ${activity.name}: TYPE was omitted; activity type inferred as ${activity.activityType}. Check the preview or add TYPE explicitly (especially for run/walk or football).`);
   }
 
   if (!exercises.length && !cardio.length) {

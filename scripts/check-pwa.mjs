@@ -5,7 +5,7 @@ import vm from "node:vm";
 import { webcrypto } from "node:crypto";
 const dist=fileURLToPath(new URL("../dist/",import.meta.url));
 const root=new URL("https://example.test/CoachLoop/");
-const stores=new Map(),events={};let claimed=false,network=0,online=true,windows=1,skipped=false,shellOverride=null,corruptPrecache=false;
+const stores=new Map(),events={};let claimed=false,network=0,online=true,windows=1,skipped=false,shellOverride=null,corruptPrecache=false,assetOverride=null;
 const cacheApi={
  async open(name){if(!stores.has(name))stores.set(name,new Map());const entries=stores.get(name);return {
   async addAll(requests){for(const request of requests){assert.equal(request.cache,"reload");const url=new URL(request.url);assert.ok(url.href.startsWith(root.href));const relative=url.pathname.slice(root.pathname.length)||"index.html";await access(dist+relative);const type=relative.endsWith('.js')?'application/javascript':relative.endsWith('.css')?'text/css':relative.endsWith('.html')?'text/html':'application/octet-stream';entries.set(url.href,new Response(corruptPrecache&&relative.endsWith('.png')?'wrong-release-icon':await readFile(dist+relative),{headers:{'content-type':type}}));}},
@@ -14,8 +14,8 @@ const cacheApi={
  };},async keys(){return [...stores.keys()];},async delete(name){return stores.delete(name);}
 };
 vm.runInNewContext(await readFile(dist+'sw.js','utf8'),{
- URL,Request,crypto:webcrypto,caches:cacheApi,
- async fetch(request){network++;if(!online)throw new TypeError('Offline');const relative=new URL(request.url).pathname.slice(root.pathname.length)||'index.html';return new Response(relative==='index.html'&&shellOverride!==null?shellOverride:await readFile(dist+relative),{headers:{'content-type':relative.endsWith('.js')?'application/javascript':'text/html'}});},
+ URL,Request,Response,crypto:webcrypto,caches:cacheApi,
+ async fetch(request){network++;if(!online)throw new TypeError('Offline');const relative=new URL(request.url).pathname.slice(root.pathname.length)||'index.html';return new Response(relative==='index.html'&&shellOverride!==null?shellOverride:assetOverride!==null&&relative!=='index.html'?assetOverride:await readFile(dist+relative),{headers:{'content-type':relative.endsWith('.js')?'application/javascript':'text/html'}});},
  self:{registration:{scope:root.href},clients:{async claim(){claimed=true;},async matchAll(){return Array.from({length:windows},()=>({url:root.href}));}},async skipWaiting(){skipped=true;},addEventListener(type,fn){events[type]=fn;}}
 });
 const run=(name,event)=>new Promise((resolve,reject)=>events[name]({...event,waitUntil(p){p.then(resolve,reject);}}));
@@ -33,9 +33,9 @@ assert.ok(stores.get(current).has(root.href),'online navigation repairs the entr
 online=false;assert.ok(await fetchResponse(root.href,'navigate'));
 // An older worker never precaches a newer deployment's HTML into its release.
 stores.get(current).delete(root.href);online=true;shellOverride='<!doctype html><script src="./assets/new-release.js"></script>';
-assert.ok(await fetchResponse(root.href,'navigate'));assert.equal(stores.get(current).has(root.href),false);
+const refusedShell=await fetchResponse(root.href,'navigate');assert.equal(refusedShell.status,503);assert.match(await refusedShell.text(),/do not clear website data/);assert.equal(stores.get(current).has(root.href),false);
 await run('message',{data:{type:'COACH_LOOP_CHECK_OFFLINE',repair:true},ports:[{postMessage(v){readiness=v;}}]});assert.equal(readiness.ready,false);
-online=false;await assert.rejects(fetchResponse(root.href,'navigate'),/Offline/);
+online=false;assert.equal((await fetchResponse(root.href,'navigate')).status,503);
 shellOverride=null;online=true;
 const icon=[...stores.get(current).keys()].find(url=>url.endsWith('.png'));stores.get(current).delete(icon);
 await run('message',{data:{type:'COACH_LOOP_CHECK_OFFLINE',repair:true},ports:[{postMessage(v){readiness=v;}}]});assert.equal(readiness.ready,true);assert.ok(stores.get(current).has(icon));
@@ -45,6 +45,20 @@ stores.get(current).delete(entry);online=true;const count=network;assert.ok(awai
 online=false;assert.ok(await fetchResponse(entry));
 // A preceding release asset remains available during the controller/reload transition.
 const old=root.href+'assets/old-hash.js';stores.get(prefix+'previous').set(old,new Response('old release'));assert.equal(await (await fetchResponse(old)).text(),'old release');
+// Stable-name previous responses must match THIS release. Matching bytes repair
+// the current cache; mismatches cannot be served, even when the network differs.
+for(const path of ['icon-192.png','manifest.webmanifest','favicon.svg']){
+ const url=new URL(path,root).href;stores.get(current).delete(url);
+ stores.get(prefix+'previous').set(url,new Response('old incompatible bytes'));
+ online=true;assetOverride='different network release';
+ const rejected=await fetchResponse(url);assert.equal(rejected.status,503);
+ assert.equal(stores.get(current).has(url),false);
+ online=false;assert.equal((await fetchResponse(url)).status,503);
+ const bytes=await readFile(dist+path);stores.get(prefix+'previous').set(url,new Response(bytes));
+ const before=network;assert.deepEqual(Buffer.from(await (await fetchResponse(url)).arrayBuffer()),bytes);
+ assert.equal(network,before);assert.ok(stores.get(current).has(url));
+}
+assetOverride=null;online=true;
 // Applying an update never takes over a second open app window.
 let reply;windows=2;await run('message',{data:{type:'COACH_LOOP_APPLY_UPDATE'},ports:[{postMessage(v){reply=v;}}]});assert.equal(reply.applied,false);assert.equal(skipped,false);
 windows=1;await run('message',{data:{type:'COACH_LOOP_APPLY_UPDATE'},ports:[{postMessage(v){reply=v;}}]});assert.equal(reply.applied,true);assert.equal(skipped,true);

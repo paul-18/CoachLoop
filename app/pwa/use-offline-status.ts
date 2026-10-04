@@ -5,6 +5,7 @@ export function useOfflineStatus() {
   const [offlineReady, setOfflineReady] = useState<"checking" | "ready" | "failed">("checking");
   const [updateReady, setUpdateReady] = useState(false);
   const [release, setRelease] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState("");
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const coordinator = useRef<ReturnType<typeof createUpdateCoordinator> | null>(null);
   const checkUpdates = useCallback(async () => {
@@ -19,7 +20,7 @@ export function useOfflineStatus() {
     if (!import.meta.env?.PROD || !("serviceWorker" in navigator)) return;
     coordinator.current = createUpdateCoordinator({ workerEvents: navigator.serviceWorker, pageEvents: document,
       waiting: () => registrationRef.current?.waiting ?? null, controller: () => navigator.serviceWorker.controller,
-      visible: () => document.visibilityState === "visible", reload: () => window.location.reload() });
+      visible: () => document.visibilityState === "visible", reload: () => window.location.reload(), onStatus: setUpdateStatus });
     let disposed = false;
     let registration: ServiceWorkerRegistration | undefined;
     let observedWorker: ServiceWorker | null = null;
@@ -74,5 +75,5 @@ export function useOfflineStatus() {
       navigator.serviceWorker.removeEventListener("controllerchange", refresh); registration?.removeEventListener("updatefound", onUpdate); observedWorker?.removeEventListener("statechange", onState);
     };
   }, []);
-  return { offlineReady, updateReady, release, checkUpdates, applyUpdate };
+  return { offlineReady, updateReady, release, updateStatus, checkUpdates, applyUpdate };
 }

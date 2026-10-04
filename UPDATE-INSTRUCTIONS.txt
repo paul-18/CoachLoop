@@ -1,57 +1,57 @@
-COACH LOOP v90 — PERFORMANCE, BACKUP VERIFICATION AND ACCESSIBILITY
+COACH LOOP — APPLYING AN AI-PROVIDED UPDATE
 
-Apply over v89 at c60470cea3d871a6bf8f2835bafe68d5dc769534.
-Matching files are replaced in place, not a second app. No source deletions,
-dependency, lockfile or database migration. No personal backups included.
+This is the reusable procedure. Each package also provides release-specific
+steps naming its expected baseline, ZIP, changed files and required deletions.
+Find the latest package steps through docs/README.md. Older recipes are historical.
 
-1. App -> Settings -> Download full backup or Share backup / Save to Files.
-   Save the personal JSON privately, outside GitHub. Keep it until QC passes.
+1. Save a private JSON backup in Files; verify it in Settings. Keep it outside
+   GitHub until device QC passes.
 
-2. GitHub -> paul-18/CoachLoop -> Code -> main -> Add file -> Upload files.
-   Upload CoachLoop-v90-GitHub-Update.zip beside package.json and commit.
-   The ZIP must then be extracted in your existing Codespace below.
-
-3. Codespace terminal in /workspaces/CoachLoop: ONE command at a time.
-   Wait for the prompt. Stop on an error.
+2. Open your existing Codespace at /workspaces/CoachLoop. Run ONE command at a
+   time, wait for the prompt, and stop on errors:
 
 git status --short
-
-   Preserve uncommitted changes before continuing. If empty:
-
 git pull --ff-only
-node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
 
-   Expect v89. If another release appears, stop and reconcile first.
+   Preserve uncommitted work before pulling. Check the release's expected
+   baseline commit and app-release.ts. Stop/reconcile unexpected newer work.
 
-unzip -o CoachLoop-v90-GitHub-Update.zip
+3. Download the ZIP to your computer. Drag it into the Codespace Explorer beside
+   package.json (or right-click the folder -> Upload). Do NOT use GitHub Add file
+   -> Upload for ZIPs. Ignored ZIPs should never be committed.
+
+4. Extract the release's named ZIP at repository root. Apply only its exact
+   documented deletions: overlays replace matching files but cannot delete.
+   Run the pinned frozen install and release gate:
+
 npx --yes pnpm@11.25.0 install --frozen-lockfile
 npx --yes pnpm@11.25.0 run release:check
 
-   Must end with "Release checks passed": typecheck, lint, tests, build and
-   PWA checks. A bundle-size warning alone is not a publishing failure.
-   Reports under .release-checks are ignored; do not commit them.
+   Stop unless checks pass. A chunk-size warning alone is not a build failure.
+   Never disable tests or frozen installation to bypass failures.
 
-4. Only after checks pass, run one at a time:
+5. Use the release's exact git add list, not git add . or broad directories.
+   Stage specified deletions with git rm. Review:
 
-git rm CoachLoop-v90-GitHub-Update.zip
-git add app tests scripts README.md UPDATE-INSTRUCTIONS.txt docs/releases/V90-UPDATE-NOTES.md docs/releases/V90-QC.md
 git --no-pager diff --cached --stat
+git status --short
 
-   Review intended files and ZIP deletion only. No private JSON, benchmark
-   reports, node_modules or dist should be staged. No dependencies were added.
+   No personal JSON, generated logs, dist, node_modules, benchmarks or ZIPs.
+   Commit/push only the reviewed changes using the release-specific commands.
 
-git commit -m "Improve v90 edit performance, backup verification and accessibility"
-git push
+6. GitHub -> Actions -> newest Publish Coach Loop PWA -> confirm the correct
+   commit and wait for green. Read any failing step; do not bypass checks.
 
-5. GitHub -> Actions -> newest Publish Coach Loop PWA -> wait for green.
-   If it fails, read the failing step/report; do not bypass release checks.
+7. Installed app online: finish workouts, close editors, wait for Saved.
+   Settings -> Check updates -> Restart to update. Close other app windows if
+   requested. Confirm release/build and follow the release's iPhone checklist.
+   Closing all windows is a fallback. Never clear site data or uninstall for
+   a normal update. Phone QC is additional to the automated release gate.
 
-6. Installed app online -> finish workouts, close editors, wait for Saved.
-   Settings -> Check updates -> Restart to update. Close other windows if
-   asked. Confirm v90 and follow V90-QC.md. Closing all windows is a fallback;
-   never clear storage or reinstall to force an ordinary update.
+8. Delete the local ignored ZIP after successful application if desired.
+   Historical committed ZIPs remain in history; don't rewrite history merely
+   for cosmetic cleanup.
 
-Verify saved backup is read-only; it does not restore or prove latest-export
-matching. History has 50 sessions per page, with full-history search/export.
-Updates remain Settings-only. Physical iPhone, VoiceOver and Files completion
-need device QC. Node benchmarks are not phone performance promises.
+An AI with repository access can prepare a tested branch/pull request instead.
+Inspect the diff and require green checks before merging main. Keep private
+backups out of AI workspaces; use synthetic data for failure tests.

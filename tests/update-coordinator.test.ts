@@ -2,6 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createUpdateCoordinator } from "../app/pwa/update-coordinator";
 const pause = (ms = 10) => new Promise(resolve => setTimeout(resolve, ms));
+test("late failed flush reports persistent restart feedback after the request timed out", async () => {
+  const workerEvents = new EventTarget(), pageEvents = new EventTarget();
+  let controller: ServiceWorker | null = null, saves = 0, reloads = 0, message = "";
+  const worker = { postMessage() {} } as unknown as ServiceWorker;
+  const coordinator = createUpdateCoordinator({ workerEvents, pageEvents,
+    waiting: () => worker, controller: () => controller, visible: () => true,
+    reload: () => { reloads++; }, onStatus: value => { message = value; } }, 15);
+  const save = async () => { if (++saves === 2) throw new Error("Quota"); };
+  try {
+    await assert.rejects(coordinator.apply(save, () => true), /still applying/);
+    assert.match(message, /activation is still pending/);
+    controller = worker; workerEvents.dispatchEvent(new Event("controllerchange")); await pause();
+    assert.equal(reloads, 0); assert.match(message, /could not be saved/);
+    assert.equal(coordinator.hasPending(), true);
+    pageEvents.dispatchEvent(new Event("visibilitychange")); await pause();
+    assert.equal(reloads, 1); assert.equal(message, "");
+  } finally { coordinator.dispose(); }
+});
 function setup(timeout = 20) {
   const workerEvents = new EventTarget(), pageEvents = new EventTarget();
   let current: ServiceWorker | null = null, visible = true, safe = true, reloads = 0, saves = 0, commands = 0;

@@ -9,7 +9,9 @@ export const csvSetEffort = (set: Pick<TrainingSet, "rpe" | "rir">) =>
  */
 export const neutralizeCsvCell = (value: unknown) => {
   const text = String(value ?? "");
-  return /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text;
+  let meaningful = text.trimStart();
+  while (meaningful && (meaningful.charCodeAt(0) < 32 || meaningful.charCodeAt(0) === 127)) meaningful = meaningful.slice(1).trimStart();
+  return /^[=+\-@]/.test(meaningful) ? `'${text}` : text;
 };
 
 export const csvCell = (value: unknown) => `"${neutralizeCsvCell(value).replaceAll('"', '""')}"`;

@@ -22,10 +22,12 @@ export function useTrainingPersistence() {
   const [localSaveRetry, setLocalSaveRetry] = useState(0);
 
   const setState = useCallback((update: SetStateAction<TrainingState>) => {
-    if (operation.current) { toast.error("Wait for recovery to finish"); return; }
-    const next = typeof update === "function" ? update(latestStateRef.current) : update;
+    if (operation.current) { toast.error("Wait for the current save or recovery to finish"); return; }
     let checked: ValidatedState;
-    try { checked = validateStateEdit(latestStateRef.current, next); }
+    try {
+      const next = typeof update === "function" ? update(latestStateRef.current) : update;
+      checked = validateStateEdit(latestStateRef.current, next);
+    }
     catch { toast.error("This change is invalid; your saved log was kept"); return; }
     latestStateRef.current = checked;
     setLocalSaveStatus("saving");

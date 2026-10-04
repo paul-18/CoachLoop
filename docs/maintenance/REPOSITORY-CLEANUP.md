@@ -1,5 +1,7 @@
 # Repository cleanup for Coach Loop v83
 
+Historical record only. The one-shot cleanup script was retired in v91 after its work was complete. Do not run the old deletion procedure on current releases; use the current root upload instructions.
+
 Reviewed GitHub main at `142bb94ca7e5a6ae92c24e8156b7cd2e95f9bde3`.
 
 This housekeeping package updates the README and removes 64 unused source files. It preserves the installed app's v83 release name. Removing template sources changes the generated CSS and build identifier, so installed apps should apply the new build through Settings after publishing.
