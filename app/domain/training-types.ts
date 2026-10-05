@@ -257,6 +257,8 @@ export interface CoachOptions {
   restrictions: string;
   schedule: string;
   request: string;
+  /** Per-brief emphasis; intentionally not remembered or added to the athlete profile. */
+  emphasis?: string;
 }
 
 export const uid = (prefix = "id") => {

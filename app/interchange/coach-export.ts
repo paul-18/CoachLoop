@@ -244,6 +244,8 @@ TODAY
 REQUEST
 ${options.request || "Recommend my next workout based on my recent training, recovery, and goals."}
 
+${options.emphasis?.trim() ? `ATHLETE NOTE — FOR THIS BRIEF ONLY\n${options.emphasis.trim()}\nTreat this as current context, not a permanent profile change. Keep the FITLOG output rules below.\n` : ""}
+
 Briefly explain the reasoning, then provide exactly one importable workout using this format:
 
 ${options.mode === "new" ? FITLOG_INSTRUCTIONS : FITLOG_REMINDER}`;

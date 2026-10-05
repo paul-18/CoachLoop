@@ -314,6 +314,7 @@ const initialCoachOptions = (): CoachOptions => ({
   restrictions: "",
   schedule: "",
   request: "",
+  emphasis: "",
 });
 
 export function CoachDialog({
@@ -349,13 +350,19 @@ export function CoachDialog({
   const field = <K extends keyof CoachOptions>(key: K, value: CoachOptions[K]) =>
     setOptions((current) => ({ ...current, [key]: value }));
 
+  const clearToday = () => {
+    setOptions((current) => ({ ...current, energy: "", sleep: "", soreness: "", restrictions: "", schedule: "", timeAvailable: "", equipment: "", request: "", emphasis: "" }));
+    onRemember({ date: today, energy: "", sleep: "", soreness: "", restrictions: "", schedule: "" });
+    toast.success("Today’s fields cleared — profile, goals and history kept");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-3xl">
         <DialogHeader className="border-b border-white/8 p-6 pb-5 text-left">
           <DialogTitle className="text-xl font-black tracking-[-0.035em]">Build your coach brief</DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Choose whether ChatGPT already knows your background. Your recorded history and FITLOG instructions are added automatically.
+            Choose whether your AI already knows your background. Your recorded history and FITLOG instructions are added automatically.
           </DialogDescription>
         </DialogHeader>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 p-6 sm:grid-cols-2">
@@ -384,6 +391,10 @@ export function CoachDialog({
             </NativeSelect>
             {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/42 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
           </label>
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
+            <p className="text-xs leading-5 text-white/55">Readiness and PT are remembered today after Copy or Mark sent. Clear them for a fresh check-in.</p>
+            <Button type="button" variant="outline" onClick={clearToday}>Clear today’s fields</Button>
+          </div>
           <label className="field-label">
             Energy (1–10)
             <Input
@@ -429,12 +440,17 @@ export function CoachDialog({
               className="mt-2 min-w-0 max-w-full border-white/10 bg-black/20"
             />
           </label>
+          <label className="field-label min-w-0 sm:col-span-2">
+            Anything to emphasize?
+            <Textarea value={options.emphasis ?? ""} onChange={(event) => field("emphasis", event.target.value)} placeholder="What matters for this request? Changes since your last chat, what you want to focus on, or anything your AI should consider…" className="mt-2 min-h-28 border-white/10 bg-black/20" />
+            <span className="mt-2 block text-xs font-normal leading-5 text-white/55">Included in this brief only. Not remembered after closing or added to your profile.</span>
+          </label>
           <details className="sm:col-span-2 rounded-xl border border-white/8 bg-black/15 p-4">
             <summary className="cursor-pointer text-sm font-bold text-white/70">Optional request details</summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="field-label">Time available<Input value={options.timeAvailable} onChange={(event) => field("timeAvailable", event.target.value)} placeholder="60 minutes" className="mt-2 border-white/10 bg-black/20" /></label>
               <label className="field-label">Equipment<Input value={options.equipment} onChange={(event) => field("equipment", event.target.value)} placeholder="Full gym" className="mt-2 border-white/10 bg-black/20" /></label>
-              <label className="field-label sm:col-span-2">What should ChatGPT do?<Textarea value={options.request} onChange={(event) => field("request", event.target.value)} placeholder="Recommend my next workout based on my recent training, recovery, and goals." className="mt-2 min-h-20 border-white/10 bg-black/20" /></label>
+              <label className="field-label sm:col-span-2">What should your AI do?<Textarea value={options.request} onChange={(event) => field("request", event.target.value)} placeholder="Recommend my next workout based on my recent training, recovery, and goals." className="mt-2 min-h-20 border-white/10 bg-black/20" /></label>
             </div>
           </details>
           <details className="sm:col-span-2 rounded-xl border border-white/8 bg-black/15 p-4">
@@ -447,7 +463,7 @@ export function CoachDialog({
             onClick={async () => {
               onRemember({ date: localDate(), energy: options.energy, sleep: options.sleep, soreness: options.soreness, restrictions: options.restrictions, schedule: options.schedule });
               if (await copyText(prompt)) {
-                toast.success("Coach brief copied — paste it into ChatGPT");
+                toast.success("Coach brief copied — paste it into your AI chat");
                 onOpenChange(false);
               } else {
                 toast.error("Could not copy the brief. Use Preview copied text to select and copy it.");

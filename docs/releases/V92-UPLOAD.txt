@@ -1,0 +1,59 @@
+COACH LOOP v92 — UPLOAD STEPS
+
+For v91 at commit 7e9c37be17ac22af8fd7864b0e12dd8ed7540bc8.
+This ZIP replaces matching source files; it does not create a second app.
+No required deletions, dependency changes or database migration.
+
+1. Save and verify a private JSON backup in the app. Keep it in Files.
+
+2. Open your existing Codespace at /workspaces/CoachLoop. Run each command
+   separately; wait for the prompt. STOP on an error.
+
+git status --short
+
+   If anything is listed, preserve/reconcile it first. If clean:
+
+git pull --ff-only
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect 7e9c37be17ac22af8fd7864b0e12dd8ed7540bc8 and v91.
+   If newer or different, reconcile before overwriting newer work.
+
+3. Download CoachLoop-v92-GitHub-Update.zip. Upload/drag it into CODESPACE
+   Explorer beside package.json. Do not commit the ZIP through GitHub Add file.
+
+4. Run one command at a time:
+
+unzip -o CoachLoop-v92-GitHub-Update.zip
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Continue only when it says Release checks passed. A bundle-size warning
+   alone is not a failure. No old cleanup/deletion command is required.
+
+5. Stage only the update files, using this single command:
+
+git add README.md app/app-release.ts app/domain/training-types.ts app/interchange/coach-export.ts app/interchange/fitlog.ts app/views/coach-view.tsx app/views/today-view.tsx docs/README.md docs/releases/V92-QC.md docs/releases/V92-UPDATE-NOTES.md docs/releases/V92-UPLOAD.txt tests/v92-coach.test.cjs tests/v92-fitlog.test.ts
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect these 13 files only. No private backup, ZIP, dist or node_modules.
+
+git commit -m "Improve Coach Loop v92 FITLOG output and Coach check-in"
+git push
+
+6. GitHub -> Actions -> newest Publish Coach Loop PWA -> wait for green.
+
+7. Installed app online: close editors, finish the workout and wait for Saved.
+   Settings -> Check updates -> Restart to update. Close other windows if asked.
+   Confirm v92. Copy a NEW brief or Copy format into your existing AI chat once;
+   messages already pasted into other AI chats cannot update themselves.
+   Follow docs/releases/V92-QC.md. Never clear website data or uninstall to update.
+
+8. Optional local cleanup after success:
+
+rm CoachLoop-v92-GitHub-Update.zip
+
+   The ZIP is ignored by Git. Documentation stays under docs/.

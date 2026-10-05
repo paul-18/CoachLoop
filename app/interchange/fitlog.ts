@@ -116,7 +116,18 @@ const parseEffortTarget = (value: string) => {
     : { plannedRpe: "", plannedRir: target };
 };
 
-export const FITLOG_INSTRUCTIONS = `Return exactly one [FITLOG:1] ... [/FITLOG] workout, starting WORKOUT|name|YYYY-MM-DD. Keep FITLOG version 1, field names and pipe separators. Blocks appear in performance order.
+export const FITLOG_OUTPUT_RULES = [
+  "OUTPUT FORMAT — mandatory for every workout, including corrections:",
+  "Return exactly one complete FITLOG workout inside one fenced plain-text code block: open with ```text and close with ``` on separate lines. Put any explanation outside that code block.",
+  "Put [FITLOG:1] and [/FITLOG] on their own separate lines. Inside them, start with WORKOUT|name|YYYY-MM-DD.",
+  "Put EVERY command on its own actual newline: WORKOUT, EXERCISE, SET, REST, NOTES, CARDIO, TYPE, EFFORT, MOBILITY, MOVE and every other field. Never combine commands into a paragraph. Visual word wrapping is not a newline; do not write literal \\n characters instead.",
+  "Do not use bullets, tables or HTML inside the block. Do not put pipe characters inside names or notes. Preserve blank columns and their pipe separators.",
+  "Before responding, check that every line has exactly one command and its permitted fields. On a correction, return the entire corrected multiline block, not a claim that it was fixed.",
+].join("\n");
+
+export const FITLOG_INSTRUCTIONS = `${FITLOG_OUTPUT_RULES}
+
+Keep FITLOG version 1, field names and pipe separators. Blocks appear in performance order.
 
 Common rules:
 - These are prescriptions, never completed results. Do not invent unspecified loads, distances, times, HR or elevation.
@@ -178,7 +189,8 @@ NOTES|Use a comfortable range.
 
 Use MOVE|movement|prescription for each movement. Do not bury a whole routine in one paragraph. Only include fields relevant to the requested workout. Wrap the chosen workout in one FITLOG block, not all of these examples.`;
 
-export const FITLOG_REMINDER = `Return exactly one [FITLOG:1] ... [/FITLOG] block in performance order, starting WORKOUT|name|YYYY-MM-DD. Keep v1 fields and separators.
+export const FITLOG_REMINDER = `${FITLOG_OUTPUT_RULES}
+Keep v1 fields and separators. Blocks appear in performance order. The examples below describe separate lines, not a semicolon-separated paragraph.
 Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; REST|seconds. Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. Rep ranges require actual reps during logging. Assistance loads are not supported.
 SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). Never write "10 each side", "10/side", seconds or other text in the reps column. For unilateral work, use SET|10|10 lb total|RPE 7 and NOTES|Perform 10 reps per side. Enter actual reps per side when logging. Do not double the numeric target; the app does not automatically double per-side reps in volume calculations.
 Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; REST|seconds. Mobility: MOBILITY|name; MOVE|movement|prescription.
@@ -257,6 +269,11 @@ export const parseFitlog = (
 
     try {
       const arity: Record<string, number> = { WORKOUT: 2, EXERCISE: 1, CARDIO: 1, MOBILITY: 1, MOVE: 2, REST: 1, TYPE: 1, DURATION: 1, DISTANCE: 1, RUCKLOAD: 1, HR: 1, ELEVATION: 1, PACE: 1, INTENSITY: 1, INTERVALS: 1, NOTES: 1 };
+      const maxFields = command === "SET" ? 4 : command === "EFFORT" ? 3 : arity[command ?? ""];
+      // Diagnose joined structured commands; never guess where free-text notes end.
+      if (maxFields !== undefined && parts.length > maxFields && !["NOTES", "INTERVALS", "MOVE"].includes(command ?? "") && /\s(?:WORKOUT|EXERCISE|SET|REST|NOTES|CARDIO|TYPE|EFFORT|MOBILITY|MOVE|DURATION|DISTANCE|INTENSITY|RUCKLOAD|HR|ELEVATION|PACE|INTERVALS)\|/i.test(line.text)) {
+        throw new Error("Multiple FITLOG commands appear on one line. Each command needs an actual newline, not visual word wrapping. Ask your AI for the complete workout in a multiline text code block and copy it using the code block's Copy button.");
+      }
       if (command && arity[command] !== undefined && parts.length !== arity[command]) throw new Error(`${command}: expected ${arity[command]} pipe-separated field${arity[command] === 1 ? "" : "s"}. Do not put pipe characters inside text.`);
       if (["EXERCISE", "CARDIO", "MOBILITY"].includes(command ?? "")) scalarFields.clear();
       if (command && ["TYPE", "DURATION", "DISTANCE", "RUCKLOAD", "HR", "ELEVATION", "PACE", "INTENSITY", "INTERVALS"].includes(command) && currentCardio) {

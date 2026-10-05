@@ -156,6 +156,7 @@ Ask your AI → import the plan → log what you actually do → review → send
 - **Mark sent** records that you shared a brief (it doesn't send anything). Choose the “since last brief” option to include newer sessions and later corrections.
 - For a shorter update, copy your **last workout**, **today's training**, or the **last two days**.
 - **Copy format** shares only the FITLOG instructions.
+- **Anything to emphasize?** adds a note to this brief only, for any AI you choose. It is not remembered after closing or added to your profile. **Clear today’s fields** clears readiness, PT, restrictions and optional request details, including the remembered same-day check-in; your profile, goals and history stay intact.
 
 ### FITLOG at a glance
 
@@ -268,6 +269,7 @@ Not automatically. Download a JSON backup on one device and restore it on the ot
 <summary><b>My workout import failed or the preview looks wrong.</b></summary>
 
 - Make sure you copied the **whole** block, from `[FITLOG:1]` to `[/FITLOG]`.
+- Ask for a fenced, copyable **text code block** with one command per actual line; use the code block’s Copy button. Visual word wrapping is not a newline. Keep SET reps numeric (`10` or `8-10`); put “per side” in NOTES.
 - Ask the AI for **one** FITLOG block, with nothing inside it other than the format.
 - Use **Copy format** and paste it into your chat to remind the AI of the rules.
 - Review the preview before saving. Nothing is imported until you confirm.
@@ -307,7 +309,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v91 prevents incompatible files being served during offline-cache repair, hardens save-queue handoff while preserving failed-Finish behavior, shows pending/failed update restart feedback in Settings, and warns when FITLOG activity TYPE is inferred. It also removes unused dependencies and improves release tooling. See [v91 notes](docs/releases/V91-UPDATE-NOTES.md), [iPhone QC](docs/releases/V91-QC.md) and [v91 upload steps](docs/releases/V91-UPLOAD.txt).
+v92 strengthens FITLOG instructions in both brief modes and Copy format, with copyable code-block/newline rules and clearer errors for joined commands. It adds a per-brief emphasis note and Clear today’s fields, while retaining the v91 reliability fixes. See [v92 notes](docs/releases/V92-UPDATE-NOTES.md), [iPhone QC](docs/releases/V92-QC.md) and [v92 upload steps](docs/releases/V92-UPLOAD.txt).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 
