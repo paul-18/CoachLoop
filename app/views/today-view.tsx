@@ -47,6 +47,7 @@ export function ImportWorkoutDialog({
   state,
   onStart,
   onSave,
+  onOpenExisting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -55,6 +56,7 @@ export function ImportWorkoutDialog({
   state: TrainingState;
   onStart: (workout: WorkoutSession) => Promise<void>;
   onSave: (workout: WorkoutSession) => Promise<void>;
+  onOpenExisting?: (workout: WorkoutSession) => void;
 }) {
   const [preview, setPreview] = useState<WorkoutSession | null>(null);
   const [error, setError] = useState("");
@@ -83,9 +85,10 @@ export function ImportWorkoutDialog({
       setError(cause instanceof Error ? cause.message : "This workout could not be read.");
     }
   };
-  const duplicate = preview?.importFingerprint
-    ? state.workouts.find((workout) => workout.importFingerprint === preview.importFingerprint)
-    : undefined;
+  const duplicates = preview?.importFingerprint
+    ? state.workouts.filter(workout => workout.importFingerprint === preview.importFingerprint)
+    : [];
+  const duplicate = duplicates[0];
   const needsWarningReview = Boolean(preview?.importWarnings?.length) && !warningsReviewed;
   const apply = async (start: boolean) => {
     if (!preview || saving) return;
@@ -160,7 +163,8 @@ export function ImportWorkoutDialog({
               ) : null}
               {duplicate ? (
                 <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-sm leading-6 text-amber-100/80">
-                  <strong>This exact FITLOG was already imported.</strong> It is in your {duplicate.status === "completed" ? "history" : duplicate.status === "planned" ? "saved plans" : "active workout"} as “{duplicate.name}” ({formatDate(duplicate.date)}). You can still import it again if that is intentional.
+                  <strong>This exact FITLOG was already imported.</strong> Open an existing copy, or deliberately save another copy.
+                  {duplicates.map(workout => <div key={workout.id} className="mt-2 flex flex-wrap items-center justify-between gap-2"><span>“{workout.name}” · {formatDate(workout.date)} · {workout.status === "completed" ? "completed history" : workout.status === "skipped" ? "skipped history" : workout.status === "planned" ? "saved plan" : "active workout"}</span>{onOpenExisting && <Button disabled={saving} variant="outline" aria-label={`Open existing ${workout.name}, ${workout.status}, ${workout.date}`} onClick={() => { onOpenChange(false); onOpenExisting(workout); }}>Open existing</Button>}</div>)}
                 </div>
               ) : null}
               {orderedWorkoutBlocks(preview).map((block) => block.type === "exercise" ? (
@@ -210,14 +214,14 @@ export function ImportWorkoutDialog({
                 disabled={needsWarningReview || saving}
                 className="border-white/10 bg-white/[0.025] font-bold text-white hover:bg-white/8"
               >
-                <Save /> {saving ? "Saving…" : "Save for later"}
+                <Save /> {saving ? "Saving…" : duplicate ? "Save another copy" : "Save for later"}
               </Button>
               <Button
                 onClick={() => void apply(true)}
                 disabled={Boolean(state.activeWorkoutId) || needsWarningReview || saving}
                 className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"
               >
-                <Play /> Start workout
+                <Play /> {duplicate ? "Start another copy" : "Start workout"}
               </Button>
             </>
           ) : (
@@ -505,6 +509,8 @@ function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule }: {
 }
 
 export function TodayView({
+  existingWorkoutRequest,
+  onExistingWorkoutOpened,
   state,
   onStartBlank,
   onQuickCardio,
@@ -520,6 +526,8 @@ export function TodayView({
   onTrainingCalendar,
   syncStatus,
 }: {
+  existingWorkoutRequest?: string | null;
+  onExistingWorkoutOpened?: () => void;
   state: TrainingState;
   onHyrox: () => void;
   onStartBlank: () => void;
@@ -536,6 +544,11 @@ export function TodayView({
   syncStatus: SyncStatus;
 }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!existingWorkoutRequest || !state.workouts.some(workout => workout.id === existingWorkoutRequest && workout.status === "planned")) return;
+    setPreviewId(existingWorkoutRequest);
+    onExistingWorkoutOpened?.();
+  }, [existingWorkoutRequest, onExistingWorkoutOpened, state.workouts]);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(() => typeof window === "undefined" ? null : safeNudge());
   const active = state.workouts.find((workout) => workout.id === state.activeWorkoutId);
   const nextActiveBlock = active && orderedWorkoutBlocks(active).find((block) => block.type === "exercise"

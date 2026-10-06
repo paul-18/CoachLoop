@@ -13,7 +13,9 @@ export function serializeBackup(state: TrainingState): string {
   checkBackupSize(text);
   return text;
 }
-export function parseBackup(text: string): TrainingState {
+export function parseBackup(text: string): TrainingState { return parseBackupReview(text).state; }
+/** Returns migration disclosures without writing or mutating the selected file. */
+export function parseBackupReview(text: string): { state: TrainingState; notices: string[] } {
   checkBackupSize(text);
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw new Error("This JSON file is incomplete or corrupt"); }
@@ -21,7 +23,17 @@ export function parseBackup(text: string): TrainingState {
   const obj = raw as { version?: unknown; evidenceVersion?: unknown };
   if ("format" in raw && raw.format === "coach-loop-recovery") throw new Error("Choose an individual checkpoint JSON, not the diagnostic recovery bundle");
   if (obj.version !== 1 || (obj.evidenceVersion !== undefined && obj.evidenceVersion !== 1 && obj.evidenceVersion !== 2)) throw new Error("This backup requires a different or newer Coach Loop version");
-  try { return prepareLoadedState(raw); } catch (error) { throw new Error(`Backup contains invalid data: ${error instanceof Error ? error.message.slice(0, 220) : "check its records"}`); }
+  try {
+    const state = prepareLoadedState(raw);
+    const notices: string[] = [];
+    if (obj.evidenceVersion !== 2) {
+      notices.push("Older backup: supported legacy fields and training evidence were migrated. Review the preview before restoring.");
+      const original = raw as { bodyweightEntries?: { updatedAt?: unknown }[]; waistEntries?: { updatedAt?: unknown }[] };
+      const count = [...(original.bodyweightEntries ?? []), ...(original.waistEntries ?? [])].filter(entry => entry.updatedAt === undefined).length;
+      if (count) notices.push(`${count} legacy measurement timestamp(s) were missing. Their measurement dates at midnight UTC are used, rather than today's date. Merge can retain newer local measurements; Complete restore uses this backup.`);
+    }
+    return { state, notices };
+  } catch (error) { throw new Error(`Backup contains invalid data: ${error instanceof Error ? error.message.slice(0, 220) : "check its records"}`); }
 }
 /** Deliberate recovery uses new IDs so existing tombstones still protect stale merges. */
 export function recoverDeleted(current: TrainingState, backup: TrainingState): TrainingState {

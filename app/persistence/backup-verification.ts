@@ -1,11 +1,12 @@
-import { parseBackup } from "./backup-tools";
+import { parseBackupReview } from "./backup-tools";
 
 /** Read-only inspection of a file the user actually selected. No storage imports
  * or callbacks: this cannot restore data or mark an export as externally saved. */
 export function verifyBackup(text: string) {
-  const state = parseBackup(text);
+  const { state, notices } = parseBackupReview(text);
   const dates = state.workouts.map(w => w.date);
   return {
+    notices,
     version: state.version,
     evidenceVersion: state.evidenceVersion,
     workouts: state.workouts.length,

@@ -153,7 +153,7 @@ SET|10|10 lb total|RPE 7
 REST|45
 NOTES|Perform 10 reps per side. Enter actual reps per side when logging.
 Do not double 10 reps per side into 20. The app does not store a per-side multiplier; volume calculations use the entered numeric reps without automatically doubling them.
-For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. REST accepts seconds, 2 min or 1:30. Use structured mobility for timed stretches/holds. Assisted lifting loads are not yet supported; do not encode assistance as added load.
+For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. Use one REST line per exercise or repeated-effort activity: it applies to the whole block, not one set/effort. Never prescribe conflicting REST values within a block; describe exceptions in NOTES. REST accepts seconds, 2 min or 1:30. Use structured mobility for timed stretches/holds. Assisted lifting loads are not yet supported; do not encode assistance as added load.
 
 2. Continuous cardio:
 CARDIO|Easy run
@@ -191,9 +191,9 @@ Use MOVE|movement|prescription for each movement. Do not bury a whole routine in
 
 export const FITLOG_REMINDER = `${FITLOG_OUTPUT_RULES}
 Keep v1 fields and separators. Blocks appear in performance order. The examples below describe separate lines, not a semicolon-separated paragraph.
-Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; REST|seconds. Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. Rep ranges require actual reps during logging. Assistance loads are not supported.
+Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; one REST|seconds per exercise (whole-block target, not per-set rest; exceptions in NOTES). Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. Rep ranges require actual reps during logging. Assistance loads are not supported.
 SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). Never write "10 each side", "10/side", seconds or other text in the reps column. For unilateral work, use SET|10|10 lb total|RPE 7 and NOTES|Perform 10 reps per side. Enter actual reps per side when logging. Do not double the numeric target; the app does not automatically double per-side reps in volume calculations.
-Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; REST|seconds. Mobility: MOBILITY|name; MOVE|movement|prescription.
+Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOBILITY|name; MOVE|movement|prescription.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 
 export const exampleFitlog = `[FITLOG:1]
@@ -257,6 +257,7 @@ export const parseFitlog = (
   let currentExercise: ExerciseBlock | null = null;
   let currentCardio: CardioEntry | null = null;
   const scalarFields = new Set<string>();
+  const blockRest = new Map<string, number>();
   const inferredActivities: { activity: CardioEntry; line: number; explicit: boolean }[] = [];
   const appendCoachNote = (current: ExerciseBlock | CardioEntry, note: string) => {
     current.coachNotes = [current.coachNotes, note].filter(Boolean).join(" ");
@@ -355,10 +356,14 @@ export const parseFitlog = (
             warmup: !!parts[3] && /^warm\s*up$/i.test(parts[3]),
           }),
         );
-      } else if (command === "REST" && currentExercise) {
-        currentExercise.restSec = parseRestSeconds(value) ?? currentExercise.restSec;
-      } else if (command === "REST" && currentCardio) {
-        currentCardio.effortRestSec = parseRestSeconds(value) ?? 0;
+      } else if (command === "REST" && (currentExercise || currentCardio)) {
+        const block = currentExercise ?? currentCardio!;
+        const seconds = parseRestSeconds(value);
+        if (seconds === null || !Number.isFinite(seconds)) throw new Error("REST: enter a finite rest target, such as 60, 2 min or 1:30; omit the line if unspecified.");
+        if (blockRest.has(block.id) && blockRest.get(block.id) !== seconds) throw new Error("REST: conflicting values in one block. This format stores one rest target per exercise/activity, not per set or effort. Use one REST line; explain any exceptions in NOTES.");
+        blockRest.set(block.id, seconds);
+        if (currentExercise) currentExercise.restSec = seconds;
+        else currentCardio!.effortRestSec = seconds;
       } else if (command === "EFFORT" && currentCardio) {
         const distance = parts[0] ? /^(\d+(?:\.\d+)?)\s*m$/i.exec(parts[0]) : null;
         const load = parts[1] ? ruckLoadPattern.exec(parts[1]) : null;

@@ -37,6 +37,7 @@ export function BackupVerification() {
           {reading && <p>Reading and checking file…</p>}
           {error && <p className="text-amber-100">Could not verify: {error}</p>}
           {result && <><h3 className="font-bold">Readable, compatible backup</h3><p className="mt-2 text-sm text-white/70">Backup format {result.version}; compatible with this app after supported migrations. This does not prove the file matches your latest export or that every training value is correct.</p>
+            {result.notices.map(notice => <p key={notice} className="mt-2 text-sm text-amber-100">{notice}</p>)}
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm"><dt>Sessions</dt><dd>{result.workouts}</dd><dt>Completed / planned</dt><dd>{result.completed} / {result.planned}</dd><dt>Active / skipped</dt><dd>{result.active} / {result.skipped}</dd><dt>Sets / activities</dt><dd>{result.sets} / {result.activities}</dd><dt>Session dates</dt><dd>{result.firstDate ? `${result.firstDate} to ${result.lastDate}` : "No sessions"}</dd><dt>Goals</dt><dd>{result.goals}</dd><dt>Coach profile</dt><dd>{result.profilePresent ? "Present" : "Empty"}</dd><dt>Bodyweight / waist</dt><dd>{result.bodyweightEntries} / {result.waistEntries}</dd><dt>Benchmarks</dt><dd>{result.benchmarks}</dd></dl>
           </>}
         </div>

@@ -1,0 +1,70 @@
+COACH LOOP v93 — UPLOAD STEPS
+
+Expected baseline: v92 at commit 96ad086183df5f229805a32e62fce9a09d7c171e.
+This is an overlay: matching source files are replaced, not duplicated.
+No source-file deletions or dependency changes. IndexedDB upgrades from 3 to 4
+for recovery-copy metadata, retaining existing logs and checkpoint payloads.
+
+1. Finish workouts and wait for Saved. Export a private JSON backup to Files.
+   Keep it outside GitHub. Close other Coach Loop windows before updating.
+
+2. Open your existing Codespace at /workspaces/CoachLoop. Run ONE command at a
+   time, wait for the prompt and STOP if any command reports an error:
+
+git status --short
+
+   If files are listed, preserve/reconcile your work first. If clean:
+
+git pull --ff-only
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect 96ad086183df5f229805a32e62fce9a09d7c171e and v92. If different,
+   reconcile the newer source before extracting this package.
+
+3. Download CoachLoop-v93-GitHub-Update.zip. Drag/upload it into the CODESPACE
+   Explorer beside package.json. Do not upload/commit the ZIP using GitHub's
+   Add file button. You are applying its contents to your existing repository.
+
+4. Run each command separately:
+
+unzip -o CoachLoop-v93-GitHub-Update.zip
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Continue only when the final line says Release checks passed. A bundle-size
+   warning alone is not a failure. Do not skip failing checks or clear app data.
+
+5. Stage only these update files using this ONE command:
+
+git add README.md app/app-release.ts app/domain/exercise-sets.ts app/interchange/fitlog.ts app/persistence/backup-tools.ts app/persistence/backup-verification.ts app/persistence/migrations.ts app/persistence/recovery-export.ts app/persistence/training-storage.ts app/persistence/use-training-persistence.ts app/shell/app-dialogs.tsx app/shell/app-screens.tsx app/shell/use-shell-navigation.ts app/views/backup-verification.tsx app/views/history-view.tsx app/views/progress-view.tsx app/views/settings-view.tsx app/views/today-view.tsx app/views/training-review.tsx app/views/workout-editor.tsx components/ui/dialog.tsx docs/README.md docs/releases/V93-QC.md docs/releases/V93-UPDATE-NOTES.md docs/releases/V93-UPLOAD.txt scripts/build-pwa.mjs scripts/check-pwa.mjs tests/release-journeys.test.cjs tests/v89-integrity.test.ts tests/v93-integrity.test.ts tests/v93-set-insertion.test.cjs tests/v93-set-insertion.test.ts tests/v93-storage.test.ts tests/v93-ui.test.cjs
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect 34 update files only. No backup JSON, ZIP, generated logs, dist or node_modules.
+   The --no-pager command returns to the prompt instead of opening a scroll viewer.
+
+git commit -m "Improve Coach Loop v93 backup integrity, imports and review performance"
+git push
+
+6. GitHub -> Actions -> newest Publish Coach Loop PWA -> wait for green.
+   Confirm the run belongs to your new commit.
+
+7. In the installed app while online, finish workouts, close editors, wait for
+   Saved, and close any other Coach Loop window. Settings -> Check updates ->
+   Restart to update. Confirm v93. The metadata upgrade preserves your log.
+   If it says an upgrade is blocked, close other app/Safari windows and reopen.
+   Never clear website data or uninstall to fix an ordinary update.
+
+8. Verify your saved JSON backup, review older recovery copies and follow
+   docs/releases/V93-QC.md. Copy a new Coach brief or Copy format to your AI
+   once so it receives the one-REST-per-block rule. Existing AI chats cannot
+   update their previously pasted instructions automatically.
+
+9. Optional cleanup after success:
+
+rm CoachLoop-v93-GitHub-Update.zip
+
+   The ZIP is ignored by Git; keep the private backup until device checks pass.
+   Documentation remains under docs/releases/, not scattered in the root.

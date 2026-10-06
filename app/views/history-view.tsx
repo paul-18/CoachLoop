@@ -112,12 +112,16 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
 }
 
 export function HistoryView({
+  existingWorkoutRequest,
+  onExistingWorkoutOpened,
   state,
   onEdit,
   onRepeat,
   onReplan,
   onDelete,
 }: {
+  existingWorkoutRequest?: string | null;
+  onExistingWorkoutOpened?: () => void;
   state: TrainingState;
   onEdit: (id: string) => void;
   onRepeat: (id: string) => void;
@@ -148,6 +152,26 @@ export function HistoryView({
   const page = Math.min(requestedPage, Math.max(0, Math.ceil(workouts.length / pageSize) - 1));
   const visibleWorkouts = workouts.slice(page * pageSize, (page + 1) * pageSize);
   const historyStart = useRef<HTMLDivElement>(null);
+  const pendingExistingScroll = useRef<string | null>(null);
+  useEffect(() => {
+    if (!existingWorkoutRequest) return;
+    const ordered = [...state.workouts].filter(workout => workout.status === "completed" || workout.status === "skipped").sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.skippedAt ?? "").localeCompare(a.completedAt ?? a.skippedAt ?? ""));
+    const index = ordered.findIndex(workout => workout.id === existingWorkoutRequest);
+    if (index < 0) return;
+    pendingExistingScroll.current = existingWorkoutRequest;
+    // A one-shot navigation request synchronizes the destination filters/page.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSearch(""); setStatusFilter("all"); setExpanded(existingWorkoutRequest); setPage(Math.floor(index / pageSize));
+    onExistingWorkoutOpened?.();
+  }, [existingWorkoutRequest, onExistingWorkoutOpened, state.workouts]);
+  useEffect(() => {
+    if (!expanded || pendingExistingScroll.current !== expanded) return;
+    const card = document.getElementById(`history-${expanded}`);
+    if (!card) return;
+    pendingExistingScroll.current = null;
+    card.scrollIntoView({ block: "nearest", behavior: "instant" });
+    card.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+  }, [expanded, page]);
   useEffect(() => {
     try { sessionStorage.setItem(historyUiKey, JSON.stringify({ search, filter: statusFilter, expanded, page })); } catch { /* Optional view memory. */ }
   }, [search, statusFilter, expanded, page]);
@@ -172,7 +196,7 @@ export function HistoryView({
           {visibleWorkouts.map((workout) => {
             const isOpen = expanded === workout.id;
             return (
-              <article key={workout.id} className="history-card">
+              <article key={workout.id} id={`history-${workout.id}`} className="history-card">
                 <button type="button" aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? null : workout.id)} className="flex w-full items-center justify-between gap-4 text-left">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

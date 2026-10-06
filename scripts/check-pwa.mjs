@@ -33,7 +33,7 @@ assert.ok(stores.get(current).has(root.href),'online navigation repairs the entr
 online=false;assert.ok(await fetchResponse(root.href,'navigate'));
 // An older worker never precaches a newer deployment's HTML into its release.
 stores.get(current).delete(root.href);online=true;shellOverride='<!doctype html><script src="./assets/new-release.js"></script>';
-const refusedShell=await fetchResponse(root.href,'navigate');assert.equal(refusedShell.status,503);assert.match(await refusedShell.text(),/do not clear website data/);assert.equal(stores.get(current).has(root.href),false);
+const refusedShell=await fetchResponse(root.href,'navigate');assert.equal(refusedShell.status,503);const fallback = await refusedShell.text();assert.match(fallback,/do not clear website data/);assert.match(fallback,/close ALL Coach Loop windows/);assert.match(fallback,/including Safari tabs and the Home Screen app/);assert.equal(stores.get(current).has(root.href),false);
 await run('message',{data:{type:'COACH_LOOP_CHECK_OFFLINE',repair:true},ports:[{postMessage(v){readiness=v;}}]});assert.equal(readiness.ready,false);
 online=false;assert.equal((await fetchResponse(root.href,'navigate')).status,503);
 shellOverride=null;online=true;

@@ -178,6 +178,8 @@ INTENSITY|easy
 
 This is a format example, not a personalized prescription. Change its date, load and activities before using it. The in-app **Copy format** button provides the current full instructions.
 
+Use one `REST` line per exercise or repeated-effort activity. It applies to the whole block; different rest times between individual sets are not stored separately. Put exceptions in `NOTES`. Conflicting repeated rest values are rejected rather than silently replaced.
+
 The SET reps column accepts only numbers or ranges, such as `10` or `8-10`. For unilateral work, use `SET|10|10 lb total|RPE 7` and put “Perform 10 reps per side” in the exercise NOTES. Do not write `10 each side` or `10/side` in the reps column. Log reps per side consistently; the app does not automatically double them when calculating volume.
 
 If an import fails, see [troubleshooting](#faq-and-troubleshooting).
@@ -188,7 +190,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 ### Training
 
-- **Strength logging**: sets, reps, loads, RPE/RIR, warm-ups, notes, and rest timing. Planned work stays separate from completed results.
+- **Strength logging**: sets, reps, loads, RPE/RIR, warm-ups, notes, and rest timing. Tap a set’s number/W menu to **Insert set before** or **Insert set after**, including extra warm-ups between existing sets. A new set inherits the selected set’s targets and warm-up type, starts unfinished, and can be edited independently. Planned work stays separate from completed results.
 - **Activities and mobility**: running, rucking, swimming, cycling, rowing, walking, hiking, circuits, FORCE, soccer, grappling, yoga, water polo, and more. Mobility plans can go movement by movement.
 - **Readable intervals**: semicolon-separated run instructions display as stages.
 - **HYROX simulation** *(optional)*: run-and-station timer with division selection.
@@ -206,7 +208,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 - **JSON backup**: full, restorable copy of your data.
 - **CSV export**: for spreadsheets and analysis, including warm-up labels and actual activity results (view only, not restorable).
-- **Import safeguards**: FITLOG preview, readable validation errors and duplicate warnings. **Undo import** is available for the most recent saved import while it remains unstarted.
+- **Import safeguards**: FITLOG preview, readable validation errors and duplicate warnings with **Open existing** for matching plans or history. **Undo import** is available for the most recent saved import while it remains unstarted.
 
 ---
 
@@ -237,7 +239,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 **Backups**
 
 - Use **Settings → Download full backup** regularly and store the JSON somewhere safe (Files, iCloud Drive).
-- Choose **Verify saved backup** to inspect the JSON saved in Files without restoring or changing your log. It reports compatibility, counts and dates; it does not confirm latest-export matching.
+- Choose **Verify saved backup** to inspect the JSON saved in Files without restoring or changing your log. It reports compatibility, counts, dates and supported legacy migration notices; it does not confirm latest-export matching. Malformed measurement records are rejected instead of being silently discarded or assigned a different unit.
 - To move to another device, open Coach Loop there and choose **Restore JSON backup**, then review the preview.
 - **Merge** combines records and keeps newer revisions. An older backup may therefore leave newer local goals, profile or measurements unchanged.
 - **Complete restore** makes workouts, goals, coach profile, measurements and settings match the backup. Current-only records are removed, so download a current backup first. A local recovery copy is also saved before the restore.
@@ -309,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v92 strengthens FITLOG instructions in both brief modes and Copy format, with copyable code-block/newline rules and clearer errors for joined commands. It adds a per-brief emphasis note and Clear today’s fields, while retaining the v91 reliability fixes. See [v92 notes](docs/releases/V92-UPDATE-NOTES.md), [iPhone QC](docs/releases/V92-QC.md) and [v92 upload steps](docs/releases/V92-UPLOAD.txt).
+v93 strengthens backup validation, explains legacy measurement repairs, prevents conflicting FITLOG rest targets, adds Open existing for duplicate imports, restores dialog focus, and improves monthly copying and large-history review costs. See [v93 notes](docs/releases/V93-UPDATE-NOTES.md), [iPhone QC](docs/releases/V93-QC.md) and [v93 upload steps](docs/releases/V93-UPLOAD.txt).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 

@@ -84,12 +84,11 @@ const normalizeLoadedState = (state: TrainingState): TrainingState => ({
     : [],
   bodyweightEntries: Array.isArray(state.bodyweightEntries)
     ? state.bodyweightEntries
-      .filter((entry) => Number.isFinite(entry.weight) && entry.weight > 0 && validMeasurementDate(entry.date))
-      .map((entry) => ({ ...entry, unit: entry.unit === "kg" ? "kg" : "lb", updatedAt: entry.updatedAt ?? new Date().toISOString() }))
+      .map((entry) => ({ ...entry, updatedAt: entry.updatedAt ?? `${entry.date}T00:00:00.000Z` }))
     : [],
   benchmarks: Array.isArray(state.benchmarks) ? state.benchmarks : [],
-  waistEntries: Array.isArray(state.waistEntries) ? state.waistEntries.filter(e=>e && Number.isFinite(e.cm) && e.cm > 0 && typeof e.date === "string" && typeof e.updatedAt === "string") : [],
-  loadIncrements: Object.fromEntries(Object.entries(state.loadIncrements ?? {}).filter(([,v])=>v && Number.isFinite(v.value) && v.value >= 0 && typeof v.updatedAt === "string")),
+  waistEntries: Array.isArray(state.waistEntries) ? state.waistEntries.map(entry => ({ ...entry, updatedAt: entry.updatedAt ?? `${entry.date}T00:00:00.000Z` })) : [],
+  loadIncrements: state.loadIncrements ?? {},
   deletedWorkoutIds: Array.isArray(state.deletedWorkoutIds) ? state.deletedWorkoutIds : [],
   pendingConflicts: Array.isArray(state.pendingConflicts) ? state.pendingConflicts : [],
   resolvedConflictIds: Array.isArray(state.resolvedConflictIds) ? state.resolvedConflictIds : [],
@@ -103,8 +102,9 @@ const normalizeLoadedState = (state: TrainingState): TrainingState => ({
 
 export const prepareLoadedState = (raw: unknown): TrainingState => {
   const accepted = validateLocalState(raw);
-  if (accepted.bodyweightEntries?.some(e => !e || !Number.isFinite(e.weight) || e.weight <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid bodyweight record");
-  if (accepted.waistEntries?.some(e => !e || !Number.isFinite(e.cm) || e.cm <= 0 || !validMeasurementDate(e.date))) throw new Error("Invalid waist record");
+  const currentFormat = accepted.evidenceVersion === 2;
+  if (accepted.bodyweightEntries?.some(e => !e || !Number.isFinite(e.weight) || e.weight <= 0 || !validMeasurementDate(e.date) || !["lb", "kg"].includes(e.unit) || ((currentFormat || e.updatedAt !== undefined) && typeof e.updatedAt !== "string"))) throw new Error("Invalid bodyweight record: check weight, date, lb/kg unit and updatedAt timestamp");
+  if (accepted.waistEntries?.some(e => !e || !Number.isFinite(e.cm) || e.cm <= 0 || !validMeasurementDate(e.date) || ((currentFormat || e.updatedAt !== undefined) && typeof e.updatedAt !== "string"))) throw new Error("Invalid waist record: check measurement, date and updatedAt timestamp");
   const normalized = normalizeLoadedState(migrateAcceptedEvidence(accepted));
   return validateSyncedState({ ...normalized, activeWorkoutId: selectedActiveWorkout(normalized)?.id ?? null });
 };

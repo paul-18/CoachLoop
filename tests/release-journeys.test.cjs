@@ -186,7 +186,7 @@ test('damaged-log screen downloads both diagnostic bundle and independently rest
   await storage.saveSnapshot(checkpoint, 'before-restore');
   const raw = { version: 1, evidenceVersion: 999, damaged: 'keep me' };
   await new Promise((resolve, reject) => {
-    const request = indexedDB.open('coach-loop', 3);
+    const request = indexedDB.open('coach-loop');
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result, tx = db.transaction('app', 'readwrite'); tx.objectStore('app').put(raw, 'training-state');

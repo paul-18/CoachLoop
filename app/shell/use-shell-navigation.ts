@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { MainView } from "../views/shared";
 
 export function useShellNavigation() {
+  const [existingWorkoutRequest, setExistingWorkoutRequest] = useState<string | null>(null);
+  const consumeExistingWorkoutRequest = useCallback(() => setExistingWorkoutRequest(null), []);
   const [view, setView] = useState<MainView>("today");
   const [bodyweightPromptOpen, setBodyweightPromptOpen] = useState(false);
   const [calendarRequest, setCalendarRequest] = useState(0);
@@ -18,5 +20,5 @@ export function useShellNavigation() {
     setCalendarRequest(0);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  return { view, setView, bodyweightPromptOpen, setBodyweightPromptOpen, calendarRequest, setCalendarRequest, settingsSection, consumeSettingsSection, openSettingsSection, consumeCalendarRequest, navigateTab, returnTabToTop };
+  return { existingWorkoutRequest, setExistingWorkoutRequest, consumeExistingWorkoutRequest, view, setView, bodyweightPromptOpen, setBodyweightPromptOpen, calendarRequest, setCalendarRequest, settingsSection, consumeSettingsSection, openSettingsSection, consumeCalendarRequest, navigateTab, returnTabToTop };
 }

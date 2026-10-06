@@ -84,7 +84,7 @@ async function cacheCurrentResponse(cache, request, response) {
   return true;
 }
 function releaseUnavailable(document = false) {
-  const message = "Coach Loop files for this version are unavailable. Go online and try again. Your training log remains on this device; do not clear website data.";
+  const message = "Coach Loop files for this version are unavailable. Go online and try again. Your training log remains on this device; do not clear website data. If Try again returns here while online, close ALL Coach Loop windows, including Safari tabs and the Home Screen app, then reopen. A waiting update can activate after every window closes. If the app opens, use Settings to check for updates. Keep your backup files.";
   return new Response(document ? '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coach Loop — files unavailable</title><body style="font:18px system-ui;padding:24px;max-width:36em;margin:auto"><h1>Coach Loop could not open</h1><p>' + message + '</p><p><a href="' + ROOT.href + '">Try again</a></p></body></html>' : message, { status: 503, headers: { "content-type": document ? "text/html; charset=utf-8" : "text/plain; charset=utf-8", "cache-control": "no-store" } });
 }
 async function assetResponse(request) {

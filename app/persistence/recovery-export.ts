@@ -1,4 +1,4 @@
-import { loadTrainingState, listSnapshots, type TrainingSnapshot } from "./training-storage";
+import { loadTrainingState, loadAllSnapshots, type TrainingSnapshot } from "./training-storage";
 
 export interface RecoveryData {
   format: "coach-loop-recovery";
@@ -9,7 +9,7 @@ export interface RecoveryData {
 }
 
 /** Reads are independent: damage to the main log must not hide good checkpoints. */
-export async function readRecoveryData(readRaw: () => Promise<unknown> = loadTrainingState, readCopies: () => Promise<TrainingSnapshot[]> = listSnapshots): Promise<RecoveryData> {
+export async function readRecoveryData(readRaw: () => Promise<unknown> = loadTrainingState, readCopies: () => Promise<TrainingSnapshot[]> = loadAllSnapshots): Promise<RecoveryData> {
   const [raw, copies] = await Promise.allSettled([Promise.resolve().then(readRaw), Promise.resolve().then(readCopies)]);
   return {
     format: "coach-loop-recovery", version: 1,

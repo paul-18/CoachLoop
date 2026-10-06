@@ -3,9 +3,10 @@ import { uid, type TrainingState } from "../domain/training-types";
 import { assertValidatedState, validateSyncedState, type ValidatedState } from "./training-validation";
 import { localScopeSuffix } from "./local-scope";
 const DB_NAME = `coach-loop${localScopeSuffix()}`;
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STATE_STORE = "app";
 const SNAPSHOT_STORE = "snapshots";
+const SNAPSHOT_META_STORE = "snapshot-meta";
 const SYNC_STORE = "sync";
 const DEVICE_STORE = "device";
 const STATE_KEY = "training-state";
@@ -28,6 +29,19 @@ const openDatabase = (): Promise<IDBDatabase> =>
       }
       if (!database.objectStoreNames.contains(SNAPSHOT_STORE)) {
         database.createObjectStore(SNAPSHOT_STORE, { keyPath: "id" });
+      }
+      if (!database.objectStoreNames.contains(SNAPSHOT_META_STORE)) {
+        const metadata = database.createObjectStore(SNAPSHOT_META_STORE, { keyPath: "id" });
+        // Upgrade in the same transaction: retain every old payload and backfill
+        // small metadata records one at a time, never load all logs into memory.
+        const cursor = request.transaction!.objectStore(SNAPSHOT_STORE).openCursor();
+        cursor.onsuccess = () => {
+          const row = cursor.result;
+          if (!row) return;
+          const snapshot = row.value as TrainingSnapshot;
+          metadata.put({ id: snapshot.id, createdAt: snapshot.createdAt, reason: snapshot.reason });
+          row.continue();
+        };
       }
       if (!database.objectStoreNames.contains(SYNC_STORE)) {
         database.createObjectStore(SYNC_STORE);
@@ -119,29 +133,40 @@ const enqueueState = (snapshot: TrainingState): Promise<void> => {
 export const saveSnapshot = async (state: TrainingState, reason: string) => {
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
+    let transaction: IDBTransaction | undefined;
     try {
-      const transaction = database.transaction(SNAPSHOT_STORE, "readwrite");
+      transaction = database.transaction([SNAPSHOT_STORE, SNAPSHOT_META_STORE], "readwrite");
       const store = transaction.objectStore(SNAPSHOT_STORE);
-      store.add({ id: uid("snapshot"), createdAt: new Date().toISOString(), reason, state: structuredClone(state) });
-      const allRequest = store.getAll();
+      const metadata = transaction.objectStore(SNAPSHOT_META_STORE);
+      const info: SnapshotMetadata = { id: uid("snapshot"), createdAt: new Date().toISOString(), reason };
+      store.add({ ...info, state }); // IndexedDB clones once inside its transaction.
+      metadata.add(info);
+      const allRequest = metadata.getAll();
       allRequest.onsuccess = () => {
-        const snapshots = (allRequest.result as TrainingSnapshot[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const snapshots = (allRequest.result as SnapshotMetadata[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || (a.id === info.id ? -1 : b.id === info.id ? 1 : 0));
         const checkpoints = snapshots.filter((item) => item.reason === "before-restore" || item.reason === "before-evidence-migration");
         const routine = snapshots.filter((item) => !checkpoints.includes(item));
-        for (const item of [...checkpoints.slice(2), ...routine.slice(5)]) store.delete(item.id);
+        for (const item of [...checkpoints.slice(2), ...routine.slice(5)]) { store.delete(item.id); metadata.delete(item.id); }
       };
       transaction.oncomplete = () => { database.close(); resolve(); };
-      const fail = () => { database.close(); reject(transaction.error ?? new Error("Snapshot write failed")); };
+      const fail = () => { database.close(); reject(transaction?.error ?? new Error("Snapshot write failed")); };
       transaction.onerror = fail;
       transaction.onabort = fail;
-    } catch (error) { database.close(); reject(error); }
+    } catch (error) {
+      try { transaction?.abort(); } catch { /* Already inactive. */ }
+      database.close(); reject(error);
+    }
   });
 };
 
-export interface TrainingSnapshot { id: string; createdAt: string; reason: string; state: TrainingState; }
-export const listSnapshots = async (): Promise<TrainingSnapshot[]> =>
-  (await transact<TrainingSnapshot[]>(SNAPSHOT_STORE, "readonly", (store) => store.getAll()))
+export interface SnapshotMetadata { id: string; createdAt: string; reason: string; }
+export interface TrainingSnapshot extends SnapshotMetadata { state: TrainingState; }
+export const listSnapshots = async (): Promise<SnapshotMetadata[]> =>
+  (await transact<SnapshotMetadata[]>(SNAPSHOT_META_STORE, "readonly", (store) => store.getAll()))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+/** Diagnostic bundle export deliberately reads full payloads; ordinary listings do not. */
+export const loadAllSnapshots = async (): Promise<TrainingSnapshot[]> =>
+  (await transact<TrainingSnapshot[]>(SNAPSHOT_STORE, "readonly", store => store.getAll())).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 export const loadSnapshot = (id: string): Promise<TrainingSnapshot | undefined> =>
   transact<TrainingSnapshot | undefined>(SNAPSHOT_STORE, "readonly", (store) => store.get(id));
 
@@ -152,10 +177,11 @@ export const resetTrainingData = (nextState: TrainingState, meta?: SyncMeta): Pr
     await new Promise<void>((resolve, reject) => {
       let transaction: IDBTransaction | undefined;
       try {
-        transaction = database.transaction([STATE_STORE, SNAPSHOT_STORE, SYNC_STORE, DEVICE_STORE], "readwrite");
+        transaction = database.transaction([STATE_STORE, SNAPSHOT_STORE, SNAPSHOT_META_STORE, SYNC_STORE, DEVICE_STORE], "readwrite");
         transaction.objectStore(STATE_STORE).clear();
         transaction.objectStore(STATE_STORE).put(snapshot, STATE_KEY);
         transaction.objectStore(SNAPSHOT_STORE).clear();
+        transaction.objectStore(SNAPSHOT_META_STORE).clear();
         transaction.objectStore(SYNC_STORE).clear();
         if (meta) transaction.objectStore(SYNC_STORE).put(structuredClone(meta), "cloud-sync");
         transaction.objectStore(DEVICE_STORE).delete("conflict-overrides");

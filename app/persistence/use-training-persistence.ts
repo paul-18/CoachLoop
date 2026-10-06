@@ -18,7 +18,7 @@ export function useTrainingPersistence() {
   const operation = useRef(false);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [localSaveStatus, setLocalSaveStatus] = useState<"saving" | "saved" | "error">("saved");
+  const [localSaveStatus, setLocalSaveStatus] = useState<"saving" | "saved" | "error">("saving");
   const [localSaveRetry, setLocalSaveRetry] = useState(0);
 
   const setState = useCallback((update: SetStateAction<TrainingState>) => {

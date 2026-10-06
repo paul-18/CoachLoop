@@ -2,7 +2,7 @@ import { orderedQuickLogOptions } from "../domain/quick-log-order";
 import { GoalExamples } from "./goal-examples";
 import { BackupVerification } from "./backup-verification";
 import { useStorageHealth } from "../pwa/use-storage-health";
-import { parseBackup, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
+import { parseBackupReview, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
 import { reviewRestore, restoreDetails, sharedProvenance, type ReviewedRestore } from "../persistence/backup-review";
 import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
@@ -34,7 +34,7 @@ import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 import { type SyncStatus } from "../persistence/cloud-sync";
 
 
-import { listSnapshots, loadSnapshot, type TrainingSnapshot } from "../persistence/training-storage";
+import { listSnapshots, loadSnapshot, type SnapshotMetadata } from "../persistence/training-storage";
 import { DEFAULT_QUICK_LOG_ACTIVITIES, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
 
 import { DecimalInput, shareTextFile, downloadText } from "./shared";
@@ -80,12 +80,13 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const [recover, setRecover] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [snapshots, setSnapshots] = useState<TrainingSnapshot[]>([]);
+  const [snapshots, setSnapshots] = useState<SnapshotMetadata[]>([]);
   const [installed, setInstalled] = useState(false);
   const [updateNotice, setUpdateNotice] = useState("");
   const [restoreMode, setRestoreMode] = useState<RestoreMode>("merge");
+  const [restoreNotices, setRestoreNotices] = useState<string[]>([]);
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
-  useEffect(() => { void listSnapshots().then(setSnapshots).catch(() => undefined); }, []);
+
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
   const [textEdit, setTextEdit] = useState<{ kind: "goal" | "new-goal" | "profile"; index?: number; value: string } | null>(null);
   const [scheduleDate, setScheduleDate] = useState(localDate());
@@ -125,7 +126,8 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const restore = async (file: File) => {
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 50 MB limit; keep the file and your existing log");
-      setRestoreMode("merge"); setRecover(false); setRestoreCandidate(parseBackup(await file.text()));
+      const review = parseBackupReview(await file.text());
+      setRestoreMode("merge"); setRecover(false); setRestoreNotices(review.notices); setRestoreCandidate(review.state);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
     }
@@ -141,6 +143,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     <div className="page-stack">
       <section className="topline"><div><h1>Settings</h1></div></section>
       <Dialog open={Boolean(restoreCandidate)} onOpenChange={(open) => { if (!open && !restoring) setRestoreCandidate(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white"><DialogHeader><DialogTitle>Review backup restore</DialogTitle><DialogDescription className="text-white/55">Choose how to restore. A recovery copy of the current log is saved before applying either option.</DialogDescription></DialogHeader>
+        {restoreNotices.map(notice => <p key={notice} className="text-sm text-amber-100">{notice}</p>)}
         <label className="field-label">Restore method<NativeSelect aria-label="Restore method" value={restoreMode} disabled={restoring} onChange={event => { setRestoreMode(event.target.value as RestoreMode); setRecover(false); }}><NativeSelectOption value="merge">Merge — keep newer changes</NativeSelectOption><NativeSelectOption value="replace">Complete restore — use backup only</NativeSelectOption></NativeSelect></label>
         <p className="text-sm text-white/65">{restoreMode === "replace" ? "Replaces the current workouts, goals, coach profile, measurements and settings with exactly what is in the backup. Current records absent from the backup are removed." : "Combines both logs. Newer local goals, profile and measurements can win over older backup values."}</p>
         <p className="text-sm text-white/65">Adds {restoreAdditions} workouts; removes {restoreRemovals}; changes {changes?.changed ?? 0} existing workouts. Other changed sections: {changes?.sections.join(", ") || "none"}.</p>
@@ -175,7 +178,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <div className="grid gap-3 sm:grid-cols-2"><Button onClick={exportBackup} className="h-12 bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90"><FileJson /> Download full backup</Button><Button variant="outline" onClick={exportCsv} className="h-12 border-white/10 bg-white/[0.025] text-white"><Download /> Export CSV</Button><Button variant="outline" onClick={() => fileRef.current?.click()} className="h-12 border-white/10 bg-white/[0.025] text-white sm:col-span-2"><Import /> Restore JSON backup</Button><input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></div>
         <div className="flex flex-wrap gap-3"><Button variant="outline" className="mt-3 min-h-11" onClick={() => void shareBackup()}>Share backup / Save to Files</Button><BackupVerification /></div><p className="mt-4 text-xs leading-5 text-white/35">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save the JSON file to iCloud Drive or another safe location. Verify saved backup lets you inspect that file without restoring it.</p>
       </section>
-      <details className="page-disclosure"><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
+      <details className="page-disclosure" onToggle={event => { if (event.currentTarget.open) void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read")); }}><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">
         <summary><span><strong>Training goals</strong><small>Included in every coach brief</small></span><ChevronDown /></summary>
         <div className="pt-4">

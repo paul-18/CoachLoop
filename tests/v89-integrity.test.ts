@@ -112,6 +112,6 @@ test("FITLOG header ordering, scalar duplicates and extra columns reject with li
   assert.throws(() => parseFitlog(wrap("WORKOUT|Test|2026-10-04\nCARDIO|Run\nDURATION|20\nDURATION|30"), "lb", {}), /Line.*DURATION.*already supplied/);
   assert.throws(() => parseFitlog(wrap("WORKOUT|Test|2026-10-04|extra\nCARDIO|Run"), "lb", {}), /Line.*WORKOUT.*expected 2/);
   assert.throws(() => parseFitlog(wrap("WORKOUT|Test|2026-10-04\nMOBILITY|Routine\nMOVE|Stretch|30 seconds|extra"), "lb", {}), /MOVE.*expected 2/);
-  // REST is intentionally repeatable after sets/efforts; NOTES may accumulate.
-  assert.equal(parseFitlog(wrap("WORKOUT|Test|2026-10-04\nEXERCISE|Bench\nSET|6|100 lb total\nREST|60\nSET|6|100 lb total\nREST|90\nNOTES|Cue one\nNOTES|Cue two"), "lb", {}).exercises[0].restSec, 90);
+  // Equivalent REST repeats remain compatible; differing targets must not silently overwrite. NOTES accumulate.
+  assert.equal(parseFitlog(wrap("WORKOUT|Test|2026-10-04\nEXERCISE|Bench\nSET|6|100 lb total\nREST|90\nSET|6|100 lb total\nREST|90\nNOTES|Cue one\nNOTES|Cue two"), "lb", {}).exercises[0].restSec, 90);
 });
