@@ -26,6 +26,7 @@ import { completedSetValues, convertWeight, completedActivityValues, exerciseIde
 import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
 
 import { DecimalInput, formatDate, formatDuration, orderedWorkoutBlocks } from "./shared";
+import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
@@ -158,6 +159,7 @@ function SetRow({
   onToggle,
   onMatchPrevious,
   onToggleWarmup,
+  onInsert,
   increment,
   onSkip,
   onRemove,
@@ -170,6 +172,7 @@ function SetRow({
   onToggle: () => void;
   onMatchPrevious?: () => void;
   onToggleWarmup: () => void;
+  onInsert: (position: "before" | "after") => void;
   increment?: number;
   onSkip: () => void;
   onRemove: () => void;
@@ -186,6 +189,8 @@ function SetRow({
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{set.warmup ? "W" : index + 1}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
+          <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("before")}><Plus /> Insert set before</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("after")}><Plus /> Insert set after</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={onSkip}>{set.skipped ? "Restore skipped set" : "Skip this set"}</DropdownMenuItem>
           {!!increment && set.loadType !== "bodyweight" && <><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(((set.actualWeight ?? set.plannedWeight ?? 0) + increment).toFixed(4)), loadType:"weighted"})}>+ {increment} {set.unit}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(Math.max(0,(set.actualWeight ?? set.plannedWeight ?? 0)-increment).toFixed(4)), loadType:"weighted"})}>− {increment} {set.unit}</DropdownMenuItem></>}
           {onMatchPrevious && <DropdownMenuItem className="min-h-11" onSelect={onMatchPrevious}><CopyPlus /> Match previous set</DropdownMenuItem>}
@@ -387,6 +392,14 @@ function ExerciseEditor({
               index={index}
               onChange={(changes) => updateSet(set.id, changes)}
               onToggleWarmup={() => updateSet(set.id, { warmup: !set.warmup })}
+              onInsert={position => {
+                const current = latestExercise.current;
+                const anchor = current.sets.find(item => item.id === set.id);
+                const next = insertExerciseSet(current, set.id, position);
+                latestExercise.current = next;
+                onChange(next);
+                toast.success(`${anchor?.warmup ? "Warm-up" : "Set"} inserted ${position} set ${index + 1}`);
+              }}
               onMatchPrevious={index > 0 ? () => {
                 const current = latestExercise.current;
                 const previousSet = current.sets[index - 1];

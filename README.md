@@ -311,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v93 strengthens backup validation, explains legacy measurement repairs, prevents conflicting FITLOG rest targets, adds Open existing for duplicate imports, restores dialog focus, and improves monthly copying and large-history review costs. See [v93 notes](docs/releases/V93-UPDATE-NOTES.md), [iPhone QC](docs/releases/V93-QC.md) and [v93 upload steps](docs/releases/V93-UPLOAD.txt).
+v94 adds the missing Insert set before and Insert set after actions on a set’s number/W menu. Published v93 described that control, but its editor update was not included. v93 strengthens backup validation, explains legacy measurement repairs, prevents conflicting FITLOG rest targets, adds Open existing for duplicate imports, restores dialog focus, and improves monthly copying and large-history review costs. See [v93 notes](docs/releases/V93-UPDATE-NOTES.md), [iPhone QC](docs/releases/V93-QC.md) and [v93 upload steps](docs/releases/V93-UPLOAD.txt).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 

@@ -1,0 +1,45 @@
+COACH LOOP v94 — UPLOAD STEPS
+
+Expected baseline: v93 at commit cb881d59d13f6a85f17137720adebfff9c7e9bfd.
+Overlay only. No deletions and no dependency changes.
+
+1. Finish workouts and wait for Saved. Export a private JSON backup to Files.
+
+2. In /workspaces/CoachLoop, one command at a time:
+
+git status --short
+
+   If files are listed, stop and reconcile them first. If clean:
+
+git pull --ff-only
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect cb881d59d13f6a85f17137720adebfff9c7e9bfd and v93.
+
+3. Upload CoachLoop-v94-GitHub-Update.zip beside package.json. Do not commit the ZIP.
+
+4. One command at a time:
+
+unzip -o CoachLoop-v94-GitHub-Update.zip
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Expect v94, and no CoachLoop-v94-GitHub-Update folder. Continue only if release checks passed.
+
+5. Stage only these files:
+
+git add README.md app/app-release.ts app/domain/exercise-sets.ts app/views/workout-editor.tsx docs/releases/V94-QC.md docs/releases/V94-UPDATE-NOTES.md docs/releases/V94-UPLOAD.txt tests/v93-set-insertion.test.cjs tests/v93-set-insertion.test.ts
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect 9 files. No ZIP, backup, dist or node_modules.
+
+git commit -m "Add Coach Loop v94 in-between set insertion"
+git push
+
+6. Wait for Publish Coach Loop PWA on that commit to turn green.
+7. In the installed app, finish workouts, wait for Saved, close other windows, then Settings → Check updates → Restart to update. Confirm v94.
+8. Follow docs/releases/V94-QC.md.
