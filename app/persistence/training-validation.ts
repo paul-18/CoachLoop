@@ -87,6 +87,10 @@ const conflictSchema = z.object({
 export const storedStateBoundary = z.object({
   version: z.literal(1), evidenceVersion: z.literal(2).optional(), workouts: z.array(workoutSchema),
   bodyweightEntries: z.array(z.object({ id: identifier, date, weight: finite.positive(), unit, updatedAt: timestamp })),
+  nutritionLogs: z.array(z.object({
+    date, targetKcal: finite.nonnegative(),
+    meals: z.array(z.object({ id: identifier, name: z.string(), kcal: finite.nonnegative().max(20000), proteinG: finite.nonnegative().optional() })),
+  })),
   benchmarks: z.array(z.object({ id: identifier, name: z.string().min(1), protocol: z.string(), result: z.string(), testedOn: date.nullable(), attempts: z.array(z.object({ id: identifier, date, result: z.string().min(1), protocol: z.string(), updatedAt: timestamp })).optional(), retestDays: finite.int().min(7).max(365).nullable(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   waistEntries: z.array(z.object({ id: identifier, date, cm: finite.positive(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   loadIncrements: z.record(z.string(), z.object({ value: finite.nonnegative(), updatedAt: timestamp })).optional(),
@@ -107,8 +111,11 @@ export const storedStateBoundary = z.object({
     bodyDiagram: z.enum(["male", "female"]).optional(),
     quickLogActivities: z.array(z.enum(["run", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
+    dailyKcalTarget: finite.nonnegative().optional(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
+    aiProvider: z.enum(["openrouter", "openai", "gemini", "groq", "custom"]).optional(),
+    aiApiKey: z.string().optional(), aiModel: z.string().optional(), aiBaseUrl: z.string().optional(),
   }),
   settingsUpdatedAt: timestamp,
   pendingConflicts: z.array(conflictSchema).optional(), resolvedConflictIds: stringArray.optional(),
@@ -157,6 +164,7 @@ function validateStateIntegrity(state: TrainingState) {
   disjoint(state.workouts.map(w => w.id), state.deletedWorkoutIds, "Workout");
   unique(state.bodyweightEntries.map(e => e.id), "bodyweight");
   unique(state.bodyweightEntries.map(e => e.date), "bodyweight date");
+  unique(state.nutritionLogs.map(e => e.date), "nutrition date");
   unique((state.waistEntries ?? []).map(e => e.id), "waist");
   unique((state.benchmarks ?? []).map(e => e.id), "benchmark");
   for (const b of state.benchmarks ?? []) unique((b.attempts ?? []).map(a => a.id), "benchmark attempt");

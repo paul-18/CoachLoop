@@ -9,7 +9,7 @@ import { exportTrainingCsv } from "../interchange/training-csv";
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { ChevronDown, ChevronUp, DatabaseBackup, Download, FileJson, Import, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronUp, DatabaseBackup, Download, FileJson, Import, Plus, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +28,8 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { MuscleMappingSettings } from "./muscle-mapping-settings";
 import { BenchmarkSettings } from "./benchmark-settings";
 import { DisplayPreferences } from "./display-preferences";
+import { NotificationSettings } from "./notification-settings";
+import { AISettings } from "./ai-settings";
 import { APP_RELEASE } from "../app-release";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 
@@ -164,6 +166,14 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         {updateReady && <p className="mt-2 text-sm text-white/65">Update downloaded. Finish your workout, save and close any editor, then restart here. Close other Coach Loop windows first.</p>}
         {updateStatus && <p role="status" className="mt-2 text-sm text-white/75">{updateStatus}</p>}
       </section>
+      <section className="settings-panel">
+        <div className="settings-title"><div><h2>Notifications</h2></div><Bell className="text-[var(--lime)]" /></div>
+        <NotificationSettings settings={state.settings} onUpdate={updateSettings} />
+      </section>
+      <section className="settings-panel">
+        <div className="settings-title"><div><h2>AI coach chat</h2></div><Sparkles className="text-[var(--lime)]" /></div>
+        <AISettings settings={state.settings} onUpdate={updateSettings} />
+      </section>
       <details className="settings-panel profile-editor"><summary><span><strong>Appearance & quick log</strong><small>Colors, shortcuts, and Progress layout</small></span><ChevronDown /></summary><div className="space-y-5 pt-4">
         <DisplayPreferences settings={state.settings} onUpdate={updateSettings} />
         <label className="field-label block">Strength coverage visual<NativeSelect aria-label="Strength coverage visual" value={state.settings.bodyDiagram ?? "male"} onChange={event => updateSettings(settings => ({ ...settings, bodyDiagram: event.target.value as "male" | "female" }))} className="mt-2 w-full"><NativeSelectOption value="male">Male</NativeSelectOption><NativeSelectOption value="female">Female</NativeSelectOption></NativeSelect><small className="mt-2 block text-white/55">Changes the diagram only. Your logged sets, coverage calculations, profile, and goals stay the same.</small></label>
@@ -208,6 +218,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="field-label">Default unit<NativeSelect value={state.settings.defaultUnit} onChange={(event) => updateSettings((settings) => ({ ...settings, defaultUnit: event.target.value as Unit }))} className="mt-2 w-full border-white/8 bg-black/15"><NativeSelectOption value="lb">Pounds (lb)</NativeSelectOption><NativeSelectOption value="kg">Kilograms (kg)</NativeSelectOption></NativeSelect></label>
           <label className="field-label">Default rest (seconds)<DecimalInput min={0} max={3600} value={state.settings.defaultRestSec} onValueChange={(defaultRestSec) => updateSettings((settings) => ({ ...settings, defaultRestSec: defaultRestSec ?? 0 }))} className="mt-2 border-white/8 bg-black/15" /></label>
+          <label className="field-label">Daily calorie target (kcal)<DecimalInput min={0} max={20000} value={state.settings.dailyKcalTarget ?? null} onValueChange={(dailyKcalTarget) => updateSettings((settings) => ({ ...settings, dailyKcalTarget: dailyKcalTarget ?? undefined }))} className="mt-2 border-white/8 bg-black/15" /></label>
           <label className="field-label">Pound bar weight<DecimalInput min={0} max={200} value={state.settings.barWeightLb} onValueChange={(barWeightLb) => updateSettings((settings) => ({ ...settings, barWeightLb: barWeightLb ?? 45 }))} className="mt-2 border-white/8 bg-black/15" /></label>
           <label className="field-label">Kilogram bar weight<DecimalInput min={0} max={100} value={state.settings.barWeightKg} onValueChange={(barWeightKg) => updateSettings((settings) => ({ ...settings, barWeightKg: barWeightKg ?? 20 }))} className="mt-2 border-white/8 bg-black/15" /></label>
         </div>

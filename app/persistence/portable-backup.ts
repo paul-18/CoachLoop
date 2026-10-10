@@ -28,5 +28,7 @@ export function portableBackup(canonical: TrainingState, displayed: TrainingStat
   }
   backup.resolvedConflictIds = [...new Set([...(backup.resolvedConflictIds ?? []), ...(backup.pendingConflicts ?? []).map((item) => item.id)])];
   backup.pendingConflicts = [];
+  // The AI API key is a device secret: it never leaves this device inside a portable backup.
+  backup.settings = { ...backup.settings, aiApiKey: undefined };
   return backup;
 }

@@ -27,6 +27,7 @@ import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type Exercise
 
 import { DecimalInput, formatDate, formatDuration, orderedWorkoutBlocks } from "./shared";
 import { insertExerciseSet } from "../domain/exercise-sets";
+import { notifyRestComplete } from "../pwa/use-local-notifications";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
@@ -58,20 +59,27 @@ function RestTimer({
   nextLabel,
   restUntil,
   onChange,
+  onComplete,
   measureRef,
 }: {
   nextLabel: string;
   restUntil: number | null;
   onChange: (value: number | null) => void;
+  onComplete?: () => void;
   measureRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const [now, setNow] = useState(() => Date.now());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
   useEffect(() => {
     if (!restUntil) return;
     const tick = () => {
       const time = Date.now();
       setNow(time);
-      if (time >= restUntil) onChange(null);
+      if (time >= restUntil) {
+        onChange(null);
+        onCompleteRef.current?.();
+      }
     };
     tick();
     const whenVisible = () => { if (document.visibilityState === "visible") tick(); };
@@ -818,7 +826,7 @@ export function WorkoutEditor({
       </header>
 
       <ExerciseSubstitution exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
-      <RestTimer restUntil={restUntil} onChange={setRestUntil} nextLabel={nextLabel} measureRef={restTimerRef} />
+      <RestTimer restUntil={restUntil} onChange={setRestUntil} nextLabel={nextLabel} measureRef={restTimerRef} onComplete={() => { if (state.settings.notificationsEnabled) void notifyRestComplete(nextLabel); }} />
 
       <main className="workout-main mx-auto w-full max-w-4xl space-y-4 px-3 pb-40 sm:px-6">
         {orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? (

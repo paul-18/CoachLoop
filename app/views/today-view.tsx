@@ -5,7 +5,7 @@ import { useLocalDay } from "../pwa/use-local-day";
 import { QuickLogButtons } from "./quick-log-buttons";
 import { APP_RELEASE } from "../app-release";
 
-import { Activity, Bot, Check, ChevronRight, CirclePlus, Clipboard, ClipboardCheck, CloudOff, Copy, Dumbbell, Import, Play, Redo2, Save, X } from "lucide-react";
+import { Activity, Bot, Check, ChevronRight, CirclePlus, Clipboard, ClipboardCheck, CloudOff, Copy, Dumbbell, Import, Play, Plus, Redo2, Save, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
 
 import { formatLoad } from "../domain/training-metrics";
+import { dayTotals, emptyDayLog, makeMeal, remainingKcal, type MealEntry } from "../domain/nutrition-types";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
@@ -508,6 +509,72 @@ function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule }: {
   </DialogContent></Dialog>;
 }
 
+function NutritionSection({
+  state,
+  onLogMeal,
+  onDeleteMeal,
+}: {
+  state: TrainingState;
+  onLogMeal: (date: string, meal: MealEntry) => void;
+  onDeleteMeal: (date: string, mealId: string) => void;
+}) {
+  const today = useLocalDay();
+  const log = state.nutritionLogs.find((entry) => entry.date === today) ?? emptyDayLog(today, state.settings.dailyKcalTarget ?? 0);
+  const totals = dayTotals(log);
+  const remaining = remainingKcal(log);
+  const [name, setName] = useState("");
+  const [kcal, setKcal] = useState("");
+  const [protein, setProtein] = useState("");
+  const addMeal = () => {
+    let meal: MealEntry;
+    try {
+      meal = makeMeal(name, kcal, protein);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not add this meal.");
+      return;
+    }
+    onLogMeal(today, meal);
+    setName("");
+    setKcal("");
+    setProtein("");
+  };
+  return (
+    <section>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Fuel</p>
+          <h2>Nutrition</h2>
+        </div>
+      </div>
+      <p className="text-sm text-white/65">
+        {log.targetKcal > 0
+          ? <>{totals.kcal.toLocaleString()} / {log.targetKcal.toLocaleString()} kcal · {remaining >= 0 ? `${remaining.toLocaleString()} remaining` : `${(-remaining).toLocaleString()} over target`} · </>
+          : <>{totals.kcal.toLocaleString()} kcal · </>}
+        {totals.proteinG.toLocaleString()} g protein
+      </p>
+      {log.targetKcal <= 0 && <p className="mt-1 text-xs text-white/40">Set a daily calorie target in Settings to track against a goal.</p>}
+      {log.meals.length === 0 ? (
+        <p className="mt-2 text-sm text-white/45">No meals logged today.</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {log.meals.map((meal) => (
+            <li key={meal.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/15 px-3 py-2">
+              <p className="min-w-0 text-sm text-white/75"><strong className="font-bold text-white">{meal.name}</strong> · {meal.kcal.toLocaleString()} kcal{meal.proteinG !== undefined ? ` · ${meal.proteinG.toLocaleString()} g protein` : ""}</p>
+              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${meal.name}`} onClick={() => onDeleteMeal(today, meal.id)} className="shrink-0 text-white/45 hover:bg-white/7 hover:text-white"><X /></Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={(event) => { event.preventDefault(); addMeal(); }} className="mt-2 grid gap-2 sm:grid-cols-[1fr_110px_130px_auto]">
+        <Input aria-label="Meal name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Grilled chicken bowl" className="border-white/8 bg-black/15" />
+        <Input aria-label="Calories" inputMode="decimal" value={kcal} onChange={(event) => setKcal(event.target.value)} placeholder="kcal" className="border-white/8 bg-black/15" />
+        <Input aria-label="Protein grams (optional)" inputMode="decimal" value={protein} onChange={(event) => setProtein(event.target.value)} placeholder="Protein g" className="border-white/8 bg-black/15" />
+        <Button type="submit" className="bg-white/8 text-white"><Plus /> Add</Button>
+      </form>
+    </section>
+  );
+}
+
 export function TodayView({
   existingWorkoutRequest,
   onExistingWorkoutOpened,
@@ -523,6 +590,8 @@ export function TodayView({
   onSkipPlan,
   onHistory,
   onBodyweightLog,
+  onLogMeal,
+  onDeleteMeal,
   onTrainingCalendar,
   syncStatus,
 }: {
@@ -540,6 +609,8 @@ export function TodayView({
   onSkipPlan: (id: string) => void;
   onHistory: () => void;
   onBodyweightLog: () => void;
+  onLogMeal: (date: string, meal: MealEntry) => void;
+  onDeleteMeal: (date: string, mealId: string) => void;
   onTrainingCalendar: () => void;
   syncStatus: SyncStatus;
 }) {
@@ -663,6 +734,8 @@ export function TodayView({
         </div>
         <QuickLogButtons settings={state.settings} disabled={Boolean(active)} onChoose={onQuickCardio} />
       </section>}
+
+      <NutritionSection state={state} onLogMeal={onLogMeal} onDeleteMeal={onDeleteMeal} />
 
       {!active && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
 

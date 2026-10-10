@@ -1,5 +1,6 @@
 import type { ColorTheme, WeeklyCard, ProgressSection } from "./display-preferences";
 import type { HyroxSession } from "./hyrox";
+import type { NutritionDayLog } from "./nutrition-types";
 export type Unit = "lb" | "kg";
 export type LoadType = "weighted" | "bodyweight" | "unrecorded";
 export type WeightMode = "total" | "per_hand" | "added";
@@ -183,12 +184,22 @@ export interface AppSettings {
   quickLogActivities?: QuickLogActivityType[];
   defaultUnit: Unit;
   defaultRestSec: number;
+  /** Daily calorie target used by the experimental nutrition log; unset means no target. */
+  dailyKcalTarget?: number;
   barWeightLb: number;
   barWeightKg: number;
   lastBackupAt: string | null;
   installedHintDismissed: boolean;
+  notificationsEnabled?: boolean;
   coachCheckIn: CoachCheckIn;
   lastCoachBriefAt: string | null;
+  /** Built-in AI coach (experimental): provider choice and credentials. The API key lives on
+   * this device only — it is stripped from portable backups and never synced. */
+  aiProvider?: "openrouter" | "openai" | "gemini" | "groq" | "custom";
+  aiApiKey?: string;
+  aiModel?: string;
+  /** Base URL for the "custom" provider only; presets use their own fixed endpoints. */
+  aiBaseUrl?: string;
 }
 
 export interface FieldConflict {
@@ -225,6 +236,7 @@ export interface TrainingState {
   version: 1;
   workouts: WorkoutSession[];
   bodyweightEntries: BodyweightEntry[];
+  nutritionLogs: NutritionDayLog[];
   benchmarks?: PinnedBenchmark[];
   deletedWorkoutIds: string[];
   activeWorkoutId: string | null;
@@ -396,6 +408,7 @@ export const defaultState = (): TrainingState => ({
   resolvedConflictIds: [],
   workouts: [],
   bodyweightEntries: [],
+  nutritionLogs: [],
   benchmarks: [],
   deletedWorkoutIds: [],
   activeWorkoutId: null,

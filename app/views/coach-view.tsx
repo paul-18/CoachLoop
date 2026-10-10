@@ -11,6 +11,7 @@ import { buildQuickTrainingExtract, type QuickTrainingRange } from "../interchan
 import { FITLOG_INSTRUCTIONS } from "../interchange/fitlog";
 import type { TrainingState } from "../domain/training-types";
 import { copyText } from "./shared";
+import { AICoachChat } from "./ai-chat";
 
 export function CoachView({ state, onBuild, onImport, onEditGoals }: { state: TrainingState; onBuild: () => void; onImport: () => void; onEditGoals?: () => void }) {
   const [range, setRange] = useState<QuickTrainingRange>("last");
@@ -26,7 +27,8 @@ export function CoachView({ state, onBuild, onImport, onEditGoals }: { state: Tr
   return (
     <div className="page-stack">
       <section className="topline"><h1>Coach</h1></section>
-      <details className="coach-goals"><summary><h2>Your priorities</h2><span>{state.goals.filter(goal => goal.trim()).length} goals</span></summary><div className="flex items-center justify-end gap-3">{onEditGoals && <Button variant="ghost" onClick={onEditGoals}>Edit goals</Button>}</div>{state.goals.some(goal => goal.trim()) ? <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={index}><span>{index + 1}</span><p>{goal}</p></li>)}</ol> : <p>Add your goals in Settings, with the most important first.</p>}<p className="coach-goals-note">Edit and reorder in Settings → Training goals. Chat with your AI outside the app; nothing is sent automatically.</p></details>
+      <details className="coach-goals"><summary><h2>Your priorities</h2><span>{state.goals.filter(goal => goal.trim()).length} goals</span></summary><div className="flex items-center justify-end gap-3">{onEditGoals && <Button variant="ghost" onClick={onEditGoals}>Edit goals</Button>}</div>{state.goals.some(goal => goal.trim()) ? <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={index}><span>{index + 1}</span><p>{goal}</p></li>)}</ol> : <p>Add your goals in Settings, with the most important first.</p>}<p className="coach-goals-note">Edit and reorder in Settings → Training goals. The copy options below send nothing automatically; the Ask AI chat sends your training context only when you press Send.</p></details>
+      <AICoachChat state={state} />
       <section className="coach-action-row"><div><h2>Ask for your next workout</h2><p>Copy your recent training and goals into your preferred AI chat.</p></div><Button onClick={onBuild} className="bg-[var(--lime)] font-black text-[#11140d]"><Copy /> Build coach brief</Button></section>
       <section className="coach-action-row"><div><h2>Bring the workout back</h2><p>Review the FITLOG plan, then start or save it.</p></div><Button onClick={onImport} variant="outline" className="border-white/12 text-white"><Clipboard /> Paste or save workout</Button></section>
       <section className="coach-quick-copy" aria-label="Quick copy for an existing chat">

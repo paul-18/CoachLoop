@@ -86,6 +86,7 @@ const normalizeLoadedState = (state: TrainingState): TrainingState => ({
     ? state.bodyweightEntries
       .map((entry) => ({ ...entry, updatedAt: entry.updatedAt ?? `${entry.date}T00:00:00.000Z` }))
     : [],
+  nutritionLogs: Array.isArray(state.nutritionLogs) ? state.nutritionLogs : [],
   benchmarks: Array.isArray(state.benchmarks) ? state.benchmarks : [],
   waistEntries: Array.isArray(state.waistEntries) ? state.waistEntries.map(entry => ({ ...entry, updatedAt: entry.updatedAt ?? `${entry.date}T00:00:00.000Z` })) : [],
   loadIncrements: state.loadIncrements ?? {},
@@ -105,6 +106,7 @@ export const prepareLoadedState = (raw: unknown): TrainingState => {
   const currentFormat = accepted.evidenceVersion === 2;
   if (accepted.bodyweightEntries?.some(e => !e || !Number.isFinite(e.weight) || e.weight <= 0 || !validMeasurementDate(e.date) || !["lb", "kg"].includes(e.unit) || ((currentFormat || e.updatedAt !== undefined) && typeof e.updatedAt !== "string"))) throw new Error("Invalid bodyweight record: check weight, date, lb/kg unit and updatedAt timestamp");
   if (accepted.waistEntries?.some(e => !e || !Number.isFinite(e.cm) || e.cm <= 0 || !validMeasurementDate(e.date) || ((currentFormat || e.updatedAt !== undefined) && typeof e.updatedAt !== "string"))) throw new Error("Invalid waist record: check measurement, date and updatedAt timestamp");
+  if (Array.isArray(accepted.nutritionLogs) && accepted.nutritionLogs.some(e => !e || !validMeasurementDate(e.date) || !Number.isFinite(e.targetKcal) || e.targetKcal < 0 || !Array.isArray(e.meals) || e.meals.some(m => !m || typeof m.id !== "string" || !m.id || typeof m.name !== "string" || !Number.isFinite(m.kcal) || m.kcal < 0 || m.kcal > 20000 || (m.proteinG !== undefined && (!Number.isFinite(m.proteinG) || m.proteinG < 0))))) throw new Error("Invalid nutrition record: check date, calorie target and meals");
   const normalized = normalizeLoadedState(migrateAcceptedEvidence(accepted));
   return validateSyncedState({ ...normalized, activeWorkoutId: selectedActiveWorkout(normalized)?.id ?? null });
 };

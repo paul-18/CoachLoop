@@ -58,7 +58,7 @@ export function recoverDeleted(current: TrainingState, backup: TrainingState): T
 export function backupChanges(current: TrainingState, merged: TrainingState) {
   return {
     changed: merged.workouts.filter(w => { const prior = current.workouts.find(p => p.id === w.id); return prior && JSON.stringify(prior) !== JSON.stringify(w); }).length,
-    sections: (["settings", "goals", "coachProfile", "bodyweightEntries", "waistEntries", "benchmarks", "exerciseAliases", "exerciseMuscleOverrides", "scheduleContext"] as const).filter(key => JSON.stringify(current[key]) !== JSON.stringify(merged[key])),
+    sections: (["settings", "goals", "coachProfile", "bodyweightEntries", "waistEntries", "nutritionLogs", "benchmarks", "exerciseAliases", "exerciseMuscleOverrides", "scheduleContext"] as const).filter(key => JSON.stringify(current[key]) !== JSON.stringify(merged[key])),
   };
 }
 

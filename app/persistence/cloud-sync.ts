@@ -1,4 +1,5 @@
 import type { CardioEntry, ExerciseBlock, ExerciseMuscleTarget, TrainingSet, TrainingState, WorkoutSession } from "../domain/training-types";
+import type { NutritionDayLog } from "../domain/nutrition-types";
 import { normalizedBlockOrder } from "../domain/block-order";
 export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error";
 
@@ -109,6 +110,14 @@ export const mergeTrainingStates = (
   const goals = pickNewestSection(local.goals, remote.goals, local.goalsUpdatedAt, remote.goalsUpdatedAt);
   const coachProfile = pickNewestSection(local.coachProfile, remote.coachProfile, local.coachProfileUpdatedAt, remote.coachProfileUpdatedAt);
   const settings = pickNewestSection(local.settings, remote.settings, local.settingsUpdatedAt, remote.settingsUpdatedAt);
+  const nutritionLogs = new Map<string, NutritionDayLog>();
+  for (const entry of [...(remote.nutritionLogs ?? []), ...(local.nutritionLogs ?? [])]) {
+    const current = nutritionLogs.get(entry.date);
+    if (!current) { nutritionLogs.set(entry.date, entry); continue; }
+    const meals = new Map(current.meals.map(meal => [meal.id, meal]));
+    for (const meal of entry.meals) meals.set(meal.id, meal);
+    nutritionLogs.set(entry.date, { ...current, targetKcal: entry.targetKcal, meals: [...meals.values()] });
+  }
   return {
     ...remote,
     ...local,
@@ -119,6 +128,7 @@ export const mergeTrainingStates = (
     resolvedConflictIds: [...new Set([...(local.resolvedConflictIds ?? []), ...(remote.resolvedConflictIds ?? [])])],
     deletedWorkoutIds,
     bodyweightEntries: [...bodyweights.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    nutritionLogs: [...nutritionLogs.values()].sort((a, b) => a.date.localeCompare(b.date)),
     benchmarks: mergeScheduleItems(local.benchmarks, remote.benchmarks).map((item) => {
       const left = local.benchmarks?.find((entry) => entry.id === item.id);
       const right = remote.benchmarks?.find((entry) => entry.id === item.id);

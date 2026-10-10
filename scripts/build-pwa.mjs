@@ -106,6 +106,16 @@ async function assetResponse(request) {
   if (currentAsset) await cache.put(request, response.clone()).catch(() => undefined);
   return response;
 }
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if ("focus" in client) return client.focus();
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(ROOT);
+  })());
+});
 self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
