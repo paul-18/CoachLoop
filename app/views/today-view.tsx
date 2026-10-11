@@ -34,7 +34,7 @@ import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type Card
 import { nextOpenBlock } from "../domain/completion";
 import { goalsAreStarter } from "./goal-examples";
 import { welcomePending } from "./first-steps";
-import { blankStartReversible, coachingPromptVisible, starterRemovable } from "./starter-plan";
+import { blankStartReversible, coachingPromptVisible, starterRemovable, starterRemovalDescription } from "./starter-plan";
 
 import { copyText, countLabel, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
 import { FirstWorkoutNote } from "./first-workout-note";
@@ -645,6 +645,8 @@ export function TodayView({
 
       {!active && state.workouts.some(workout => workout.starterSeed && workout.status === "planned") && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-guide"><h2>How this sample plan works</h2><p>It is an example you added, not a finished workout. Preview it, then start it. Tick a set to accept the suggested load, or type your own. Finish the workout when you stop. Remove starter stays available until you change that plan.</p></section>}
 
+      {starterRemovable(state) && <section className="starter-guide"><AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="ghost" className="starter-remove">Remove starter</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Remove starter setup?</AlertDialogTitle><AlertDialogDescription className="text-white/60">{starterRemovalDescription(state)}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Keep starter</AlertDialogCancel><AlertDialogAction onClick={onRemoveStarter}>Remove starter</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></section>}
+
       {!active && coachingPromptVisible(state) && <section className="starter-guide"><p>{state.settings.welcomeChoice === "blank" ? "Add coaching preferences if you want them included when you copy a brief for your own AI chat." : "The coach profile is still the starter text. Change it before you ask an AI for a plan."}</p><div className="first-steps-actions"><Button type="button" variant="outline" onClick={onOpenCoachingPreferences}>Set coaching preferences</Button><Button type="button" variant="ghost" onClick={onDismissCoachingPrompt}>Not now</Button></div></section>}
 
       {state.settings.firstWorkoutNote === "show" && <FirstWorkoutNote onDismiss={onDismissFirstNote} />}
@@ -655,7 +657,6 @@ export function TodayView({
           <Button type="button" variant="ghost" onClick={onEditGoals}>Edit</Button>
         </div>
         <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={`${index}:${goal}`}>{goal}</li>)}</ol>
-        {starterRemovable(state) && <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="ghost" className="starter-remove">Remove starter</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Remove starter setup?</AlertDialogTitle><AlertDialogDescription className="text-white/60">This removes the Starter session and clears starter goals or profile details only if they have not been changed. Your other workouts and any edited goals or profile details will be kept.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Keep starter</AlertDialogCancel><AlertDialogAction onClick={onRemoveStarter}>Remove starter</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
       </section>}
 
       {!active && state.workouts.length > 0 && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}

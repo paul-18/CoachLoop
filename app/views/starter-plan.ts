@@ -33,10 +33,17 @@ export function addSamplePlan(state: TrainingState): TrainingState {
   if (state.workouts.some(workout => workout.starterSeed)) return state;
   const now = new Date().toISOString();
   const plan = { ...samplePlan(state.settings.defaultUnit, state.exerciseAliases), starterSeed: true, updatedAt: now };
+  const quickLog = state.settings.quickLogActivities;
+  const untouchedDefault = !quickLog || quickLog.join() === DEFAULT_QUICK_LOG_ACTIVITIES.join();
+  const useStarterShortcuts = !state.settings.welcomeChoice && untouchedDefault;
   return {
     ...state,
     workouts: [plan, ...state.workouts],
-    settings: { ...state.settings, welcomeChoice: state.settings.welcomeChoice ?? "starter" },
+    settings: {
+      ...state.settings,
+      welcomeChoice: state.settings.welcomeChoice ?? "starter",
+      ...(useStarterShortcuts ? { quickLogActivities: [...STARTER_QUICK_LOG_ACTIVITIES] } : {}),
+    },
     settingsUpdatedAt: now,
   };
 }
@@ -72,6 +79,24 @@ export function starterRemovable(state: TrainingState) {
   if (state.settings.welcomeChoice !== "starter") return false;
   const seeds = state.workouts.filter(workout => workout.starterSeed);
   return seeds.every(seedIsClean);
+}
+
+/** Says only what this log will actually lose. A setup with no starter workout does not claim one is removed. */
+export function starterRemovalDescription(state: TrainingState): string {
+  const seeds = state.workouts.filter(workout => workout.starterSeed);
+  const parts = [
+    seeds.length === 0
+      ? "There is no starter workout to remove."
+      : seeds.length === 1
+        ? "This removes the sample starter workout."
+        : `This removes the ${seeds.length} sample starter workouts.`,
+  ];
+  if (goalsAreStarter(state.goals, state.settings.defaultUnit)) parts.push("Starter goals that are still the examples will be cleared.");
+  else if (state.goals.some(goal => goal.trim())) parts.push("Your goals stay.");
+  if (state.coachProfile === DEFAULT_COACH_PROFILE) parts.push("The starter coach profile will be cleared.");
+  else if (state.coachProfile.trim()) parts.push("Your coach profile stays.");
+  parts.push("Other workouts stay.");
+  return parts.join(" ");
 }
 export function removeStarterState(state: TrainingState): TrainingState {
   if (state.settings.welcomeChoice !== "starter") return state;
