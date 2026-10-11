@@ -1,5 +1,8 @@
 COACH LOOP — APPLYING AN AI-PROVIDED UPDATE
 
+Current app release: v101. Read docs/releases/V101-UPDATE-NOTES.md and
+docs/releases/V101-QC.md before applying anything newer.
+
 This is the reusable procedure. Each package also provides release-specific
 steps naming its expected baseline, ZIP, changed files and required deletions.
 Find the latest package steps through docs/README.md. Older recipes are historical.

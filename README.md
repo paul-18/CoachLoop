@@ -311,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v100 makes the first screen a local log plus an AI-chat loop: Start with an example, Start blank, or Restore backup. The example is a Starter session you can remove without erasing the phone. v99 keeps a new log’s quick log to run, bike, circuit, and yoga. See [v100 notes](docs/releases/V100-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V100-QC.md).
+v101 aligns workout counts, lets you skip an activity without the rest timer pointing at it, and keeps the first-run screen to two choices plus Restore backup. A kilogram log gets a 100 kg bench goal. See [v101 notes](docs/releases/V101-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V101-QC.md).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 
