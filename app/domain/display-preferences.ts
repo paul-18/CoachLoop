@@ -20,7 +20,7 @@ export const WEEKLY_CARD_OPTIONS = [
   { id: "force", label: "FORCE" }, { id: "other", label: "Other activities" },
 ] as const;
 export type WeeklyCard = (typeof WEEKLY_CARD_OPTIONS)[number]["id"];
-export const DEFAULT_WEEKLY_CARDS: WeeklyCard[] = ["strength", "run", "ruck", "water_polo", "circuit"];
+export const DEFAULT_WEEKLY_CARDS: WeeklyCard[] = ["strength", "run", "ruck", "circuit"];
 export const PROGRESS_SECTION_OPTIONS = [
   { id: "weekly", label: "Last 7 days" }, { id: "coverage", label: "Strength coverage" },
   { id: "balance", label: "Lift balance" }, { id: "bodyweight", label: "Bodyweight" },
