@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -643,7 +644,7 @@ export function TodayView({
           <Button type="button" variant="ghost" onClick={onEditGoals}>Edit</Button>
         </div>
         <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={`${index}:${goal}`}>{goal}</li>)}</ol>
-        {starterRemovable(state) && <Button type="button" variant="ghost" className="starter-remove" onClick={onRemoveStarter}>Remove starter</Button>}
+        {starterRemovable(state) && <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="ghost" className="starter-remove">Remove starter</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Remove starter setup?</AlertDialogTitle><AlertDialogDescription className="text-white/60">This removes the Starter session and clears starter goals or profile details only if they have not been changed. Your other workouts and any edited goals or profile details will be kept.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Keep starter</AlertDialogCancel><AlertDialogAction onClick={onRemoveStarter}>Remove starter</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
       </section>}
 
       {!active && state.workouts.length > 0 && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}
@@ -682,6 +683,7 @@ export function TodayView({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate font-extrabold tracking-[-0.02em] text-white">{workout.name}</h3>
+                      {workout.starterSeed && <Badge variant="outline" className="border-white/15 text-white/70">Starter</Badge>}
                       <Badge className="border-sky-300/15 bg-sky-300/8 text-sky-200/75">{timing}</Badge>
                     </div>
                     <p className="mt-1 text-sm text-white/60">{workout.exercises.length + workout.cardio.length} blocks · {exerciseSets} sets</p>
