@@ -4,7 +4,7 @@ Baseline: v100 `3fa13a2e8f7769f8248aae0fba22b38f9efb86f1` on origin/main. No Ind
 
 - The workout header and the finish dialog now use the same counts: sets, efforts and activities, with skipped work left out. History counts an exercise only when it has a completed set, and says “1 session” or “1 set” when there is one.
 - Skipping an activity keeps it out of the rest timer’s Next line. Skip activity is in the activity menu.
-- Ticking a set without typing still logs the suggested reps and load. The row and History say Suggested when that happened. The app does not store a separate “typed versus suggested” flag beyond the existing completed-as-planned mark.
+- Ticking a set without typing still logs the suggested reps and load. The set row says Suggested while that completed-as-planned flag is set. History does not use that word: the same flag also means an ordinary accepted prescription, and the log does not store whether the athlete typed the numbers.
 - The one-time saved-on-this-phone note appears for a starter or a blank log after a real working set or a completed activity. A warm-up checkbox alone does not show it. Got it still hides it for good.
 - Starter goals is the heading only while those exact starter goals are still there. Your own goals say Your goals. A kilogram log gets Bench press 100 kg and a practical kg sample (20, 60, 70, 75, 80, then 85 kg, and 4 kg dumbbells per hand). Pounds stay 225 lb and the existing pound loads.
 - Remove starter asks first. It still deletes only the untouched Starter session, and clears starter goals or the starter profile only if they were not edited. A quick-log list you changed is kept. An untouched new log keeps the four starter buttons rather than switching on every activity.

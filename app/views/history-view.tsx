@@ -70,7 +70,7 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
                       <div key={set.id} className={`history-set-compact ${set.completed ? "" : "incomplete"}`}>
                         <span className="history-set-index">{set.warmup ? "W" : index + 1}</span>
                         <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}</strong>
-                        <small>{set.completed ? `${set.completedAsPlanned ? "Suggested" : ""}${set.completedAsPlanned && (set.rpe || set.rir) ? " · " : ""}${set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : ""}` : set.skipped ? "Skipped" : "Not done"}</small>
+                        <small>{set.completed ? set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : "" : set.skipped ? "Skipped" : "Not done"}</small>
                         {set.notes && <p className="history-set-note">{set.notes}</p>}
                       </div>
                     );
