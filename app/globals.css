@@ -417,7 +417,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .coach-hero button { width: 100%; margin-top: 16px; }
   .loop-connector { display: none; }
   .page-stack { gap: 22px; padding: calc(22px + var(--app-safe-top)) 12px 50px; }
-  .today-stack { padding-top: calc(28px + var(--app-safe-top)); }
+  .today-stack { padding-top: calc(28px + var(--app-safe-top)); padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .today-stack { gap: 20px; }
   .coach-action-row { display: block; padding: 16px; }
   .coach-action-row button { width: 100%; margin-top: 14px; }
