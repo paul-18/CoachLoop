@@ -1,4 +1,4 @@
-import { formatMeasure, performedDistance, performedDuration } from "./completion";
+import { formatMeasure } from "./completion";
 import type { CardioEntry, WorkoutSession } from "./training-types";
 
 /** Shown before an impossible distance/duration pair is saved. Values are not rewritten. */
@@ -23,14 +23,40 @@ const FASTEST_MIN_PER_KM: Partial<Record<CardioEntry["activityType"], number>> =
 const finite = (value: number | null | undefined) =>
   value === null || value === undefined || !Number.isFinite(value) ? null : value;
 
-function loggedDistance(activity: CardioEntry) {
-  if (activity.efforts?.length) return finite(performedDistance(activity));
-  return finite(activity.actualDistanceKm ?? activity.plannedDistanceKm);
+/** Actual kilometres only. Planned distance is not a result. */
+function actualKilometres(activity: CardioEntry): number | null {
+  if (activity.efforts?.length) {
+    const pair = completedEffortPair(activity);
+    return pair ? pair.distanceKm : null;
+  }
+  return finite(activity.actualDistanceKm);
 }
 
-function loggedDuration(activity: CardioEntry) {
-  if (activity.efforts?.length) return finite(performedDuration(activity));
-  return finite(activity.actualDurationMin ?? activity.plannedDurationMin);
+/** Actual minutes only. Null means the time was never entered, not zero. */
+function actualMinutes(activity: CardioEntry): number | null {
+  if (activity.efforts?.length) {
+    const pair = completedEffortPair(activity);
+    return pair ? pair.durationMin : null;
+  }
+  return finite(activity.actualDurationMin);
+}
+
+/** Both sides of every completed effort that has a result, or nothing if one side is missing. */
+function completedEffortPair(activity: CardioEntry): { distanceKm: number; durationMin: number } | null {
+  const completed = (activity.efforts ?? []).filter((effort) => effort.completed);
+  let distanceKm = 0;
+  let durationMin = 0;
+  let saw = false;
+  for (const effort of completed) {
+    const metres = finite(effort.actualDistanceM);
+    const seconds = finite(effort.actualDurationSec);
+    if (metres === null && seconds === null) continue;
+    if (metres === null || seconds === null || metres < 0 || seconds < 0) return null;
+    distanceKm += metres / 1000;
+    durationMin += seconds / 60;
+    saw = true;
+  }
+  return saw ? { distanceKm, durationMin } : null;
 }
 
 function distanceText(kilometres: number, type: CardioEntry["activityType"]) {
@@ -38,22 +64,16 @@ function distanceText(kilometres: number, type: CardioEntry["activityType"]) {
   return `${formatMeasure(kilometres)} km`;
 }
 
-/** Warn only after the user has entered a result or marked the activity complete. */
+/** Warn only when both actual distance and actual duration were entered. Planned numbers never count. */
 export function unusualActivityWarning(activity: CardioEntry): string | null {
   if (activity.skipped) return null;
-  const entered = activity.completed
-    || activity.actualDistanceKm !== null
-    || activity.actualDurationMin !== null
-    || !!activity.efforts?.some(effort => effort.completed);
-  if (!entered) return null;
-  const distance = loggedDistance(activity);
-  if (distance === null || distance <= 0) return null;
-  const duration = loggedDuration(activity);
-  const missingTime = duration === null || duration <= 0;
+  const distance = actualKilometres(activity);
+  const duration = actualMinutes(activity);
+  if (distance === null || distance <= 0 || duration === null || duration < 0) return null;
   const limit = FASTEST_MIN_PER_KM[activity.activityType];
-  const tooFast = !missingTime && limit !== undefined && duration / distance < limit;
-  if (!missingTime && !tooFast) return null;
-  const time = missingTime ? "0 min" : `${formatMeasure(duration)} min`;
+  const tooFast = limit !== undefined && duration / distance < limit;
+  if (duration > 0 && !tooFast) return null;
+  const time = `${formatMeasure(duration)} min`;
   return `${activity.name}: ${distanceText(distance, activity.activityType)} in ${time}. ${UNUSUAL_ENTRY_MESSAGE}`;
 }
 
