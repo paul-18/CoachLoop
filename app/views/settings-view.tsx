@@ -1,5 +1,6 @@
 import { orderedQuickLogOptions } from "../domain/quick-log-order";
-import { GoalExamples } from "./goal-examples";
+import { GoalExamples, GoalTargetList } from "./goal-examples";
+import { mergeGoalTargets } from "../domain/setup-content";
 import { BackupVerification } from "./backup-verification";
 import { useStorageHealth } from "../pwa/use-storage-health";
 import { parseBackupReview, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
@@ -35,7 +36,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 
 
 import { listSnapshots, loadSnapshot, type SnapshotMetadata } from "../persistence/training-storage";
-import { DEFAULT_QUICK_LOG_ACTIVITIES, localDate, uid, type FieldConflict, type TrainingState, type Unit } from "../domain/training-types";
+import { DEFAULT_QUICK_LOG_ACTIVITIES, localDate, uid, type FieldConflict, type GoalTarget, type TrainingState, type Unit } from "../domain/training-types";
 
 import { DecimalInput, shareTextFile, downloadText } from "./shared";
 import { validMeasurementDate } from "../domain/training-workflow";
@@ -98,6 +99,8 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     setState((current) => ({ ...current, settings: update(current.settings), settingsUpdatedAt: new Date().toISOString() }));
   const updateGoals = (update: (goals: string[]) => string[]) =>
     setState((current) => ({ ...current, goals: update(current.goals), goalsUpdatedAt: new Date().toISOString() }));
+  const updateGoalTargets = (update: (targets: GoalTarget[] | undefined) => GoalTarget[]) =>
+    setState((current) => ({ ...current, goalTargets: update(current.goalTargets) }));
   const updateCoachProfile = (coachProfile: string) =>
     setState((current) => ({ ...current, coachProfile, coachProfileUpdatedAt: new Date().toISOString() }));
   const exportBackup = () => {
@@ -187,7 +190,8 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
           {state.goals.map((goal, index) => <div key={index} className="goal-read-card"><p>{goal}</p><div className="goal-actions"><Button type="button" variant="outline" size="sm" onClick={() => setTextEdit({ kind: "goal", index, value: goal })}>Edit</Button><Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} aria-label={`Remove goal ${index + 1}`}><X /></Button></div></div>)}
           {!state.goals.length && <p className="text-sm text-white/60">No goals yet.</p>}
           <Button variant="outline" onClick={() => setTextEdit({ kind: "new-goal", value: "" })}><Plus /> Add goal</Button>
-          <GoalExamples onChoose={(value) => setTextEdit({ kind: "new-goal", value })} />
+          <GoalTargetList state={state} onRemove={(id) => updateGoalTargets((targets) => (targets ?? []).filter(target => target.id !== id))} />
+          <GoalExamples state={state} onAdd={(target) => updateGoalTargets((targets) => mergeGoalTargets(targets, [target]))} />
         </div>
         </div>
       </details>

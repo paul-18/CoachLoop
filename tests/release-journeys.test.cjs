@@ -3,7 +3,7 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const { indexedDB } = require('fake-indexeddb');
 const { environment, until, tab, wait } = require("./helpers/dom-environment.cjs");
 
-test('new-user guide routes to goals; example drafts cancel safely, append on Save, and persist after remount', async () => {
+test('quick setup creates structured goal targets; they persist after remount', async () => {
   const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
   const App = require('../app/workout-app.tsx').default;
   const { defaultState } = require('../app/domain/training-types.ts');
@@ -13,36 +13,29 @@ test('new-user guide routes to goals; example drafts cancel safely, append on Sa
   const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
   try {
     root.render(React.createElement(App));
-    await until(() => button('Add goals'), 'first-use guide opens');
+    await until(() => document.querySelector('.setup-flow'), 'quick setup opens for a new user');
     assert.equal(document.querySelector('.today-bodyweight-nudge'), null, 'brand-new user has no overdue bodyweight reminder');
-    button('Add goals').click();
-    await until(() => document.querySelector('#training-goals')?.open, 'guide opens training goals in Settings');
-    document.querySelector('#training-goals details').open = true;
-    button('Try consistency goal').click();
-    await until(() => document.querySelector('textarea'), 'example opens editor');
-    assert.match(document.querySelector('textarea').value, /8 weeks/);
-    assert.deepEqual((await storage.loadTrainingState()).goals, [], 'opening draft writes nothing');
-    button('Cancel').click();
-    await until(() => !document.querySelector('textarea'), 'Cancel closes');
-    assert.deepEqual((await storage.loadTrainingState()).goals, []);
-    button('Try consistency goal').click();
-    await until(() => document.querySelector('textarea'), 'second draft opens');
-    button('Save').click();
-    await until(async () => (await storage.loadTrainingState()).goals.length === 1, 'first goal commits');
-    const first = (await storage.loadTrainingState()).goals[0];
-    button('Try strength goal').click();
-    await until(() => document.querySelector('textarea'), 'next example opens');
-    button('Save').click();
-    await until(async () => (await storage.loadTrainingState()).goals.length === 2, 'second goal appends');
+    button('Continue').click();
+    await until(() => button('Bench 225'), 'preset cards appear');
+    button('Bench 225').click();
+    await until(() => button('Bench 225').className.includes('is-selected'), 'preset toggles selected');
+    button('Continue').click();
+    await until(() => button('Skip for now'), 'template screen appears');
+    button('Skip for now').click();
+    await until(async () => (await storage.loadTrainingState()).settings.setupComplete === true, 'setup completes');
     const saved = await storage.loadTrainingState();
-    assert.equal(saved.goals[0], first); assert.match(saved.goals[1], /controlled technique/);
-    assert.equal(saved.workouts.length, 0); assert.equal(saved.coachProfile, '');
+    assert.equal(saved.goalTargets.length, 1, 'one structured target saved');
+    assert.equal(saved.goalTargets[0].presetId, 'bench-225');
+    assert.ok(saved.goalTargets[0].id, 'target has a stable id');
+    await until(() => !document.querySelector('.setup-flow'), 'setup disappears after finishing');
     root.unmount(); await wait(30);
     root = createRoot(document.getElementById('root')); root.render(React.createElement(App));
     await until(() => document.querySelector('[role="tab"]'), 'relaunch opens');
+    const relaunched = await storage.loadTrainingState();
+    assert.equal(relaunched.goalTargets.length, 1, 'target persists after remount');
+    assert.equal(relaunched.goalTargets[0].presetId, 'bench-225');
     tab('Coach'); await wait(30);
-    assert.ok(document.querySelector('.coach-goals').textContent.includes(first), 'saved priorities appear on Coach');
-    assert.equal(document.querySelector('.coach-goals').open, false, 'Coach priorities stay collapsed');
+    assert.ok(document.querySelector('.coach-goals').textContent.includes('Bench 225'), 'saved target appears on Coach');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 

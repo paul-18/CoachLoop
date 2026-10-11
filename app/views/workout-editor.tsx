@@ -22,6 +22,7 @@ import { moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetVal
 import { activityEffortSummary, activityLoggingStyle, completeActivityEffort, makeActivityEffort } from "../domain/activity-logging";
 
 import { completedSetValues, convertWeight, completedActivityValues, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, workoutLiftingVolume } from "../domain/training-metrics";
+import { personalRecordMessage } from "../domain/setup-content";
 
 import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
 
@@ -254,6 +255,7 @@ function ExerciseEditor({
   defaultUnit,
   barWeightLb,
   barWeightKg,
+  trainingState,
   onChange,
   onCompleteSet,
   onRemove,
@@ -269,6 +271,7 @@ function ExerciseEditor({
   defaultUnit: Unit;
   barWeightLb: number;
   barWeightKg: number;
+  trainingState: TrainingState;
   onChange: (exercise: ExerciseBlock) => void;
   onCompleteSet: (seconds: number) => void;
   onRemove: () => void;
@@ -431,6 +434,10 @@ function ExerciseEditor({
                   actualWeight: values ? values.actualWeight : clearingAcceptedPlan ? null : currentSet.actualWeight,
                 });
                 if (completing && !currentSet.warmup && exercise.restSec) onCompleteSet(exercise.restSec);
+                if (completing && values) {
+                  const message = personalRecordMessage(trainingState, exercise.name, { ...currentSet, ...values, completed: true, warmup: currentSet.warmup });
+                  if (message) toast.success(message);
+                }
                 if (completing) setShowCompleted(false);
               }}
               onRemove={() => removeSet(set.id)}
@@ -831,6 +838,7 @@ export function WorkoutEditor({
             defaultUnit={state.settings.defaultUnit}
             barWeightLb={state.settings.barWeightLb}
             barWeightKg={state.settings.barWeightKg}
+            trainingState={state}
             increment={state.loadIncrements?.[incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
             onIncrement={value => onIncrement(incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases),value)}
             onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}

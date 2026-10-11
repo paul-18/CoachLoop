@@ -7,7 +7,8 @@ import { HistoryView } from "../views/history-view";
 import { CoachView } from "../views/coach-view";
 import { ProgressView } from "../views/progress-view";
 import { SettingsView } from "../views/settings-view";
-import { FirstSteps, sampleWorkout } from "../views/first-steps";
+import { FirstSteps } from "../views/first-steps";
+import { mergeGoalTargets } from "../domain/setup-content";
 import { ViewErrorBoundary } from "./view-error-boundary";
 import type { ShellModel } from "./use-shell-model";
 
@@ -32,7 +33,7 @@ export function AppScreens({ model }: { model: ShellModel }) {
           {lastImportId && state.workouts.some(w => w.id === lastImportId && w.status === "planned" && !w.exercises.some(e => e.sets.some(set => set.completed)) && !w.cardio.some(c => c.completed || c.efforts?.some(e => e.completed))) && <div className="reliability-bar"><span>Last imported plan</span><Button size="sm" variant="outline" onClick={() => { deleteWorkout(lastImportId); setLastImportId(null); toast("Unstarted import undone"); }}>Undo import</Button></div>}
 
 
-          {!displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onSetup={openSettingsSection} onCoach={() => setCoachOpen(true)} onImport={() => setImportOpen(true)} onSample={() => { setImportDraft(sampleWorkout()); setImportOpen(true); }} />}
+          {!displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onFinish={(targets) => applyProjectedUpdate(current => ({ ...current, goalTargets: mergeGoalTargets(current.goalTargets, targets), settings: { ...current.settings, setupComplete: true }, settingsUpdatedAt: new Date().toISOString() }))} onTemplate={(fitlog, targets) => { applyProjectedUpdate(current => ({ ...current, goalTargets: mergeGoalTargets(current.goalTargets, targets), settings: { ...current.settings, setupComplete: true }, settingsUpdatedAt: new Date().toISOString() })); setImportDraft(fitlog); setImportOpen(true); }} />}
           
           {(activeChoices.length > 1 || (activeChoices.length > 0 && !state.activeWorkoutId)) && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { resumeWorkout(choice.id); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
           {localSaveStatus === "error" && <div role="alert" className="m-3 rounded-xl border border-red-300/30 bg-red-950/30 p-3 text-sm">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}

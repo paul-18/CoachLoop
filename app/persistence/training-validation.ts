@@ -84,9 +84,18 @@ const conflictSchema = z.object({
 });
 
 /** The complete schema used at the cloud boundary and after legacy migration. */
+const goalTargetSchema = z.object({
+  id: identifier, presetId: z.string().min(1), label: z.string().min(1),
+  kind: z.enum(["e1rm", "distance", "race", "reps", "consistency"]),
+  exercise: z.string().optional(), targetWeight: finite.positive().optional(), targetReps: finite.positive().optional(),
+  distanceKm: finite.positive().optional(), maxMinutes: finite.positive().optional(),
+  perWeek: finite.positive().optional(), weeks: finite.positive().optional(), totalWorkouts: finite.positive().optional(),
+  createdAt: timestamp, achievedAt: timestamp.nullable().optional(),
+});
 export const storedStateBoundary = z.object({
   version: z.literal(1), evidenceVersion: z.literal(2).optional(), workouts: z.array(workoutSchema),
   bodyweightEntries: z.array(z.object({ id: identifier, date, weight: finite.positive(), unit, updatedAt: timestamp })),
+  goalTargets: z.array(goalTargetSchema).optional(),
   benchmarks: z.array(z.object({ id: identifier, name: z.string().min(1), protocol: z.string(), result: z.string(), testedOn: date.nullable(), attempts: z.array(z.object({ id: identifier, date, result: z.string().min(1), protocol: z.string(), updatedAt: timestamp })).optional(), retestDays: finite.int().min(7).max(365).nullable(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   waistEntries: z.array(z.object({ id: identifier, date, cm: finite.positive(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   loadIncrements: z.record(z.string(), z.object({ value: finite.nonnegative(), updatedAt: timestamp })).optional(),
@@ -108,7 +117,7 @@ export const storedStateBoundary = z.object({
     quickLogActivities: z.array(z.enum(["run", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
-    coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
+    coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(), setupComplete: z.boolean().optional(),
   }),
   settingsUpdatedAt: timestamp,
   pendingConflicts: z.array(conflictSchema).optional(), resolvedConflictIds: stringArray.optional(),

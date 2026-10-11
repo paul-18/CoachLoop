@@ -175,6 +175,30 @@ export const QUICK_LOG_OPTIONS = [
 export type QuickLogActivityType = (typeof QUICK_LOG_OPTIONS)[number]["type"];
 export const DEFAULT_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = QUICK_LOG_OPTIONS.map(option => option.type);
 
+/** A concrete, trackable goal created from a preset. Unlike free-text goals,
+ * tracking binds to these structured fields — editing the label never breaks
+ * progress measurement. */
+export type GoalTargetKind = "e1rm" | "distance" | "race" | "reps" | "consistency";
+export interface GoalTarget {
+  id: string;
+  presetId: string;
+  label: string;
+  kind: GoalTargetKind;
+  /** Strength: canonical exercise name, target in lb, optional rep target (default 1). */
+  exercise?: string;
+  targetWeight?: number;
+  targetReps?: number;
+  /** Cardio: distance in km, optional time cap in minutes. */
+  distanceKm?: number;
+  maxMinutes?: number;
+  /** Consistency: either sessions-per-week for N weeks, or a total workout count. */
+  perWeek?: number;
+  weeks?: number;
+  totalWorkouts?: number;
+  createdAt: string;
+  achievedAt?: string | null;
+}
+
 export interface AppSettings {
   colorTheme?: ColorTheme;
   weeklyCards?: WeeklyCard[];
@@ -189,6 +213,7 @@ export interface AppSettings {
   installedHintDismissed: boolean;
   coachCheckIn: CoachCheckIn;
   lastCoachBriefAt: string | null;
+  setupComplete?: boolean;
 }
 
 export interface FieldConflict {
@@ -229,6 +254,9 @@ export interface TrainingState {
   deletedWorkoutIds: string[];
   activeWorkoutId: string | null;
   goals: string[];
+  /** Concrete trackable goals from presets. Optional so pre-existing stored
+   * states load untouched; treat undefined as []. */
+  goalTargets?: GoalTarget[];
   /** Section-level timestamps keep simple preference edits deterministic across devices. */
   goalsUpdatedAt: string;
   coachProfile: string;

@@ -1,0 +1,55 @@
+COACH LOOP v95 HYBRID — UPLOAD STEPS (feature-testing branch)
+
+Expected baseline: v94 at commit e31143fc064793f3b3f7cc479337e85768cdcd85.
+Overlay only. No deletions and no dependency changes.
+
+IMPORTANT: the feature-testing branch currently holds the abandoned
+notification experiment. Step 2 resets it to clean v94 first. The
+notification work is preserved in the earlier ZIPs; nothing is lost.
+
+1. Finish workouts and wait for Saved. Export a private JSON backup to Files.
+
+2. In /workspaces/CoachLoop, one command at a time:
+
+git status --short
+
+   If files are listed, stop and reconcile them first. If clean:
+
+git checkout feature-testing
+git pull --ff-only
+git reset --hard e31143fc064793f3b3f7cc479337e85768cdcd85
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect e31143fc064793f3b3f7cc479337e85768cdcd85 and v94.
+   The reset drops the notification experiment from this branch only.
+   main and the live site are untouched.
+
+3. Upload CoachLoop-v95-Hybrid-GitHub-Update.zip beside package.json. Do not commit the ZIP.
+
+4. One command at a time:
+
+unzip -o CoachLoop-v95-Hybrid-GitHub-Update.zip
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Expect v95, and no CoachLoop-v95-Hybrid-GitHub-Update folder.
+   Continue only if release checks passed (185/185 tests).
+
+5. Stage only these files:
+
+git add README.md app/app-release.ts app/domain/setup-content.ts app/domain/training-types.ts app/globals.css app/persistence/training-validation.ts app/shell/app-screens.tsx app/views/coach-view.tsx app/views/first-steps.tsx app/views/goal-examples.tsx app/views/settings-view.tsx app/views/today-view.tsx app/views/workout-editor.tsx docs/releases/V95-QC.md docs/releases/V95-UPDATE-NOTES.md docs/releases/V95-UPLOAD.txt tests/first-steps.test.ts tests/release-journeys.test.cjs tests/setup-content.test.ts
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect 19 files. No ZIP, backup, dist, or node_modules.
+
+6. Commit and push (force-with-lease is required after the reset):
+
+git commit -m "v95 hybrid: quick setup, structured goal targets, templates"
+git push --force-with-lease origin feature-testing
+
+7. Vercel builds the feature-testing branch. Open the beta URL and confirm
+   v95 in Settings. Then on the iPhone test the QC list in V95-QC.md.

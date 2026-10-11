@@ -28,6 +28,7 @@ import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
 import { formatLoad } from "../domain/training-metrics";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
+import { oneThingToday } from "../domain/setup-content";
 
 import { localDate, currentCoachCheckIn, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
 
@@ -570,6 +571,7 @@ export function TodayView({
 
   return (
     <div className="page-stack today-stack">
+      {oneThingToday(state) && <section className="one-thing-today"><p className="eyebrow">One thing today</p><strong>{oneThingToday(state)!.label}</strong><p>{oneThingToday(state)!.body}</p></section>}
       <SavedPlanPreview workout={planned.find((item) => item.id === previewId)} active={Boolean(active)} onClose={() => setPreviewId(null)} onStart={onStartPlan} onReschedule={onReschedulePlan} />
       <section className="topline">
         <div>
