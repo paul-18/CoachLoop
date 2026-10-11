@@ -12,7 +12,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 
 import { type CardioEntry, type ExerciseBlock, type WorkoutSession } from "../domain/training-types";
 
-import { performedDuration, performedDistance, hasCompletedActivityWork } from "../domain/completion";
+import { performedDuration, performedDistance, hasCompletedActivityWork, unconfirmedActualActivities, formatMeasure, activityHistoryLabel, effortHasTypedActual } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 export type MainView = "today" | "history" | "coach" | "progress" | "settings";
 
@@ -162,6 +162,39 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
   if (distance) pieces.push(`${distance.toFixed(distance % 1 ? 2 : 0)} km`);
   if (activities.length && !duration && !distance) {
     pieces.push(`${activities.length} activit${activities.length === 1 ? "y" : "ies"}`);
+  }
+  const pending = unconfirmedActualActivities(workout);
+  if (pending.length) {
+    const note = pending.length === 1
+      ? "1 activity has entered results that are not marked complete"
+      : `${pending.length} activities have entered results that are not marked complete`;
+    if (!pieces.length) {
+      let distance = 0;
+      let duration = 0;
+      let hasDistance = false;
+      let hasDuration = false;
+      for (const activity of pending) {
+        if (activity.efforts?.length) {
+          for (const effort of activity.efforts) {
+            if (effort.completed || !effortHasTypedActual(effort)) continue;
+            if (typeof effort.actualDistanceM === "number") { distance += effort.actualDistanceM / 1000; hasDistance = true; }
+            if (typeof effort.actualDurationSec === "number") { duration += effort.actualDurationSec / 60; hasDuration = true; }
+          }
+        } else {
+          if (typeof activity.actualDistanceKm === "number") { distance += activity.actualDistanceKm; hasDistance = true; }
+          if (typeof activity.actualDurationMin === "number") { duration += activity.actualDurationMin; hasDuration = true; }
+        }
+      }
+      const labels = new Set(pending.map(activityHistoryLabel));
+      const facts = [
+        hasDistance ? `${formatMeasure(distance)} km` : "",
+        hasDuration ? `${formatMeasure(duration)} min` : "",
+        labels.size === 1 ? [...labels][0] : "",
+        note,
+      ].filter(Boolean);
+      return facts.join(" · ");
+    }
+    pieces.push(note);
   }
   return pieces.join(" · ") || "No work recorded";
 };

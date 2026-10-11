@@ -30,7 +30,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, nextOpenBlock, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, markTypedActivitiesComplete, nextOpenBlock, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -45,6 +45,24 @@ function compactSetSummary(sets: TrainingSet[]) {
     else groups.push({ load, reps: [performedReps(set) || "—"] });
   }
   return groups.map(({ load, reps }) => `${load.replace(/ total$/, "")} × ${reps.every((rep) => rep === reps[0]) ? `${reps[0]}${reps.length > 1 ? ` (${reps.length} sets)` : ""}` : reps.join("/")}`).join(" · ");
+}
+
+export function UnconfirmedActualsPrompt({ activities, onMarkAndFinish, onFinishIncomplete, onReturn }: {
+  activities: Array<{ id: string; name: string }>;
+  onMarkAndFinish: () => void;
+  onFinishIncomplete: () => void;
+  onReturn: () => void;
+}) {
+  return <div className="grid gap-3">
+    <p>These activities have results entered, but they are not marked complete. The numbers stay either way.</p>
+    <ul className="list-disc pl-5 text-sm text-white/75">{activities.map((activity) => <li key={activity.id}>{activity.name}</li>)}</ul>
+    <p className="text-sm text-white/60">Marking them complete keeps those results in History. Finishing without that leaves the activities incomplete. Going back changes nothing.</p>
+    <div className="grid gap-2">
+      <Button type="button" onClick={onMarkAndFinish} className="bg-[var(--lime)] text-[#11140d]">Mark complete and finish</Button>
+      <Button type="button" variant="outline" onClick={onFinishIncomplete}>Finish and leave them incomplete</Button>
+      <Button type="button" variant="ghost" onClick={onReturn}>Back to the workout</Button>
+    </div>
+  </div>;
 }
 
 export function CoachCue({ text }: { text: string }) {
@@ -667,7 +685,7 @@ export function WorkoutEditor({
   state: TrainingState;
   onUpdate: (workout: WorkoutSession) => void;
   saveStatus?: "saving" | "saved" | "error";
-  onFinish: () => Promise<void>;
+  onFinish: (updated?: WorkoutSession) => Promise<void>;
   onDiscard?: () => void;
   onBack: () => void;
   onIncrement: (key: string, value: number) => void;
@@ -677,6 +695,8 @@ export function WorkoutEditor({
   const substitutionAnchor = useRef<HTMLButtonElement | null>(null);
   const finishFromMenu = useRef(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [actualsPromptOpen, setActualsPromptOpen] = useState(false);
+  const acknowledgedActuals = useRef<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState("");
   const [renaming, setRenaming] = useState(false);
@@ -828,6 +848,32 @@ export function WorkoutEditor({
   const unfinishedSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
   const unfinishedActivities = workout.cardio.filter(activityStillOpen).length;
   const differences = planDifferences(workout);
+  const pendingActuals = unconfirmedActualActivities(workout);
+  const openFinish = (fromMenu: boolean) => {
+    finishFromMenu.current = fromMenu;
+    if (shouldPromptForUnconfirmedActuals(workout, acknowledgedActuals.current)) {
+      setActualsPromptOpen(true);
+      return;
+    }
+    setFinishOpen(true);
+  };
+  const finishFromActualsPrompt = async (markComplete: boolean) => {
+    const next = markComplete ? markTypedActivitiesComplete(workout, pendingActuals.map((activity) => activity.id)) : workout;
+    if (markComplete) onUpdate(next);
+    acknowledgedActuals.current = markComplete ? null : unconfirmedActualKey(workout);
+    setActualsPromptOpen(false);
+    setFinishing(true);
+    setFinishError("");
+    try {
+      await onFinish(markComplete ? next : undefined);
+      setRestUntil(null);
+    } catch {
+      setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings.");
+      setFinishOpen(true);
+    } finally {
+      setFinishing(false);
+    }
+  };
 
   return (
     <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""}`}>
@@ -837,7 +883,7 @@ export function WorkoutEditor({
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => { finishFromMenu.current = true; setFinishOpen(true); }}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => { finishFromMenu.current = false; setFinishOpen(true); }} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution returnFocus={substitutionAnchor} exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
@@ -914,8 +960,14 @@ export function WorkoutEditor({
               <AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Keep workout</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => { setRestUntil(null); onDiscard(); }}>Discard</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>}
+          <AlertDialog open={actualsPromptOpen} onOpenChange={(open) => { if (!finishing) setActualsPromptOpen(open); }}>
+            <AlertDialogContent className="border-white/10 bg-[#171916] text-white">
+              <AlertDialogHeader><AlertDialogTitle>Results are not marked complete</AlertDialogTitle><AlertDialogDescription className="text-white/60">Choose what to do with the activities below. Nothing is discarded.</AlertDialogDescription></AlertDialogHeader>
+              <UnconfirmedActualsPrompt activities={pendingActuals.map((activity) => ({ id: activity.id, name: activity.name }))} onMarkAndFinish={() => { void finishFromActualsPrompt(true); }} onFinishIncomplete={() => { void finishFromActualsPrompt(false); }} onReturn={() => setActualsPromptOpen(false)} />
+            </AlertDialogContent>
+          </AlertDialog>
           <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); if (!open && finishFromMenu.current) queueMicrotask(() => { workoutOptionsRef.current?.focus(); finishFromMenu.current = false; }); }}>
-            <Button onClick={() => { finishFromMenu.current = false; setFinishOpen(true); }} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
+            <Button onClick={() => openFinish(false)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(workout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
               {unusual && <p role="status" className="activity-warning">{unusual}</p>}

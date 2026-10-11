@@ -82,14 +82,14 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
           );
         }
         const item = block.activity;
-        const duration = !hasCompletedActivityWork(item) ? item.plannedDurationMin : performedDuration(item);
-        const distance = !hasCompletedActivityWork(item) ? item.plannedDistanceKm : performedDistance(item);
+        const duration = hasCompletedActivityWork(item) ? performedDuration(item) : item.actualDurationMin !== null ? item.actualDurationMin : item.plannedDurationMin;
+        const distance = hasCompletedActivityWork(item) ? performedDistance(item) : item.actualDistanceKm !== null ? item.actualDistanceKm : item.plannedDistanceKm;
         return (
           <section key={item.id} className={`history-exercise ${item.completed ? "" : "history-activity-incomplete"}`}>
             <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.skipped && !item.completed ? "border-amber-300/15 text-amber-200/65" : item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{activityHistoryLabel(item)}</Badge></div>
             {item.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{item.coachNotes}</p></details>}
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
-            {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.completed ? effort.actualDistanceM : effort.plannedDistanceM, effort.completed ? effort.actualLoad : effort.plannedLoad, effort.completed ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
+            {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.actualDistanceM !== null ? effort.actualDistanceM : effort.plannedDistanceM, effort.actualLoad !== null ? effort.actualLoad : effort.plannedLoad, effort.actualDurationSec !== null ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
             <div className="history-cardio-grid">
               {(duration !== null || !(item.efforts?.length)) && <div><small>Duration</small><strong>{duration !== null ? `${formatMeasure(duration)} min` : "Not recorded"}</strong></div>}
               {!(["mobility", "soccer", "grappling", "yoga"].includes(item.activityType)) && (distance !== null || !(item.efforts?.length)) && <div><small>Distance</small><strong>{distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : "Not recorded"}</strong></div>}

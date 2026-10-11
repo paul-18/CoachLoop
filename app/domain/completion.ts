@@ -1,4 +1,4 @@
-import type { CardioEntry, TrainingSet, WorkoutSession } from "./training-types";
+import type { ActivityEffort, CardioEntry, TrainingSet, WorkoutSession } from "./training-types";
 import { normalizedBlockOrder } from "./block-order";
 export const hasCompletedActivityWork = (activity: CardioEntry) => activity.completed || !!activity.efforts?.some((e) => e.completed);
 export const performedDuration = (activity: CardioEntry) =>
@@ -158,4 +158,55 @@ export function activityHistoryLabel(activity: CardioEntry): string {
   if (activity.completed) return activity.completedAsPlanned ? "As prescribed" : "Completed";
   if (hasCompletedActivityWork(activity)) return "Partly completed";
   return "Not completed";
+}
+
+const finiteEntered = (value: number | null | undefined) => typeof value === "number" && Number.isFinite(value);
+
+export function effortHasTypedActual(effort: ActivityEffort) {
+  return finiteEntered(effort.actualDistanceM) || finiteEntered(effort.actualDurationSec) || finiteEntered(effort.actualLoad);
+}
+
+/** A typed distance, time, or effort result. Null means untouched. Zero counts as typed. */
+export function activityHasTypedActual(activity: CardioEntry) {
+  if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
+  return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
+}
+
+/** Activities the user typed results for but did not mark complete. Skipped and already complete activities are left out. */
+export function unconfirmedActualActivities(workout: WorkoutSession) {
+  return workout.cardio.filter((activity) => {
+    if (activity.skipped) return false;
+    if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
+    if (activity.completed) return false;
+    return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
+  });
+}
+
+export function unconfirmedActualKey(workout: WorkoutSession) {
+  return unconfirmedActualActivities(workout).map((activity) => {
+    const efforts = (activity.efforts ?? []).filter((effort) => !effort.completed && effortHasTypedActual(effort))
+      .map((effort) => `${effort.id}:${effort.actualDistanceM}:${effort.actualDurationSec}:${effort.actualLoad}`).join(",");
+    return `${activity.id}:${activity.actualDistanceKm}:${activity.actualDurationMin}:${efforts}`;
+  }).join("|");
+}
+
+export function shouldPromptForUnconfirmedActuals(workout: WorkoutSession, acknowledgedKey: string | null) {
+  const key = unconfirmedActualKey(workout);
+  return key.length > 0 && key !== acknowledgedKey;
+}
+
+/** Mark the listed activities complete without copying planned numbers into blank actual fields. */
+export function markTypedActivitiesComplete(workout: WorkoutSession, ids: readonly string[]): WorkoutSession {
+  const chosen = new Set(ids);
+  return {
+    ...workout,
+    cardio: workout.cardio.map((activity) => {
+      if (!chosen.has(activity.id) || activity.skipped) return activity;
+      if (activity.efforts?.length) {
+        const efforts = activity.efforts.map((effort) => !effort.completed && effortHasTypedActual(effort) ? { ...effort, completed: true } : effort);
+        return { ...activity, efforts, completed: efforts.length > 0 && efforts.every((effort) => effort.completed), completedAsPlanned: false };
+      }
+      return { ...activity, completed: true, completedAsPlanned: false };
+    }),
+  };
 }
