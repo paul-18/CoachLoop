@@ -63,6 +63,7 @@ export function ImportWorkoutDialog({
   const [warningsReviewed, setWarningsReviewed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const keepPreview = useRef(false);
 
   useEffect(() => {
     if (!open) {
@@ -71,7 +72,15 @@ export function ImportWorkoutDialog({
       setWarningsReviewed(false);
     }
   }, [open]);
-  useEffect(() => { setPreview(null); setError(""); setWarningsReviewed(false); }, [text]);
+  useEffect(() => {
+    if (keepPreview.current) {
+      keepPreview.current = false;
+      return;
+    }
+    setPreview(null);
+    setError("");
+    setWarningsReviewed(false);
+  }, [text]);
 
   const review = () => {
     setWarningsReviewed(false);
@@ -103,10 +112,10 @@ export function ImportWorkoutDialog({
       <DialogContent className="max-h-[88dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
         <DialogHeader className="border-b border-white/8 p-6 pb-5 text-left">
           <DialogTitle className="text-xl font-black tracking-[-0.035em]">
-            Import a ChatGPT workout
+            Bring a workout in
           </DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Paste the complete reply. Coach Loop reads only the validated FITLOG block.
+            Paste your AI’s reply, or load the safe example. Only the FITLOG block is read, and it is listed before anything is saved.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,16 +134,34 @@ export function ImportWorkoutDialog({
                   {error} Use the Coach screen first so ChatGPT receives the exact format.
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  onTextChange(exampleFitlog);
-                  setError("");
-                }}
-                className="text-sm font-semibold text-[var(--lime)] hover:underline"
-              >
-                Load a safe example
-              </button>
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-sm font-semibold text-white">Safe example</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-white/70">
+                  <li>Bodyweight squat — 5 easy, then 8 at a light effort</li>
+                  <li>60 seconds of rest</li>
+                  <li>Easy walk — 10 minutes</li>
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = exampleFitlog();
+                    keepPreview.current = true;
+                    onTextChange(sample);
+                    setWarningsReviewed(false);
+                    try {
+                      setPreview(parseFitlog(sample, state.settings.defaultUnit, state.exerciseAliases));
+                      setError("");
+                    } catch (cause) {
+                      setPreview(null);
+                      setError(cause instanceof Error ? cause.message : "This workout could not be read.");
+                    }
+                  }}
+                  className="mt-3 min-h-11 text-left text-sm font-semibold text-[var(--lime)]"
+                >
+                  Load a safe example
+                </button>
+                <p className="mt-1 text-sm leading-6 text-white/60">Puts that plan in the box and lists it for review. Change it if it does not fit you. It is not saved until you start or save it.</p>
+              </div>
             </>
           ) : (
           <div className="space-y-4">
@@ -145,6 +172,7 @@ export function ImportWorkoutDialog({
                       {preview.importWarnings?.length ? "Needs review" : "Ready to import"}
                     </p>
                     <h3 className="mt-2 text-xl font-black tracking-[-0.035em]">{preview.name}</h3>
+                    {preview.name.startsWith("Safe example") && <p className="mt-2 text-sm leading-6 text-white/60">Example only. Go back to the text if you want to change it or paste your own plan.</p>}
                     <p className="mt-1 text-sm text-white/45">{formatDate(preview.date)}</p>
                   </div>
                   <Badge className={preview.importWarnings?.length ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-[var(--lime)]/20 bg-[var(--lime)]/10 text-[var(--lime)]"}>
@@ -579,8 +607,8 @@ export function TodayView({
         {(syncStatus === "offline" || syncStatus === "error") && <span className="data-pill sync-exception"><CloudOff />{syncCopy[syncStatus]}</span>}
       </section>
 
-      {!active && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}
-      {!active && <button type="button" className="today-context-line today-streak-link" onClick={onTrainingCalendar} title="A week counts when you complete training on five different days, Monday through Sunday. Rest days do not break it. Open training calendar."><span className="font-semibold text-[var(--lime)]">{streak.weeks > 0 ? `${streak.weeks}-week training streak` : "Build a training streak"}</span> · {streak.daysThisWeek}/{streak.targetDays} days this week <ChevronRight aria-hidden="true" size={15} /></button>}
+      {!active && state.workouts.length > 0 && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}
+      {!active && state.workouts.length > 0 && <button type="button" className="today-context-line today-streak-link" onClick={onTrainingCalendar} title="A week counts when you complete training on five different days, Monday through Sunday. Rest days do not break it. Open training calendar."><span className="font-semibold text-[var(--lime)]">{streak.weeks > 0 ? `${streak.weeks}-week training streak` : "Build a training streak"}</span> · {streak.daysThisWeek}/{streak.targetDays} days this week <ChevronRight aria-hidden="true" size={15} /></button>}
       {!active && latestWeightDate && weightAge >= 7 && dismissedNudge !== nudgeKey && <div className="today-bodyweight-nudge"><button type="button" onClick={onBodyweightLog}>Haven’t logged bodyweight in a while — log now?</button><button type="button" aria-label="Dismiss bodyweight reminder" onClick={() => { try { localStorage.setItem("coach-loop-bodyweight-nudge", nudgeKey); } catch { /* Optional preference. */ } setDismissedNudge(nudgeKey); }}><X size={16} /></button></div>}
 
       {active && (
@@ -664,7 +692,7 @@ export function TodayView({
         <QuickLogButtons settings={state.settings} disabled={Boolean(active)} onChoose={onQuickCardio} />
       </section>}
 
-      {!active && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
+      {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
 
       {!active && todayEntries.length > 0 && <button type="button" className="today-logged" onClick={onHistory}><span className="truncate">Logged today: {todayEntries.map((workout) => workout.name).join(" · ")}</span><ChevronRight aria-hidden="true" /></button>}
 

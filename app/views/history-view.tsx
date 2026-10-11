@@ -29,7 +29,7 @@ import { localDate, type TrainingState, type Unit, type WorkoutSession } from ".
 
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
 
-import { performedDuration, performedDistance, hasCompletedActivityWork } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork } from "../domain/completion";
 
 import { WorkoutVolume } from "./workout-editor";
 
@@ -90,8 +90,8 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
             {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.completed ? effort.actualDistanceM : effort.plannedDistanceM, effort.completed ? effort.actualLoad : effort.plannedLoad, effort.completed ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
             <div className="history-cardio-grid">
-              {(duration !== null || !(item.efforts?.length)) && <div><small>Duration</small><strong>{duration !== null ? `${duration} min` : "Not recorded"}</strong></div>}
-              {!(["mobility", "soccer", "grappling", "yoga"].includes(item.activityType)) && (distance !== null || !(item.efforts?.length)) && <div><small>Distance</small><strong>{distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${distance * 1000} m` : `${distance} km`}` : "Not recorded"}</strong></div>}
+              {(duration !== null || !(item.efforts?.length)) && <div><small>Duration</small><strong>{duration !== null ? `${formatMeasure(duration)} min` : "Not recorded"}</strong></div>}
+              {!(["mobility", "soccer", "grappling", "yoga"].includes(item.activityType)) && (distance !== null || !(item.efforts?.length)) && <div><small>Distance</small><strong>{distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : "Not recorded"}</strong></div>}
               {item.activityType === "ruck" && <div><small>Ruck load</small><strong>{item.ruckLoad !== null ? `${item.ruckLoad} ${item.ruckLoadUnit}` : "Not recorded"}</strong></div>}
             </div>
             {item.activityType === "run" && item.intervals && <RunPlan text={item.intervals} />}
@@ -226,7 +226,7 @@ export function HistoryView({
                       )}
                       <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setDeleteId(workout.id)} className="text-red-300"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                       <AlertDialog open={deleteId === workout.id} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
-                        <AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this session?</AlertDialogTitle><AlertDialogDescription className="text-white/45">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                        <AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/45">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>
                     </div>
                   </div>

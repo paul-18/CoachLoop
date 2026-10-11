@@ -1,4 +1,4 @@
-import { formatLoad, performedDistance, performedDuration, performedReps, performedWeight } from "./training-metrics";
+import { formatLoad, performedDistance, performedDuration, performedReps, performedWeight, formatMeasure } from "./training-metrics";
 import { localDate, type WorkoutSession } from "./training-types";
 import { validMeasurementDate } from "./training-workflow";
 
@@ -34,11 +34,11 @@ export function planDifferences(workout: WorkoutSession): string[] {
     const actual: string[] = [];
     if (activity.plannedDurationMin !== null && performedDuration(activity) !== activity.plannedDurationMin) {
       planned.push(`${activity.plannedDurationMin} min`);
-      actual.push(performedDuration(activity) === null ? "— min" : `${performedDuration(activity)} min`);
+      actual.push(performedDuration(activity) === null ? "— min" : `${formatMeasure(performedDuration(activity)!)} min`);
     }
     if (activity.plannedDistanceKm !== null && (performedDistance(activity) === null || Math.abs(performedDistance(activity)! - activity.plannedDistanceKm) > 0.0001)) {
       planned.push(`${activity.plannedDistanceKm} km`);
-      actual.push(performedDistance(activity) === null ? "— km" : `${performedDistance(activity)} km`);
+      actual.push(performedDistance(activity) === null ? "— km" : `${formatMeasure(performedDistance(activity)!)} km`);
     }
     if (planned.length) changes.push(`${activity.name}: ${planned.join(" · ")} → ${actual.join(" · ")}`);
   }

@@ -1,0 +1,48 @@
+COACH LOOP v95 — UPLOAD STEPS
+
+This commit is the v95 upload on main. Do not apply CoachLoop-v95.patch again on top of it.
+
+Expected baseline before this commit: v94 at e31143fc064793f3b3f7cc479337e85768cdcd85.
+Overlay only. No deletions and no dependency changes.
+
+1. Finish workouts and wait for Saved. Export a private JSON backup to Files.
+
+2. In /workspaces/CoachLoop, one command at a time:
+
+git status --short
+
+   If files are listed, stop and reconcile them first. If clean:
+
+git pull --ff-only
+git rev-parse HEAD
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+
+   Expect e31143fc064793f3b3f7cc479337e85768cdcd85 and v94.
+
+3. Put CoachLoop-v95.patch beside package.json. Do not commit the patch.
+
+4. One command at a time:
+
+git apply --check CoachLoop-v95.patch
+git apply CoachLoop-v95.patch
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+   Expect v95. Continue only if release checks passed.
+
+5. Stage only these files:
+
+git add README.md app/app-release.ts app/domain/completion.ts app/domain/plan-review.ts app/domain/training-metrics.ts app/globals.css app/interchange/coach-export.ts app/interchange/fitlog.ts app/interchange/history-export.ts app/interchange/training-csv.ts app/pwa/editor-lease.ts app/pwa/use-local-editor-lease.ts app/shell/editor-gate.tsx app/views/first-steps.tsx app/views/history-view.tsx app/views/settings-view.tsx app/views/today-view.tsx app/views/workout-date-dialog.tsx app/views/workout-editor.tsx docs/README.md docs/releases/V95-QC.md docs/releases/V95-UPDATE-NOTES.md docs/releases/V95-UPLOAD.txt tests/editor-lease.test.ts tests/first-steps.test.ts tests/fitlog-usability.test.ts tests/v95-review.test.ts tests/v95-ui.test.cjs
+
+git --no-pager diff --cached --stat
+git status --short
+
+   Expect 28 files. No patch, backup, dist or node_modules.
+
+git commit -m "Add Coach Loop v95 review fixes and a quieter first run"
+git push
+
+6. Wait for Publish Coach Loop PWA on that commit to turn green.
+7. In the installed app, finish workouts, wait for Saved, close other windows, then Settings → Check updates → Restart to update. Confirm v95.
+8. Follow docs/releases/V95-QC.md.

@@ -1,4 +1,4 @@
-import { performedDuration, performedDistance, hasTrainingEvidence } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasTrainingEvidence } from "../domain/completion";
 import { hyroxExport } from "../domain/hyrox";
 import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
@@ -103,8 +103,8 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       const duration = performedDuration(activity);
       const distance = performedDistance(activity);
       if (activity.completedAsPlanned) lines.push("- Completed as prescribed");
-      if (duration !== null) lines.push(`- Duration: ${duration} min`);
-      if (distance !== null) lines.push(`- Distance: ${distance} km`);
+      if (duration !== null) lines.push(`- Duration: ${formatMeasure(duration)} min`);
+      if (distance !== null) lines.push(`- Distance: ${formatMeasure(distance)} km`);
       if (activity.intensity) lines.push(`- Target intensity (not reported effort): ${activity.intensity}`);
       if (activity.pace) lines.push(`- Pace: ${activity.pace}`);
       if (activity.averageHr !== null) lines.push(`- Average HR: ${activity.averageHr} bpm`);

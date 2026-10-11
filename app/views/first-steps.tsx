@@ -1,19 +1,9 @@
 import type { TrainingState } from "../domain/training-types";
-import { localDate } from "../domain/training-types";
+import { exampleFitlog } from "../interchange/fitlog";
 import { Button } from "@/components/ui/button";
 import type { MainView } from "./shared";
 
-export const sampleWorkout = () => `[FITLOG:1]
-WORKOUT|Example workout — review before saving|${localDate()}
-EXERCISE|Bodyweight squat
-SET|8|Bodyweight|RPE 5
-REST|60
-CARDIO|Easy walk
-TYPE|walk
-DURATION|10
-INTENSITY|easy
-NOTES|Format example only. Choose movements and effort suitable for you.
-[/FITLOG]`;
+export const sampleWorkout = exampleFitlog;
 
 export function FirstSteps({ state, view, onSetup, onCoach, onSample, onImport }: {
   state: TrainingState;
@@ -23,24 +13,35 @@ export function FirstSteps({ state, view, onSetup, onCoach, onSample, onImport }
   onSample: () => void;
   onImport?: () => void;
 }) {
-  if (state.workouts.some(workout => workout.status === "completed")) return null;
+  if (view === "settings" || state.workouts.some(workout => workout.status === "completed")) return null;
+  if (view !== "today") {
+    const note = view === "history"
+      ? "Completed workouts show up here. Start on Today."
+      : view === "progress"
+        ? "Charts use completed results. Start on Today."
+        : "Copy a brief when you want a plan. You can also start from Today.";
+    return <p className="first-steps-elsewhere">{note}</p>;
+  }
   const profileReady = Boolean(state.coachProfile.trim());
   const goalsReady = state.goals.some(goal => goal.trim());
-  const heading = view === "history" ? "Your history starts with your first session" : view === "progress" ? "Your progress starts with logged results" : "Start your coaching loop";
-  return <details className="first-steps" open={view !== "settings" && (view !== "today" || !profileReady || !goalsReady)}>
-    <summary><span>{heading}</span><span aria-hidden="true">⌄</span></summary>
-    <p>{view === "progress" ? "Completed sets build charts and strength comparisons. A missing result means there is no data yet." : view === "history" ? "Imported plans stay on Today. Complete a workout to see what you actually did here." : "No history needed. Set your direction, ask your AI, then log what you do."}</p>
-    <ol>
-      <li><span className="step-number">1</span><div><strong>Describe your background{profileReady ? " · Added" : ""}</strong><small>Tell your AI your experience, available days, equipment, limitations and long-term direction. This stays editable.</small></div><Button variant="outline" onClick={() => onSetup("coach-profile")}>{profileReady ? "Edit profile" : "Set profile"}</Button></li>
-      <li><span className="step-number">2</span><div><strong>Rank your training goals{goalsReady ? " · Added" : ""}</strong><small>Put your most important goal first. Start from an optional example in Settings, then make it your own.</small></div><Button variant="outline" onClick={() => onSetup("training-goals")}>{goalsReady ? "Edit goals" : "Add goals"}</Button></li>
-      <li><span className="step-number">3</span><div><strong>Ask your preferred AI</strong><small>Choose Start a new chat, copy the brief, and paste it into your AI outside this app.</small></div><Button onClick={onCoach}>Build brief</Button></li>
-      <li><span className="step-number">4</span><div><strong>Bring back your workout</strong><small>Ask the AI for one FITLOG block. Copy everything from [FITLOG:1] to [/FITLOG], paste it here, and review before starting or saving a plan for later.</small></div>{onImport && <Button variant="outline" onClick={onImport}>Paste workout</Button>}</li>
-      <li><span className="step-number">5</span><div><strong>Log results, then finish</strong><small>Planned numbers are targets. Enter what you actually did, mark sets complete, then use Done → Finish workout. History and Progress use logged results.</small></div></li>
-    </ol>
-    <div className="first-steps-footer"><p>Bring back one FITLOG block, review it, and start or save the plan.</p><Button variant="outline" onClick={onSample}>Try example import</Button></div>
-    <small className="first-steps-note">The example opens for review. It adds no workout or history unless you choose to start or save it.</small>
-    <p>Prefer to train without AI? Use Blank workout or an activity shortcut on Today.</p>
-    <p>On iPhone, add this app using Safari’s Share → Add to Home Screen. Your log stays in this browser; it does not sync. In Settings, use Share backup / Save to Files to keep a separate recovery copy.</p>
-    <small className="first-steps-note">For your next AI conversation, build a fresh brief with your recent results. This starter guide disappears after your first completed workout.</small>
-  </details>;
+  return <section className="first-steps" aria-label="Start here">
+    <p className="eyebrow">Start here</p>
+    <h2>One workout at a time</h2>
+    <p>Paste a plan from your AI, or open a short example and review the list. Nothing is saved until you choose to start or save it.</p>
+    <div className="first-steps-actions">
+      <Button onClick={onSample}>Try a safe example</Button>
+      {onImport && <Button variant="outline" onClick={onImport}>Paste a workout</Button>}
+      <Button variant="outline" onClick={onCoach}>Ask your AI</Button>
+    </div>
+    <details className="first-steps-how">
+      <summary>How this works</summary>
+      <ol>
+        <li><span className="step-number">1</span><div><strong>Optional: profile and goals{profileReady && goalsReady ? " · Added" : ""}</strong><small>Rank your training goals when you want the AI brief to know them. Nothing is required before the first workout.</small></div><Button variant="outline" onClick={() => onSetup("training-goals")}>{goalsReady ? "Edit goals" : "Add goals"}</Button></li>
+        <li><span className="step-number">2</span><div><strong>Ask any AI you choose</strong><small>Build a brief, paste it into a new chat, and ask for one FITLOG block.</small></div></li>
+        <li><span className="step-number">3</span><div><strong>Review the list, then log</strong><small>Planned numbers are targets. Enter what you actually did, then Finish workout. Or skip the AI and use Blank workout or Quick log below.</small></div></li>
+      </ol>
+      <p>On iPhone, add this app from Safari’s Share → Add to Home Screen. The log stays on this phone. In Settings, use Share backup to keep a copy in Files.</p>
+      <small className="first-steps-note">This note goes away after your first completed workout.</small>
+    </details>
+  </section>;
 }

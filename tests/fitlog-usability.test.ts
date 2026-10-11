@@ -36,7 +36,7 @@ test("explicit load meanings import cleanly while old ambiguous loads stay compa
   const old = parseFitlog(block("EXERCISE|Dumbbell press\nSET|6|40 lb|RIR 2"), "lb", {});
   assert.equal(old.exercises[0].sets[0].plannedWeight, 40);
   assert.match(old.importWarnings![0], /Line 4 · Dumbbell press, set 1.*per hand/);
-  assert.equal(parseFitlog(exampleFitlog, "lb", {}).importWarnings?.length, 0);
+  assert.equal(parseFitlog(exampleFitlog(), "lb", {}).importWarnings?.length, 0);
   assert.throws(() => parseFitlog(block("EXERCISE|Assisted pull-up\nSET|6|Bodyweight - 20 lb|RIR 2"), "lb", {}), /SET: use Bodyweight/);
 });
 

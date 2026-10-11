@@ -298,7 +298,7 @@ Merge keeps newer local revisions, including your profile and goals. If you want
 <details>
 <summary><b>Coach Loop says it is already open elsewhere.</b></summary>
 
-Finish saving and close the other Coach Loop window. Only one window can edit the local log at a time; the waiting window opens automatically when the editor is released.
+Finish saving and close the other Coach Loop window. Only one window can edit the local log at a time; the waiting window opens automatically when the editor is released. If it instead says the editor lock stopped, use Try again. That reopens the same log and does not delete it.
 </details>
 
 <details>
@@ -311,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v94 adds the missing Insert set before and Insert set after actions on a set’s number/W menu. Published v93 described that control, but its editor update was not included. v93 strengthens backup validation, explains legacy measurement repairs, prevents conflicting FITLOG rest targets, adds Open existing for duplicate imports, restores dialog focus, and improves monthly copying and large-history review costs. See [v93 notes](docs/releases/V93-UPDATE-NOTES.md), [iPhone QC](docs/releases/V93-QC.md) and [v93 upload steps](docs/releases/V93-UPLOAD.txt).
+v95 prints effort totals without long decimal tails, stops a bad mobility paste from freezing the tab, and lets you try again if the editor lock stops. A new log starts with a short card and a bodyweight-squat example instead of a heavy sample plan. v94 adds the missing Insert set before and Insert set after actions on a set’s number/W menu. See [v95 notes](docs/releases/V95-UPDATE-NOTES.md), [iPhone QC](docs/releases/V95-QC.md) and [v95 upload steps](docs/releases/V95-UPLOAD.txt).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 

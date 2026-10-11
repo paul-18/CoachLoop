@@ -2,7 +2,7 @@ import { localDate, type TrainingSet, type TrainingState, type WorkoutSession, t
 
 export { canonicalExerciseName, exerciseIdentity } from "./exercise-identity";
 import { canonicalExerciseName } from "./exercise-identity";
-export { performedDuration, performedDistance, completedActivityValues, parseExactReps, performedReps, performedWeight, completedSetValues } from "./completion";
+export { performedDuration, performedDistance, completedActivityValues, parseExactReps, performedReps, performedWeight, completedSetValues, formatMeasure } from "./completion";
 import { parseExactReps, performedReps, performedWeight } from "./completion";
 export const weightModeLabel = (mode: WeightMode) =>
   mode === "per_hand" ? "each" : mode === "added" ? "added" : "total";

@@ -18,3 +18,10 @@ export function acquireEditorLease(locks: LockManager, onOwner: () => void) {
     dispose: () => { disposed = true; controller.abort(); release?.(); },
   };
 }
+
+/** Own cleanup aborts the request. Any other ending, while this window is still mounted, is an interruption — not proof the browser lacks Web Locks. */
+export function leaseAfterFinish(settled: "fulfilled" | "rejected", error: unknown, disposed: boolean): "ignore" | "interrupted" {
+  if (disposed) return "ignore";
+  if (settled === "rejected" && error instanceof DOMException && error.name === "AbortError") return "ignore";
+  return "interrupted";
+}

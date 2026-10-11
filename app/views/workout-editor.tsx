@@ -21,7 +21,7 @@ import { ExerciseSubstitution } from "./exercise-substitution";
 import { moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues } from "../domain/training-workflow";
 import { activityEffortSummary, activityLoggingStyle, completeActivityEffort, makeActivityEffort } from "../domain/activity-logging";
 
-import { completedSetValues, convertWeight, completedActivityValues, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, workoutLiftingVolume } from "../domain/training-metrics";
+import { completedSetValues, convertWeight, completedActivityValues, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, formatMeasure, workoutLiftingVolume } from "../domain/training-metrics";
 
 import { makeCardio, makeExercise, makeSet, uid, type CardioEntry, type ExerciseBlock, type LoadType, type TrainingSet, type TrainingState, type Unit, type WeightMode, type WorkoutSession } from "../domain/training-types";
 
@@ -369,16 +369,16 @@ function ExerciseEditor({
             }) });
           }} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>
           </div></details></div>
-          <div className="mt-1 flex items-center gap-2"><p className="previous-result text-sm text-white/55">{previous ? `Last: ${previous}` : "No previous result"}</p>{recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="h-7 shrink-0 px-2 text-xs text-[var(--lime)]/80">Last {recentHistory.length}</Button>}</div>
+          <div className="mt-1 flex items-center gap-2"><p className="previous-result text-sm text-white/55">{previous ? `Last: ${previous}` : "No previous result"}</p>{recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="min-h-11 shrink-0 px-3 text-xs text-[var(--lime)]/80">Last {recentHistory.length}</Button>}</div>
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}><DialogContent className="max-h-[80dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-md"><DialogHeader><DialogTitle>{exercise.name} history</DialogTitle><DialogDescription className="text-white/45">Recent completed results. Warm-ups are labelled.</DialogDescription></DialogHeader><div className="space-y-3">{recentHistory.map((entry) => <div key={entry.date} className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="mb-1 text-xs font-bold text-white/45">{formatDate(entry.date)}</p>{entry.sets.map((set, index) => <p key={`${index}-${set}`} className="text-sm text-white/78">{set}</p>)}</div>)}</div></DialogContent></Dialog>
 
         </div>
         <div className="flex items-center gap-2">
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={onSubstitute}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={onSubstitute}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 px-3 py-3 sm:px-4">
-        {allDone && <Button variant="ghost" size="sm" className="h-9 px-2 text-xs text-[var(--lime)]/80" onClick={() => setShowCompleted(false)}>{exercise.sets.every(s=>s.completed) ? "All sets complete" : "Exercise finished"} · Collapse <ChevronUp /></Button>}
+        {allDone && <Button variant="ghost" size="sm" className="min-h-11 px-3 text-xs text-[var(--lime)]/80" onClick={() => setShowCompleted(false)}>{exercise.sets.every(s=>s.completed) ? "All sets complete" : "Exercise finished"} · Collapse <ChevronUp /></Button>}
         {exercise.coachNotes && <CoachCue text={exercise.coachNotes} />}
         <div className="set-table-heading" aria-hidden="true"><span>Set</span><span>Weight</span><span>Reps</span><span>Done</span></div>
         {exercise.sets.map((set, index) => (
@@ -513,7 +513,7 @@ function CardioEditor({
     updatedAt: new Date().toISOString(),
   });
   if (activity.completed && !showCompleted) {
-    const facts = [activityEffortSummary(activity), performedDuration(activity) !== null ? `${performedDuration(activity)} min` : null, performedDistance(activity) !== null ? `${distanceValue(performedDistance(activity))} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
+    const facts = [activityEffortSummary(activity), performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null, performedDistance(activity) !== null ? `${formatMeasure(distanceValue(performedDistance(activity)!)!)} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
     return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Edit completed ${activity.name}`}><span className="completed-block-icon"><Check /></span><span className="completed-block-copy"><strong>{activity.name}</strong><small>Complete{facts ? ` · ${facts}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
   }
   return (
@@ -526,11 +526,11 @@ function CardioEditor({
             aria-label="Activity name"
             className="activity-title-input h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-2"
           />
-          <p className="mt-1 text-xs capitalize text-white/38">{activity.activityType === "other" ? "Custom activity" : activity.activityType.replace("_", " ")}</p>
+          <p className="mt-1 text-xs capitalize text-white/60">{activity.activityType === "other" ? "Custom activity" : activity.activityType.replace("_", " ")}</p>
         </div>
         <div className="flex items-center gap-2">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
@@ -658,6 +658,7 @@ export function WorkoutEditor({
   const [finishError, setFinishError] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const workoutOptionsRef = useRef<HTMLButtonElement>(null);
   const isEditingHistory = Boolean(workout.completedAt);
   const finishLabel = isEditingHistory ? "Finish editing" : "Finish workout";
   const restStorageKey = `coach-loop-rest-${workout.id}`;
@@ -809,12 +810,12 @@ export function WorkoutEditor({
   return (
     <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""}`}>
       <header ref={headerRef} className="workout-header">
-        <Button variant="ghost" size="icon" onClick={onBack} className="text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
+        <Button variant="ghost" size="icon" onClick={onBack} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p role="status" className="mt-1 truncate text-xs text-white/55" title={`${doneCount} of ${totalCount} items complete${skippedSets ? `, ${skippedSets} skipped` : ""}`}>{doneCount}/{totalCount} done{skippedSets ? ` · ${skippedSets} skipped` : ""} · {saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "bg-[var(--lime)]/10 text-[var(--lime)]" : "text-white/45 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => setFinishOpen(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => setFinishOpen(true)} className="bg-[var(--lime)] px-2 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/45 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => setFinishOpen(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => setFinishOpen(true)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
@@ -909,7 +910,7 @@ export function WorkoutEditor({
           </AlertDialog>
         </div>
       </main>
-      {dateOpen && <WorkoutDateDialog workout={workout} open={dateOpen} onOpenChange={setDateOpen} onUpdate={onUpdate} />}
+      {dateOpen && <WorkoutDateDialog workout={workout} open={dateOpen} onOpenChange={setDateOpen} onUpdate={onUpdate} returnFocus={workoutOptionsRef} />}
     </div>
   );
 }

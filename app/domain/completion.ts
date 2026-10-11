@@ -5,6 +5,12 @@ export const performedDuration = (activity: CardioEntry) =>
 export const performedDistance = (activity: CardioEntry) =>
   activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDistanceM === null ? sum : (sum ?? 0) + e.actualDistanceM / 1000, null) : activity.actualDistanceKm;
 
+/** Print a measured total. Does not change stored metres, seconds or sums. */
+export function formatMeasure(value: number, maxDecimals = 2): string {
+  if (!Number.isFinite(value)) return "";
+  return String(Number(value.toFixed(maxDecimals)));
+}
+
 /** Accept each displayed prescription independently when completing a partly edited activity. */
 export const completedActivityValues = (activity: CardioEntry) => ({
   completedAsPlanned: activity.actualDurationMin === null && activity.actualDistanceKm === null,

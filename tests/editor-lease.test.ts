@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireEditorLease } from "../app/pwa/editor-lease";
+import { acquireEditorLease, leaseAfterFinish } from "../app/pwa/editor-lease";
 
 function lockManager() {
   let active = false;
@@ -48,4 +48,11 @@ test("closing a waiting editor cancels its request without blocking a later edit
   first.dispose(); await first.finished;
   assert.equal(opened, true);
   next.dispose(); await next.finished;
+});
+
+test("a lock that ends on its own is an interruption, while our own abort is ignored", () => {
+  assert.equal(leaseAfterFinish("fulfilled", undefined, false), "interrupted");
+  assert.equal(leaseAfterFinish("rejected", new DOMException("nope", "InvalidStateError"), false), "interrupted");
+  assert.equal(leaseAfterFinish("rejected", new DOMException("Aborted", "AbortError"), false), "ignore");
+  assert.equal(leaseAfterFinish("fulfilled", undefined, true), "ignore");
 });

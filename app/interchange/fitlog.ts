@@ -79,12 +79,15 @@ const normalizeType = (name: string): CardioEntry["activityType"] => {
 };
 
 const parseMobilityMove = (value: string) => {
-  const trimmed = value.trim();
-  const match = trimmed.match(/^(.*?)(?:\s+[-—:]?\s*)((?:\d+\s*[x×]\s*.+)|(?:\d+(?:\.\d+)?\s*(?:sec|secs|seconds|min|mins|minutes)(?:\/side)?))$/i);
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  const counted = / (\d+ ?[x×] ?.+)$/i.exec(trimmed);
+  const timed = / (\d+(?:\.\d+)? (?:sec|secs|seconds|min|mins|minutes)(?:\/side)?)$/i.exec(trimmed);
+  const tail = [counted, timed].filter((match): match is RegExpExecArray => match !== null).sort((left, right) => left.index - right.index)[0];
+  const name = (tail ? trimmed.slice(0, tail.index) : trimmed).replace(/(?:\s*[-:—])+$/, "").trim();
   return {
     id: uid("move"),
-    name: match?.[1]?.trim() || trimmed || "Movement",
-    prescription: match?.[2]?.trim() || "",
+    name: name || "Movement",
+    prescription: tail?.[1]?.trim() || "",
   };
 };
 
@@ -196,28 +199,21 @@ SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). 
 Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOBILITY|name; MOVE|movement|prescription.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 
-export const exampleFitlog = `[FITLOG:1]
-WORKOUT|Upper Strength + Easy Bike|${localDate()}
-
-EXERCISE|Barbell Bench Press
-SET|6|175 lb total|RPE 7-8
-SET|6|175 lb total|RPE 7-8
-SET|6|175 lb total|RPE 8
-SET|6|175 lb total|RPE 8
-REST|180
-
-EXERCISE|Pull-Up
-SET|6-10|Bodyweight|RIR 2
-SET|6-10|Bodyweight|RIR 2
-SET|6-10|Bodyweight|RIR 2
-SET|6-10|Bodyweight|RIR 2
-REST|120
-
-CARDIO|Easy Cycling
-TYPE|bike
-DURATION|20
+export function exampleFitlog() {
+  return `[FITLOG:1]
+WORKOUT|Safe example — review before you start|${localDate()}
+EXERCISE|Bodyweight squat
+SET|5|Bodyweight||WARMUP
+SET|8|Bodyweight|RPE 5
+REST|60
+NOTES|Easy range of motion. Stop if anything hurts. This shows the format; it is not a plan written for you.
+CARDIO|Easy walk
+TYPE|walk
+DURATION|10
 INTENSITY|Easy
+NOTES|Short and comfortable. Change the minutes if 10 is too much today.
 [/FITLOG]`;
+}
 
 export const parseFitlog = (
   source: string,

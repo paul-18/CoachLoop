@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
-import { acquireEditorLease } from "./editor-lease";
+import { useCallback, useEffect, useState } from "react";
+import { acquireEditorLease, leaseAfterFinish } from "./editor-lease";
 
-type Lease = "checking" | "owner" | "busy" | "unsupported";
+type Lease = "checking" | "owner" | "busy" | "unsupported" | "interrupted";
 
 /** Keep one writable Coach Loop context for the shared IndexedDB snapshot. */
-export function useLocalEditorLease(): Lease {
+export function useLocalEditorLease(): { lease: Lease; retry: () => void } {
   const [lease, setLease] = useState<Lease>("checking");
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setLease("checking");
+    setAttempt((value) => value + 1);
+  }, []);
   useEffect(() => {
     let disposed = false;
     if (!navigator.locks) {
@@ -21,10 +26,25 @@ export function useLocalEditorLease(): Lease {
     const waiting = window.setTimeout(() => { if (!disposed) setLease("busy"); }, 750);
     const request = acquireEditorLease(navigator.locks, () => {
       window.clearTimeout(waiting);
-      setLease("owner");
+      if (!disposed) setLease("owner");
     });
-    void request.finished.catch(() => { window.clearTimeout(waiting); if (!disposed) setLease("unsupported"); });
+    const settle = (settled: "fulfilled" | "rejected", error?: unknown) => {
+      window.clearTimeout(waiting);
+      if (leaseAfterFinish(settled, error, disposed) === "interrupted") setLease("interrupted");
+    };
+    void request.finished.then(() => settle("fulfilled"), (error: unknown) => settle("rejected", error));
     return () => { disposed = true; window.clearTimeout(waiting); request.dispose(); };
-  }, []);
-  return lease;
+  }, [attempt]);
+  useEffect(() => {
+    if (lease !== "interrupted") return;
+    let used = false;
+    const onVisible = () => {
+      if (used || document.visibilityState !== "visible") return;
+      used = true;
+      retry();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [lease, retry]);
+  return { lease, retry };
 }
