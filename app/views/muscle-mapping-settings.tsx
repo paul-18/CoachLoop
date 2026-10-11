@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { coverageExerciseKey, exerciseMappingEntries, MUSCLE_GROUPS, targetForCoverage, type MuscleGroup } from "../domain/training-coverage";
+import { coverageExerciseKey, coverageTarget, exerciseMappingEntries, MUSCLE_GROUPS, type MuscleGroup } from "../domain/training-coverage";
 import type { TrainingState } from "../domain/training-types";
 
 export function MuscleMappingSettings({ state, setState }: { state: TrainingState; setState: Dispatch<SetStateAction<TrainingState>> }) {
@@ -17,7 +17,7 @@ export function MuscleMappingSettings({ state, setState }: { state: TrainingStat
   const entries = exerciseMappingEntries(state);
   const reviewedCount = entries.filter((entry) => entry.reviewed).length;
   const openEditor = (name: string) => {
-    const target = targetForCoverage(name, state.exerciseMuscleOverrides);
+    const target = coverageTarget(state, name);
     setPrimary([...(target?.primary ?? [])]);
     setSecondary([...(target?.secondary ?? [])]);
     setEditing(name);

@@ -69,13 +69,15 @@ function ConflictReviewItem({ conflict, onResolve }: { conflict: FieldConflict; 
 }
 
 export function SettingsView({ openSection, onSectionOpened, state, canonicalState, setState, onResolveConflict, onRestoreBackup, onReset, offlineReady, updateReady, release, localSaveStatus, updateStatus, updateBlocked, onCheckUpdates, onApplyUpdate }: { openSection?: "coach-profile" | "training-goals" | null; onSectionOpened?: () => void; state: TrainingState; canonicalState: TrainingState; setState: React.Dispatch<React.SetStateAction<TrainingState>>; onResolveConflict: (id: string, value: unknown) => Promise<void>; onRestoreBackup: (backup: TrainingState, recover?: boolean, mode?: RestoreMode, reviewed?: ReviewedRestore) => Promise<void>; onReset: () => Promise<void>; syncStatus: SyncStatus; syncFailure: string | null; onRetrySync: () => void; lastSyncedAt: string | null; offlineReady: "checking" | "ready" | "failed"; updateReady: boolean; release?: string | null; localSaveStatus?: "saving" | "saved" | "error"; updateStatus?: string; updateBlocked?: boolean; onCheckUpdates?: () => Promise<void>; onApplyUpdate?: () => Promise<void> }) {
+  const [textEdit, setTextEdit] = useState<{ kind: "goal" | "new-goal" | "profile"; index?: number; value: string; starter?: boolean } | null>(null);
   useEffect(() => {
     if (!openSection) return;
     const target = document.getElementById(openSection);
     if (target instanceof HTMLDetailsElement) target.open = true;
     target?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    if (openSection === "coach-profile" && !state.coachProfile.trim()) setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE, starter: true });
     onSectionOpened?.();
-  }, [openSection, onSectionOpened]);
+  }, [openSection, onSectionOpened, state.coachProfile]);
   const { health } = useStorageHealth();
   const [recover, setRecover] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -88,7 +90,6 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
 
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
-  const [textEdit, setTextEdit] = useState<{ kind: "goal" | "new-goal" | "profile"; index?: number; value: string } | null>(null);
   const [scheduleDate, setScheduleDate] = useState(localDate());
   const [scheduleLabel, setScheduleLabel] = useState("");
   const [phaseStart, setPhaseStart] = useState(localDate());
@@ -197,9 +198,9 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
           <ChevronDown />
         </summary>
         <div className="mt-5">
-          <p className="profile-read-text">{state.coachProfile || "Add your training background and durable preferences."}</p>
-          <div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" onClick={() => setTextEdit({ kind: "profile", value: state.coachProfile })}>Edit coach profile</Button><Button type="button" variant="ghost" size="sm" onClick={() => setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE })}><RotateCcw /> Use starter guidance</Button></div>
-          <p className="mt-3 text-sm leading-5 text-white/55">Keep durable preferences here. Put today’s sleep, soreness, and upcoming PT in the Coach brief form.</p>
+          <p className="profile-read-text">{state.coachProfile || "No profile yet. Open starter guidance, change it so it describes you, then Save."}</p>
+          <div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" onClick={() => setTextEdit({ kind: "profile", value: state.coachProfile })}>Edit coach profile</Button><Button type="button" variant="ghost" size="sm" onClick={() => setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE, starter: true })}><RotateCcw /> Use starter guidance</Button></div>
+          <p className="mt-3 text-sm leading-5 text-white/55">Starter guidance is a draft. Change it before you save. Put today’s sleep, soreness, and upcoming PT in the Coach brief form, not here.</p>
         </div>
       </details>
       <details className="settings-panel profile-editor">
@@ -239,10 +240,10 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <summary><span><strong>Reset & erase data</strong><small>Destructive actions · backup first</small></span><ChevronDown /></summary>
         <div className="pt-4">
         <div className="settings-title"><div><h2>Reset Coach Loop</h2><p>Download a backup first. This removes the log saved on this device.</p></div></div>
-        <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive"><Trash2 /> Erase this device’s data</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Erase every workout on this device?</AlertDialogTitle><AlertDialogDescription className="text-white/45">Goals, aliases, history, and the active workout will be removed from this browser. Download a backup first. Automatic recovery copies are also permanently erased.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void onReset()}>Erase everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+        <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive"><Trash2 /> Erase this device’s data</Button></AlertDialogTrigger><AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Erase every workout on this device?</AlertDialogTitle><AlertDialogDescription className="text-white/45">Goals, aliases, history, and the active workout will be removed from this browser. Download a backup first if you want a file. Older automatic recovery copies are erased. One copy of the current log is kept on this device as Before resetting data.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void onReset()}>Erase everything</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </div>
       </details>
-      {textEdit && <TextEditorDialog title={textEdit.kind === "profile" ? "Edit coach profile" : textEdit.kind === "new-goal" ? "Add training goal" : "Edit training goal"} description="Changes apply when you tap Save." value={textEdit.value} allowEmpty={textEdit.kind === "profile"} onChange={(value) => setTextEdit((current) => current ? { ...current, value } : current)} onClose={() => setTextEdit(null)} onSave={() => {
+      {textEdit && <TextEditorDialog title={textEdit.kind === "profile" ? "Edit coach profile" : textEdit.kind === "new-goal" ? "Add training goal" : "Edit training goal"} description={textEdit.starter ? "Starter text only. Change it so it fits you, then Save. Nothing is stored until you save." : "Changes apply when you tap Save."} value={textEdit.value} allowEmpty={textEdit.kind === "profile"} onChange={(value) => setTextEdit((current) => current ? { ...current, value } : current)} onClose={() => setTextEdit(null)} onSave={() => {
         if (textEdit.kind === "profile") updateCoachProfile(textEdit.value);
         else if (textEdit.kind === "new-goal") updateGoals((goals) => [...goals, textEdit.value.trim()]);
         else updateGoals((goals) => goals.map((goal, index) => index === textEdit.index ? textEdit.value.trim() : goal));

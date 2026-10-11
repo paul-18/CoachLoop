@@ -12,7 +12,7 @@ import { FITLOG_INSTRUCTIONS } from "../interchange/fitlog";
 import type { TrainingState } from "../domain/training-types";
 import { copyText } from "./shared";
 
-export function CoachView({ state, onBuild, onImport, onEditGoals }: { state: TrainingState; onBuild: () => void; onImport: () => void; onEditGoals?: () => void }) {
+export function CoachView({ state, onBuild, onImport, onEditGoals, onEditProfile }: { state: TrainingState; onBuild: () => void; onImport: () => void; onEditGoals?: () => void; onEditProfile?: () => void }) {
   const [range, setRange] = useState<QuickTrainingRange>("last");
   const [manualCopy, setManualCopy] = useState<{ title: string; text: string } | null>(null);
   const copy = async (content: string, success: string) => {
@@ -27,7 +27,7 @@ export function CoachView({ state, onBuild, onImport, onEditGoals }: { state: Tr
     <div className="page-stack">
       <section className="topline"><h1>Coach</h1></section>
       <details className="coach-goals"><summary><h2>Your priorities</h2><span>{state.goals.filter(goal => goal.trim()).length} goals</span></summary><div className="flex items-center justify-end gap-3">{onEditGoals && <Button variant="ghost" onClick={onEditGoals}>Edit goals</Button>}</div>{state.goals.some(goal => goal.trim()) ? <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={index}><span>{index + 1}</span><p>{goal}</p></li>)}</ol> : <p>Add your goals in Settings, with the most important first.</p>}<p className="coach-goals-note">Edit and reorder in Settings → Training goals. Chat with your AI outside the app; nothing is sent automatically.</p></details>
-      <section className="coach-action-row"><div><h2>Ask for your next workout</h2><p>Copy your recent training and goals into your preferred AI chat.</p></div><Button onClick={onBuild} className="bg-[var(--lime)] font-black text-[#11140d]"><Copy /> Build coach brief</Button></section>
+      <section className="coach-action-row"><div><h2>Ask for your next workout</h2><p>{state.goals.some(goal => goal.trim()) && state.coachProfile.trim() ? "Copy your recent training, goals, and coach profile into your preferred AI chat." : "Add a goal and a coach profile first. A brief without them has nothing personal for the AI to use."}</p></div>{state.goals.some(goal => goal.trim()) && state.coachProfile.trim() ? <Button onClick={onBuild} className="bg-[var(--lime)] font-black text-[#11140d]"><Copy /> Build coach brief</Button> : <div className="flex flex-wrap gap-2">{onEditGoals && <Button onClick={onEditGoals} className="bg-[var(--lime)] font-black text-[#11140d]">Add goals</Button>}{onEditProfile && <Button variant="outline" onClick={onEditProfile}>Add coach profile</Button>}</div>}</section>
       <section className="coach-action-row"><div><h2>Bring the workout back</h2><p>Review the FITLOG plan, then start or save it.</p></div><Button onClick={onImport} variant="outline" className="border-white/12 text-white"><Clipboard /> Paste or save workout</Button></section>
       <section className="coach-quick-copy" aria-label="Quick copy for an existing chat">
         <h2>Quick update for an existing chat</h2>

@@ -85,9 +85,9 @@ export function useTrainingPersistence() {
     operation.current = true; setBusy(true);
     const cleared = validatedState(defaultState());
     try {
-      await resetTrainingData(cleared);
+      await resetTrainingData(cleared, undefined, latestStateRef.current);
       latestStateRef.current = cleared; setReactState(cleared); setLocalSaveStatus("saved");
-      toast.success("This device's log and recovery copies erased");
+      toast.success("This device's log was erased. One recovery copy of the previous log was kept");
     } catch { toast.error("Reset failed; your local log was retained"); }
     finally { operation.current = false; setBusy(false); }
   };

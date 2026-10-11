@@ -96,7 +96,7 @@ export const exerciseNamesNeedingCoverage = (state: TrainingState) => [...new Se
   .flatMap((workout) => workout.exercises)
   .filter((exercise) => exercise.sets.some((set) => set.completed && !set.warmup && parseExactReps(performedReps(set)) !== null))
   .map((exercise) => exercise.name.trim())
-  .filter((name) => name && !targetForCoverage(name, state.exerciseMuscleOverrides)))].sort((a, b) => a.localeCompare(b));
+  .filter((name) => name && !coverageTarget(state, name)))].sort((a, b) => a.localeCompare(b));
 
 // Include saved/active workouts too; review is independent of completion.
 export const exerciseMappingEntries = (state: TrainingState) => {
@@ -110,7 +110,7 @@ export const exerciseMappingEntries = (state: TrainingState) => {
   });
   return [...names].map(([key, name]) => ({ key, name,
     reviewed: Boolean(state.exerciseMuscleOverrides[key]?.primary.length && !state.exerciseMuscleOverrides[key]?.deletedAt),
-    target: targetForCoverage(name, state.exerciseMuscleOverrides),
+    target: coverageTarget(state, name),
   })).sort((a, b) => a.name.localeCompare(b.name));
 };
 

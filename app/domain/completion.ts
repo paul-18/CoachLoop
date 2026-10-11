@@ -11,6 +11,12 @@ export function formatMeasure(value: number, maxDecimals = 2): string {
   return String(Number(value.toFixed(maxDecimals)));
 }
 
+/** Same rounding as formatMeasure, for a copied plan target rather than a display string. */
+export function roundedMeasure(value: number | null, maxDecimals = 2): number | null {
+  if (value === null || !Number.isFinite(value)) return value;
+  return Number(value.toFixed(maxDecimals));
+}
+
 /** Accept each displayed prescription independently when completing a partly edited activity. */
 export const completedActivityValues = (activity: CardioEntry) => ({
   completedAsPlanned: activity.actualDurationMin === null && activity.actualDistanceKm === null,

@@ -1,0 +1,53 @@
+COACH LOOP v96 — UPLOAD STEPS
+
+The mobility-paste freeze is already fixed in v95. This adds the reset copy, rounded repeat targets, alias muscle labels, and the two focus returns.
+
+Finish workouts and wait for Saved. Export a private JSON backup to Files.
+
+Use ONE patch. Do not apply both.
+
+A. Still on v94 (app/app-release.ts says v95 is not committed; HEAD is e31143fc064793f3b3f7cc479337e85768cdcd85)
+
+Put CoachLoop-v96.patch beside package.json. Do not commit the patch.
+
+git apply --check CoachLoop-v96.patch
+git apply CoachLoop-v96.patch
+
+B. v95 is already committed
+
+Put CoachLoop-v96-on-v95.patch beside package.json. Do not commit the patch.
+
+git apply --check CoachLoop-v96-on-v95.patch
+git apply CoachLoop-v96-on-v95.patch
+
+Then, either way, one command at a time:
+
+node -e 'console.log(require("fs").readFileSync("app/app-release.ts","utf8"))'
+npx --yes pnpm@11.25.0 install --frozen-lockfile
+npx --yes pnpm@11.25.0 run release:check
+
+Expect v96. Continue only if release checks passed.
+
+If you applied the full patch onto v94, stage all 42 files:
+
+git add README.md app/app-release.ts app/domain/completion.ts app/domain/plan-review.ts app/domain/training-coverage.ts app/domain/training-metrics.ts app/domain/workout-copy.ts app/globals.css app/interchange/coach-export.ts app/interchange/fitlog.ts app/interchange/history-export.ts app/interchange/training-csv.ts app/persistence/training-storage.ts app/persistence/use-training-persistence.ts app/pwa/editor-lease.ts app/pwa/use-local-editor-lease.ts app/shell/app-screens.tsx app/shell/editor-gate.tsx app/views/coach-view.tsx app/views/exercise-substitution.tsx app/views/first-steps.tsx app/views/goal-examples.tsx app/views/history-view.tsx app/views/muscle-mapping-settings.tsx app/views/settings-view.tsx app/views/today-view.tsx app/views/workout-date-dialog.tsx app/views/workout-editor.tsx docs/README.md docs/releases/V95-QC.md docs/releases/V95-UPDATE-NOTES.md docs/releases/V95-UPLOAD.txt docs/releases/V96-QC.md docs/releases/V96-UPDATE-NOTES.md docs/releases/V96-UPLOAD.txt tests/editor-lease.test.ts tests/first-steps.test.ts tests/fitlog-usability.test.ts tests/v95-review.test.ts tests/v95-ui.test.cjs tests/v96-review.test.ts tests/v96-ui.test.cjs
+
+Expect 42 files.
+
+If v95 is already committed, stage only these 26:
+
+git add README.md app/app-release.ts app/domain/completion.ts app/domain/training-coverage.ts app/domain/training-metrics.ts app/domain/workout-copy.ts app/interchange/coach-export.ts app/interchange/fitlog.ts app/persistence/training-storage.ts app/persistence/use-training-persistence.ts app/shell/app-screens.tsx app/views/coach-view.tsx app/views/exercise-substitution.tsx app/views/first-steps.tsx app/views/goal-examples.tsx app/views/muscle-mapping-settings.tsx app/views/settings-view.tsx app/views/today-view.tsx app/views/workout-editor.tsx docs/README.md docs/releases/V96-QC.md docs/releases/V96-UPDATE-NOTES.md docs/releases/V96-UPLOAD.txt tests/first-steps.test.ts tests/v96-review.test.ts tests/v96-ui.test.cjs
+
+Expect 26 files.
+
+git --no-pager diff --cached --stat
+git status --short
+
+No patch, backup, dist or node_modules.
+
+git commit -m "Keep a reset copy and stop repeat plans from storing float tails"
+git push
+
+Wait for Publish Coach Loop PWA on that commit to turn green.
+In the installed app, finish workouts, wait for Saved, close other windows, then Settings → Check updates → Restart to update. Confirm v96.
+Follow docs/releases/V96-QC.md.

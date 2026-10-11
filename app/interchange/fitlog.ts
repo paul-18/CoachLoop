@@ -201,17 +201,33 @@ Omit unspecified targets instead of inventing them. Put short NOTES directly bel
 
 export function exampleFitlog() {
   return `[FITLOG:1]
-WORKOUT|Safe example — review before you start|${localDate()}
-EXERCISE|Bodyweight squat
-SET|5|Bodyweight||WARMUP
-SET|8|Bodyweight|RPE 5
-REST|60
-NOTES|Easy range of motion. Stop if anything hurts. This shows the format; it is not a plan written for you.
-CARDIO|Easy walk
-TYPE|walk
-DURATION|10
+WORKOUT|Example session — change it before you start|${localDate()}
+CARDIO|Easy bike
+TYPE|bike
+DURATION|5
 INTENSITY|Easy
-NOTES|Short and comfortable. Change the minutes if 10 is too much today.
+NOTES|Five easy minutes first. Shorten it if you need to.
+EXERCISE|Barbell Bench Press
+SET|5|45 lb total||WARMUP
+SET|5|95 lb total|RPE 6
+REST|120
+NOTES|Weighted example only. Change both loads before you start.
+EXERCISE|Pull-up
+SET|5|Bodyweight|RPE 6
+REST|90
+NOTES|Bodyweight. Use a shorter range if a full pull-up is not available yet.
+EXERCISE|Dip
+SET|6|Bodyweight|RPE 6
+REST|90
+NOTES|Bodyweight. Skip it if your shoulders are unhappy.
+EXERCISE|Dumbbell Lateral Raise
+SET|10|10 lb each|RPE 6
+REST|60
+NOTES|Light dumbbells. Change the load.
+MOBILITY|Easy mobility
+MOVE|Hip flexor stretch|30 sec/side
+MOVE|Doorway chest stretch|30 sec/side
+NOTES|Comfortable range only.
 [/FITLOG]`;
 }
 

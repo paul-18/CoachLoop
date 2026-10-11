@@ -25,7 +25,7 @@ import { buildCoachPrompt } from "../interchange/coach-export";
 import { type SyncStatus } from "../persistence/cloud-sync";
 import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
 
-import { formatLoad } from "../domain/training-metrics";
+import { formatLoad, formatMeasure } from "../domain/training-metrics";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
@@ -137,9 +137,11 @@ export function ImportWorkoutDialog({
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-sm font-semibold text-white">Safe example</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-white/70">
-                  <li>Bodyweight squat — 5 easy, then 8 at a light effort</li>
-                  <li>60 seconds of rest</li>
-                  <li>Easy walk — 10 minutes</li>
+                  <li>Easy bike — 5 minutes</li>
+                  <li>Barbell bench press — light warm-up, then a working set</li>
+                  <li>Pull-up and dip — bodyweight</li>
+                  <li>Lateral raise — light dumbbells</li>
+                  <li>Easy mobility</li>
                 </ul>
                 <button
                   type="button"
@@ -172,7 +174,7 @@ export function ImportWorkoutDialog({
                       {preview.importWarnings?.length ? "Needs review" : "Ready to import"}
                     </p>
                     <h3 className="mt-2 text-xl font-black tracking-[-0.035em]">{preview.name}</h3>
-                    {preview.name.startsWith("Safe example") && <p className="mt-2 text-sm leading-6 text-white/60">Example only. Go back to the text if you want to change it or paste your own plan.</p>}
+                    {preview.name.startsWith("Example session") && <p className="mt-2 text-sm leading-6 text-white/60">Example only. Change the weights if they do not fit you. Go back to the text if you want a different plan.</p>}
                     <p className="mt-1 text-sm text-white/45">{formatDate(preview.date)}</p>
                   </div>
                   <Badge className={preview.importWarnings?.length ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-[var(--lime)]/20 bg-[var(--lime)]/10 text-[var(--lime)]"}>
@@ -214,8 +216,8 @@ export function ImportWorkoutDialog({
                 <div key={block.activity.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><p className="min-w-0 font-bold">{block.activity.name}</p><label className="text-xs text-white/60">Category <NativeSelect aria-label={`Category for ${block.activity.name}`} value={block.activity.activityType} onChange={(event) => setPreview((current) => current ? { ...current, cardio: current.cardio.map((item) => item.id === block.activity.id ? { ...item, activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined } : item) } : current)} className="ml-2 inline-block h-9 w-auto max-w-36 border-white/15 bg-[#20231e] text-white">{(["run", "ruck", "bike", "swim", "water_polo", "row", "walk", "hike", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label></div>
                   <p className="mt-1 text-sm text-white/45">
-                    {block.activity.plannedDurationMin ? `${block.activity.plannedDurationMin} min` : "Duration open"}
-                    {block.activity.plannedDistanceKm ? ` · ${block.activity.plannedDistanceKm} km` : ""}
+                    {block.activity.plannedDurationMin ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "Duration open"}
+                    {block.activity.plannedDistanceKm ? ` · ${formatMeasure(block.activity.plannedDistanceKm)} km` : ""}
                     {block.activity.intensity ? ` · ${block.activity.intensity}` : ""}
                     {block.activity.ruckLoad !== null ? ` · Pack load ${block.activity.ruckLoad} ${block.activity.ruckLoadUnit}` : ""}
                     {(block.activity.effortRestSec ?? 0) > 0 ? ` · Effort rest ${block.activity.effortRestSec}s` : ""}
@@ -529,7 +531,7 @@ function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule }: {
       <h3>{block.exercise.name}</h3><p className="text-sm text-white/60">{block.exercise.sets.length} sets · {block.exercise.restSec}s rest</p>
       <ol>{block.exercise.sets.map((set, index) => <li key={set.id}><span>{set.warmup ? "Warm-up" : `Set ${index + 1}`}</span><strong>{formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps || "—"}{set.plannedRpe ? ` · RPE ${set.plannedRpe}` : set.plannedRir ? ` · RIR ${set.plannedRir}` : ""}</strong></li>)}</ol>
       {block.exercise.coachNotes && <CoachCue text={block.exercise.coachNotes} />}{block.exercise.notes && <p>{block.exercise.notes}</p>}
-    </section> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${block.activity.plannedDurationMin} min` : "", block.activity.plannedDistanceKm !== null ? `${block.activity.plannedDistanceKm} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
+    </section> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "", block.activity.plannedDistanceKm !== null ? `${formatMeasure(block.activity.plannedDistanceKm)} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
       {block.activity.intervals && (block.activity.activityType === "run" ? <RunPlan text={block.activity.intervals} /> : <p>{block.activity.intervals}</p>)}{block.activity.mobilityMoves.map((move) => <p key={move.id}>{move.name} · {move.prescription}</p>)}{block.activity.coachNotes && <CoachCue text={block.activity.coachNotes} />}{block.activity.notes && <p>{block.activity.notes}</p>}
     </section>)}{workout?.notes && <p className="text-sm text-white/65">{workout.notes}</p>}</div>
     <div className="plan-preview-actions"><Button variant="outline" onClick={onClose}>Close</Button><Button disabled={active} className="bg-[var(--lime)] text-[#11140d]" onClick={() => { if (workout) { onClose(); onStart(workout.id); } }}><Play /> Start workout</Button></div>{active && <p className="text-sm text-white/60">Finish your current workout before starting another.</p>}

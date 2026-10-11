@@ -12,7 +12,9 @@ import type {
   WorkoutSession,
 } from "../domain/training-types";
 
-export const DEFAULT_COACH_PROFILE = `COACHING PREFERENCES
+export const DEFAULT_COACH_PROFILE = `Replace this paragraph with your own background before you rely on it: training experience, equipment you have, injuries, and what a coach should remember.
+
+COACHING PREFERENCES
 Act as a long-term strength, physique, running, and conditioning coach. Use the completed training history, goals, bodyweight entries, and schedule provided in each brief; do not assume planned workouts were completed.
 
 Account for accumulated training load, recovery, sleep, injuries, travel, and other scheduled activity when included. Aim for challenging, productive training without junk volume.

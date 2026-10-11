@@ -145,8 +145,9 @@ export const saveSnapshot = async (state: TrainingState, reason: string) => {
       allRequest.onsuccess = () => {
         const snapshots = (allRequest.result as SnapshotMetadata[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || (a.id === info.id ? -1 : b.id === info.id ? 1 : 0));
         const checkpoints = snapshots.filter((item) => item.reason === "before-restore" || item.reason === "before-evidence-migration");
-        const routine = snapshots.filter((item) => !checkpoints.includes(item));
-        for (const item of [...checkpoints.slice(2), ...routine.slice(5)]) { store.delete(item.id); metadata.delete(item.id); }
+        const resetCopies = snapshots.filter((item) => item.reason === "before-reset");
+        const routine = snapshots.filter((item) => item.reason !== "before-restore" && item.reason !== "before-evidence-migration" && item.reason !== "before-reset");
+        for (const item of [...checkpoints.slice(2), ...resetCopies.slice(1), ...routine.slice(5)]) { store.delete(item.id); metadata.delete(item.id); }
       };
       transaction.oncomplete = () => { database.close(); resolve(); };
       const fail = () => { database.close(); reject(transaction?.error ?? new Error("Snapshot write failed")); };
@@ -170,8 +171,9 @@ export const loadAllSnapshots = async (): Promise<TrainingSnapshot[]> =>
 export const loadSnapshot = (id: string): Promise<TrainingSnapshot | undefined> =>
   transact<TrainingSnapshot | undefined>(SNAPSHOT_STORE, "readonly", (store) => store.get(id));
 
-export const resetTrainingData = (nextState: TrainingState, meta?: SyncMeta): Promise<void> => {
+export const resetTrainingData = (nextState: TrainingState, meta?: SyncMeta, checkpoint?: TrainingState): Promise<void> => {
   const snapshot = structuredClone(nextState);
+  const retained = checkpoint ? structuredClone(checkpoint) : undefined;
   const reset = pendingSave.catch(() => undefined).then(async () => {
     const database = await openDatabase();
     await new Promise<void>((resolve, reject) => {
@@ -182,6 +184,11 @@ export const resetTrainingData = (nextState: TrainingState, meta?: SyncMeta): Pr
         transaction.objectStore(STATE_STORE).put(snapshot, STATE_KEY);
         transaction.objectStore(SNAPSHOT_STORE).clear();
         transaction.objectStore(SNAPSHOT_META_STORE).clear();
+        if (retained) {
+          const info: SnapshotMetadata = { id: uid("snapshot"), createdAt: new Date().toISOString(), reason: "before-reset" };
+          transaction.objectStore(SNAPSHOT_STORE).add({ ...info, state: retained });
+          transaction.objectStore(SNAPSHOT_META_STORE).add(info);
+        }
         transaction.objectStore(SYNC_STORE).clear();
         if (meta) transaction.objectStore(SYNC_STORE).put(structuredClone(meta), "cloud-sync");
         transaction.objectStore(DEVICE_STORE).delete("conflict-overrides");
