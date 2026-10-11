@@ -114,6 +114,7 @@ export interface CardioEntry {
   coachNotes: string;
   completed: boolean;
   completedAsPlanned: boolean;
+  skipped?: boolean;
   updatedAt: string;
 }
 

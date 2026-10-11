@@ -48,6 +48,7 @@ const activitySchema = z.object({
   elevationM: nullableNumber, pace: z.string(), intensity: z.string(), intervals: z.string(),
   mobilityMoves: z.array(moveSchema), effort: z.string(), notes: z.string(),
   coachNotes: z.string(), completed: z.boolean(), completedAsPlanned: z.boolean(),
+  skipped: z.boolean().optional(),
   updatedAt: timestamp,
 }).passthrough();
 const segmentSchema = z.object({

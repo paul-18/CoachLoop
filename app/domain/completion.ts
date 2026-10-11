@@ -1,4 +1,5 @@
 import type { CardioEntry, TrainingSet, WorkoutSession } from "./training-types";
+import { normalizedBlockOrder } from "./block-order";
 export const hasCompletedActivityWork = (activity: CardioEntry) => activity.completed || !!activity.efforts?.some((e) => e.completed);
 export const performedDuration = (activity: CardioEntry) =>
   activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDurationSec === null ? sum : (sum ?? 0) + e.actualDurationSec / 60, null) : activity.actualDurationMin;
@@ -89,14 +90,53 @@ export const completedSetValues = (set: TrainingSet) => {
 };
 
 
+export const activityStillOpen = (activity: CardioEntry) => {
+  if (activity.skipped) return false;
+  if (activity.efforts?.length) return activity.efforts.some(effort => !effort.completed);
+  return !activity.completed;
+};
+
+export function nextOpenBlock(workout: WorkoutSession) {
+  for (const block of normalizedBlockOrder(workout)) {
+    if (block.type === "exercise") {
+      const exercise = workout.exercises.find(item => item.id === block.id);
+      if (exercise?.sets.some(set => !set.completed && !set.skipped)) return { type: "exercise" as const, exercise };
+    } else {
+      const activity = workout.cardio.find(item => item.id === block.id);
+      if (activity && activityStillOpen(activity)) return { type: "activity" as const, activity };
+    }
+  }
+  return undefined;
+}
+
+const countableSets = (workout: WorkoutSession) => workout.exercises.flatMap(exercise => exercise.sets).filter(set => !set.skipped || set.completed);
+const openActivities = (workout: WorkoutSession) => workout.cardio.filter(activity => !activity.skipped);
+
+/** The same counts for the workout header and the finish dialog. Skipped work is left out. */
+export function workoutProgressCopy(workout: WorkoutSession): string {
+  const sets = countableSets(workout);
+  const doneSets = sets.filter(set => set.completed && !set.skipped).length;
+  const activities = openActivities(workout);
+  const effortActivities = activities.filter(activity => activity.efforts?.length);
+  const singles = activities.filter(activity => !activity.efforts?.length);
+  const efforts = effortActivities.flatMap(activity => activity.efforts ?? []);
+  const doneEfforts = efforts.filter(effort => effort.completed).length;
+  const doneSingles = singles.filter(activity => activity.completed).length;
+  const piece = (done: number, total: number, singular: string, plural: string) => total ? `${done}/${total} ${total === 1 ? singular : plural}` : "";
+  const parts = [piece(doneSets, sets.length, "set", "sets"), piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities")].filter(Boolean);
+  return parts.join(" · ");
+}
+
 /** Keep completed efforts visible even when their parent activity is unfinished. */
 export function workoutCompletionSummary(workout: WorkoutSession): string {
-  const sets = workout.exercises.flatMap((exercise) => exercise.sets);
-  const doneSets = sets.filter((set) => set.completed).length;
-  const efforts = workout.cardio.flatMap((activity) => activity.efforts ?? []);
-  const doneEfforts = efforts.filter((effort) => effort.completed).length;
-  const singles = workout.cardio.filter((activity) => !activity.efforts?.length);
-  const doneSingles = singles.filter((activity) => activity.completed).length;
-  if (!doneSets && !doneEfforts && !doneSingles) return "Nothing is marked complete yet, but you can still save the session.";
-  return [sets.length ? `${doneSets}/${sets.length} sets` : "", efforts.length ? `${doneEfforts}/${efforts.length} efforts` : "", singles.length ? `${doneSingles}/${singles.length} activities` : ""].filter(Boolean).join(" · ") + " complete.";
+  const progress = workoutProgressCopy(workout);
+  const anyDone = progress.split(" · ").some(part => Number(part.split("/")[0]) > 0);
+  if (!anyDone) return "Nothing is marked complete yet, but you can still save the session.";
+  return `${progress} complete.`;
+}
+
+export function hasGenuineTraining(workout: WorkoutSession) {
+  const workingSet = workout.exercises.some(exercise => exercise.sets.some(set => set.completed && !set.skipped && !set.warmup));
+  const activity = workout.cardio.some(item => !item.skipped && (item.completed || !!item.efforts?.some(effort => effort.completed)));
+  return workingSet || activity;
 }

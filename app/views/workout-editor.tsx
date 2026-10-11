@@ -30,7 +30,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { workoutCompletionSummary } from "../domain/completion";
+import { activityStillOpen, nextOpenBlock, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
@@ -201,7 +201,7 @@ function SetRow({
         </DropdownMenuContent>
       </DropdownMenu>
       <label className="set-input">
-        <span>Weight</span>
+        <span>Weight{set.completed && set.completedAsPlanned ? " · Suggested" : ""}</span>
         <DecimalInput
           min={0}
           max={5000}
@@ -538,7 +538,7 @@ function CardioEditor({
         </div>
         <div className="flex items-center gap-2">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
@@ -804,18 +804,16 @@ export function WorkoutEditor({
     });
   };
 
-  const nextBlock = orderedWorkoutBlocks(workout).find((block) => block.type === "exercise"
-    ? block.exercise.sets.some((set) => !set.completed && !set.skipped) : !block.activity.completed);
+  const nextBlock = nextOpenBlock(workout);
   const nextSet = nextBlock?.type === "exercise" ? nextBlock.exercise.sets.find((set) => !set.completed && !set.skipped) : undefined;
   const nextLabel = nextBlock?.type === "exercise"
     ? `${nextBlock.exercise.name} · Set ${nextBlock.exercise.sets.findIndex((set) => set.id === nextSet?.id) + 1}`
     : nextBlock?.activity.name ?? "";
 
-  const doneCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length, 0) + workout.cardio.reduce((sum, item) => sum + (item.efforts?.length ? item.efforts.filter((effort) => effort.completed).length : Number(item.completed)), 0);
-  const totalCount = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter(s=>!s.skipped || s.completed).length, 0) + workout.cardio.reduce((sum, item) => sum + (item.efforts?.length || 1), 0);
+  const progress = workoutProgressCopy(workout);
   const skippedSets = workout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
   const unfinishedSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
-  const unfinishedActivities = workout.cardio.filter((item) => !item.completed).length;
+  const unfinishedActivities = workout.cardio.filter(activityStillOpen).length;
   const differences = planDifferences(workout);
 
   return (
@@ -824,7 +822,7 @@ export function WorkoutEditor({
         <Button variant="ghost" size="icon" onClick={onBack} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
-          <p role="status" className="mt-1 truncate text-xs text-white/55" title={`${doneCount} of ${totalCount} items complete${skippedSets ? `, ${skippedSets} skipped` : ""}`}>{doneCount}/{totalCount} done{skippedSets ? ` · ${skippedSets} skipped` : ""} · {saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
+          <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
         <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => { finishFromMenu.current = true; setFinishOpen(true); }}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => { finishFromMenu.current = false; setFinishOpen(true); }} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>

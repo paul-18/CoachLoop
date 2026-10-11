@@ -1,3 +1,4 @@
+import { hasGenuineTraining } from "./completion";
 import { localDate, type TrainingState, type WorkoutSession } from "./training-types";
 
 /** Restored logs can contain more than one unfinished session. Never orphan one. */
@@ -23,18 +24,11 @@ export function startWorkoutState(state: TrainingState, workout: WorkoutSession,
   return { ...state, workouts: exists ? state.workouts.map(w => w.id === active.id ? active : w) : [active, ...state.workouts], activeWorkoutId: active.id };
 }
 
-function genuinelyCompleted(workout: WorkoutSession) {
-  return workout.status === "completed" && (
-    workout.exercises.some(exercise => exercise.sets.some(set => set.completed && !set.skipped))
-    || workout.cardio.some(activity => activity.completed)
-  );
-}
-
 export function finishWorkoutState(state: TrainingState, workout: WorkoutSession, now = new Date().toISOString()): TrainingState {
   if (!state.workouts.some(w => w.id === workout.id)) throw new Error("This workout is no longer in the log");
   const completed: WorkoutSession = { ...workout, status: "completed", completedAt: workout.completedAt ?? now, skippedAt: null, skipReason: "", updatedAt: now };
   const alreadyNoted = state.settings.firstWorkoutNote === "dismissed" || state.settings.firstWorkoutNote === "show";
-  const firstReal = !alreadyNoted && genuinelyCompleted(completed) && !state.workouts.some(existing => existing.id !== completed.id && genuinelyCompleted(existing));
+  const firstReal = !alreadyNoted && hasGenuineTraining(completed) && !state.workouts.some(existing => existing.id !== completed.id && existing.status === "completed" && hasGenuineTraining(existing));
   const next = {
     ...state,
     workouts: state.workouts.map(w => w.id === completed.id ? completed : w),

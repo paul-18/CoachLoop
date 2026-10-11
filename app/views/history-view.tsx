@@ -58,7 +58,7 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
             <details key={exercise.id} className="history-exercise" open={exercise.sets.length <= 6 ? true : undefined}>
               <summary className="history-detail-heading">
                 <div><h3>{exercise.name}</h3>{exercise.notes && <p>Your note: {exercise.notes}</p>}</div>
-                <span className="flex shrink-0 items-center gap-2"><Badge variant="outline" className="border-white/9 text-white/48">{completedSets.length}/{exercise.sets.length} sets</Badge><ChevronDown className="history-chevron" /></span>
+                <span className="flex shrink-0 items-center gap-2"><Badge variant="outline" className="border-white/9 text-white/48">{completedSets.length}/{exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}</Badge><ChevronDown className="history-chevron" /></span>
               </summary>
               {exercise.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{exercise.coachNotes}</p></details>}
               {exercise.sets.length ? (
@@ -70,7 +70,7 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
                       <div key={set.id} className={`history-set-compact ${set.completed ? "" : "incomplete"}`}>
                         <span className="history-set-index">{set.warmup ? "W" : index + 1}</span>
                         <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}</strong>
-                        <small>{set.completed ? set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : "" : set.skipped ? "Skipped" : "Not done"}</small>
+                        <small>{set.completed ? `${set.completedAsPlanned ? "Suggested" : ""}${set.completedAsPlanned && (set.rpe || set.rir) ? " · " : ""}${set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : ""}` : set.skipped ? "Skipped" : "Not done"}</small>
                         {set.notes && <p className="history-set-note">{set.notes}</p>}
                       </div>
                     );
@@ -191,7 +191,7 @@ export function HistoryView({
         </DialogContent>
       </Dialog>
       <Input aria-label="Search workouts or exercises" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
-      <div ref={historyStart} className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setPage(0); }}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/60">{workouts.length} sessions</span></div>
+      <div ref={historyStart} className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setPage(0); }}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/60">{workouts.length} session{workouts.length === 1 ? "" : "s"}</span></div>
       {pageControls}
       {workouts.length ? (
         <div className="space-y-3">

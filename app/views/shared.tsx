@@ -148,9 +148,10 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
     (sum, activity) => sum + (performedDistance(activity) ?? 0),
     0,
   );
+  const usedExercises = workout.exercises.filter(exercise => exercise.sets.some(set => set.completed && !set.skipped));
   const pieces = [];
-  if (workout.exercises.length) {
-    pieces.push(`${workout.exercises.length} exercise${workout.exercises.length === 1 ? "" : "s"}`);
+  if (usedExercises.length) {
+    pieces.push(`${usedExercises.length} exercise${usedExercises.length === 1 ? "" : "s"}`);
   }
   if (sets) pieces.push(`${sets} completed set${sets === 1 ? "" : "s"}`);
   if (duration) pieces.push(`${duration.toFixed(duration % 1 ? 1 : 0)} cardio min`);

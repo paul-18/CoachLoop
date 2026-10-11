@@ -30,6 +30,7 @@ import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
+import { nextOpenBlock } from "../domain/completion";
 import { starterRemovable } from "./starter-plan";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
@@ -604,9 +605,7 @@ export function TodayView({
   }, [existingWorkoutRequest, onExistingWorkoutOpened, state.workouts]);
   const [dismissedNudge, setDismissedNudge] = useState<string | null>(() => typeof window === "undefined" ? null : safeNudge());
   const active = state.workouts.find((workout) => workout.id === state.activeWorkoutId);
-  const nextActiveBlock = active && orderedWorkoutBlocks(active).find((block) => block.type === "exercise"
-    ? block.exercise.sets.some((set) => !set.completed && !set.skipped)
-    : !block.activity.completed);
+  const nextActiveBlock = active ? nextOpenBlock(active) : undefined;
   const nextActiveLabel = nextActiveBlock?.type === "exercise" ? nextActiveBlock.exercise.name : nextActiveBlock?.activity.name;
   const planned = [...state.workouts]
     .filter((workout) => workout.status === "planned")
