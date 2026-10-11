@@ -29,7 +29,7 @@ test("changing the quick-log list survives going back from a blank start", () =>
 
 test("the welcome screen explains the log before the choices", () => {
   const markup = renderToStaticMarkup(createElement(FirstSteps, { state: defaultState(), view: "today", onStarter: () => {}, onBlank: () => {} }));
-  const choice = markup.indexOf("Start with an example");
+  const choice = markup.indexOf("Explore demo");
   const explanation = markup.indexOf("private workout log");
   assert.ok(explanation >= 0 && explanation < choice);
   assert.match(markup, /no AI inside the app/);

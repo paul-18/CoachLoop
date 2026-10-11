@@ -196,6 +196,8 @@ export interface AppSettings {
   welcomeChoice?: "starter" | "blank";
   /** Shown once after the first real completed workout, then dismissed for good. */
   firstWorkoutNote?: "show" | "dismissed";
+  /** The Today coaching prompt was opened once. The profile itself may still be empty. */
+  coachingPromptDismissed?: boolean;
 }
 
 export interface FieldConflict {

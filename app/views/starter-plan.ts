@@ -10,6 +10,46 @@ function seedIsClean(workout: WorkoutSession) {
   return !loggedSet && !loggedActivity;
 }
 
+export function exampleSetupState(state: TrainingState): TrainingState {
+  if (state.settings.welcomeChoice) return state;
+  const now = new Date().toISOString();
+  return {
+    ...state,
+    goals: starterGoals(state.settings.defaultUnit),
+    goalsUpdatedAt: now,
+    coachProfile: DEFAULT_COACH_PROFILE,
+    coachProfileUpdatedAt: now,
+    settings: { ...state.settings, welcomeChoice: "starter", quickLogActivities: [...STARTER_QUICK_LOG_ACTIVITIES] },
+    settingsUpdatedAt: now,
+  };
+}
+
+export function samplePlan(unit: TrainingState["settings"]["defaultUnit"], aliases: TrainingState["exerciseAliases"] = {}): WorkoutSession {
+  const parsed = parseFitlog(exampleFitlog(unit), unit, aliases);
+  return { ...parsed, name: "Sample workout", starterSeed: false, status: "planned", startedAt: null, completedAt: null, skippedAt: null, skipReason: "", updatedAt: new Date().toISOString() };
+}
+
+export function addSamplePlan(state: TrainingState): TrainingState {
+  if (state.workouts.some(workout => workout.starterSeed)) return state;
+  const now = new Date().toISOString();
+  const plan = { ...samplePlan(state.settings.defaultUnit, state.exerciseAliases), starterSeed: true, updatedAt: now };
+  return {
+    ...state,
+    workouts: [plan, ...state.workouts],
+    settings: { ...state.settings, welcomeChoice: state.settings.welcomeChoice ?? "starter" },
+    settingsUpdatedAt: now,
+  };
+}
+
+export function coachingPromptVisible(state: TrainingState) {
+  return Boolean(state.settings.welcomeChoice) && !state.settings.coachingPromptDismissed && (!state.coachProfile.trim() || state.coachProfile === DEFAULT_COACH_PROFILE);
+}
+
+export function dismissCoachingPrompt(state: TrainingState): TrainingState {
+  if (state.settings.coachingPromptDismissed) return state;
+  return { ...state, settings: { ...state.settings, coachingPromptDismissed: true }, settingsUpdatedAt: new Date().toISOString() };
+}
+
 export function starterPlanState(state: TrainingState): TrainingState {
   if (state.settings.welcomeChoice) return state;
   const now = new Date().toISOString();

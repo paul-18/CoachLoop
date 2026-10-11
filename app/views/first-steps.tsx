@@ -13,7 +13,7 @@ function freshLog(state: TrainingState) {
   return welcomePending(state);
 }
 
-export function FirstSteps({ state, view, onStarter, onBlank, onRestore, onDemo }: {
+export function FirstSteps({ state, view, onStarter, onBlank, onRestore, onDemo, onSample }: {
   state: TrainingState;
   view: MainView;
   onSetup?: (section: "coach-profile" | "training-goals" | "backup") => void;
@@ -39,12 +39,16 @@ export function FirstSteps({ state, view, onStarter, onBlank, onRestore, onDemo 
     <p>Coach Loop is a private workout log. What you finish stays on this phone. There is no account, and no AI inside the app.</p>
     <p>Log a session on Today. When you want a plan, ask your own AI chat, then paste its FITLOG reply here.</p>
     <div className="first-steps-actions">
-      <Button onClick={onStarter}>Start with an example</Button>
+      <Button onClick={onDemo}>Explore demo</Button>
+      <Button variant="outline" onClick={onSample}>See a sample workout</Button>
+    </div>
+    <p className="first-steps-choice">Explore demo opens a recent sample log in this window. See a sample workout shows one example plan. Neither is added to your History.</p>
+    <h3>Set up my log</h3>
+    <div className="first-steps-actions">
+      <Button variant="outline" onClick={onStarter}>Use example goals</Button>
       <Button variant="outline" onClick={onBlank}>Start blank</Button>
     </div>
-    <p className="first-steps-choice">Start with an example adds two goals, a coach profile, and a Starter session you can edit. Start blank leaves those empty, and you can come back. Nothing is logged until you train.</p>
+    <p className="first-steps-choice">Use example goals adds two goals and a coach profile. It does not create a workout. Start blank leaves those empty, and you can come back. Nothing is logged until you train.</p>
     <Button variant="ghost" className="first-steps-restore" onClick={onRestore}>Restore backup</Button>
-    <Button variant="ghost" className="first-steps-restore" onClick={onDemo}>Explore demo</Button>
-    <p className="first-steps-choice">Explore demo opens sample workouts in this window. It does not change the log on this phone. Refreshing the page leaves demo.</p>
   </section>;
 }

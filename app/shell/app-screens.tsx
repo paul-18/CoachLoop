@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppMark, navItems, type MainView } from "../views/shared";
@@ -9,7 +10,8 @@ import { ProgressView } from "../views/progress-view";
 import { SettingsView } from "../views/settings-view";
 import { FirstSteps } from "../views/first-steps";
 import { DemoBar } from "../views/demo-bar";
-import { blankStartState, removeStarterState, starterPlanState, undoBlankStart } from "../views/starter-plan";
+import { SampleWorkoutPreview } from "../views/sample-workout";
+import { addSamplePlan, blankStartState, dismissCoachingPrompt, exampleSetupState, removeStarterState, undoBlankStart } from "../views/starter-plan";
 import { ViewErrorBoundary } from "./view-error-boundary";
 import type { ShellModel } from "./use-shell-model";
 
@@ -19,7 +21,8 @@ export function AppScreens({ model }: { model: ShellModel }) {
   const { state, displayedState, applyProjectedUpdate, resolveConflict, restoreBackup, resetAll, busy, syncStatus, syncFailure, retrySync, lastSyncedAt, localSaveStatus, setLocalSaveRetry, demoActive, enterDemo, exitDemo } = persistence;
   const { view, setView, navigateTab, returnTabToTop, openSettingsSection, calendarRequest, setCalendarRequest, consumeCalendarRequest, bodyweightPromptOpen, setBodyweightPromptOpen, settingsSection, consumeSettingsSection } = navigation;
   const { lastImportId, setLastImportId, deleteWorkout, setCoachOpen, setImportOpen, activeChoices, resumeWorkout, setWorkoutOpen, workoutOpen, activeWorkout, setHyroxOpen, startBlank, quickCardio, startPlannedWorkout, reschedulePlan, setSkipWorkoutId, editWorkout, repeatWorkout, replanWorkout } = workouts;
-  const leaveDemo = () => { exitDemo(); setWorkoutOpen(false); };
+  const [sampleOpen, setSampleOpen] = useState(false);
+  const leaveDemo = () => { exitDemo(); setWorkoutOpen(false); setSampleOpen(false); };
   const { offlineReady, updateReady, release, checkUpdates } = offline;
   const { logBodyweight, updateSettings, changeActivityType, saveWaist } = progress;
   return (
@@ -32,15 +35,15 @@ export function AppScreens({ model }: { model: ShellModel }) {
         </aside>
 
         <div className="app-main">
-          {demoActive && <DemoBar onExit={leaveDemo} />}
+          {demoActive && <DemoBar onExit={leaveDemo} onSample={() => { setView("today"); setSampleOpen(true); }} />}
           {lastImportId && displayedState.workouts.some(w => w.id === lastImportId && w.status === "planned" && !w.exercises.some(e => e.sets.some(set => set.completed)) && !w.cardio.some(c => c.completed || c.efforts?.some(e => e.completed))) && <div className="reliability-bar"><span>Last imported plan</span><Button size="sm" variant="outline" disabled={demoActive} onClick={() => { deleteWorkout(lastImportId); setLastImportId(null); toast("Unstarted import undone"); }}>Undo import</Button></div>}
 
 
-          {!displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onStarter={() => applyProjectedUpdate(starterPlanState)} onBlank={() => applyProjectedUpdate(blankStartState)} onRestore={() => openSettingsSection("backup")} onDemo={enterDemo} />}
+          {!sampleOpen && !displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onStarter={() => applyProjectedUpdate(exampleSetupState)} onBlank={() => applyProjectedUpdate(blankStartState)} onRestore={() => openSettingsSection("backup")} onDemo={enterDemo} onSample={() => { setView("today"); setSampleOpen(true); }} />}
           
           {(activeChoices.length > 1 || (activeChoices.length > 0 && !displayedState.activeWorkoutId)) && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { resumeWorkout(choice.id); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
           {localSaveStatus === "error" && <div role="alert" className="m-3 rounded-xl border border-red-300/30 bg-red-950/30 p-3 text-sm">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}
-          <TabsContent id="panel-today" aria-labelledby="mobile-tab-today desktop-tab-today" value="today"><ViewErrorBoundary onReload={restart} label="Today" resetKey={view}><TodayView existingWorkoutRequest={navigation.existingWorkoutRequest} onExistingWorkoutOpened={navigation.consumeExistingWorkoutRequest} state={displayedState} onHyrox={() => setHyroxOpen(true)} onStartBlank={startBlank} onQuickCardio={quickCardio} onImport={() => setImportOpen(true)} onCoach={() => setCoachOpen(true)} onResume={() => setWorkoutOpen(true)} onStartPlan={startPlannedWorkout} onReschedulePlan={reschedulePlan} onSkipPlan={setSkipWorkoutId} onHistory={() => setView("history")} onTrainingCalendar={() => { setCalendarRequest((value) => value + 1); setView("progress"); }} onBodyweightLog={() => { setBodyweightPromptOpen(true); setView("progress"); }} onEditGoals={() => openSettingsSection("training-goals")} onRemoveStarter={() => applyProjectedUpdate(removeStarterState)} onUndoBlank={() => applyProjectedUpdate(undoBlankStart)} onEditProfile={() => openSettingsSection("coach-profile")} onDismissFirstNote={() => applyProjectedUpdate(current => ({ ...current, settings: { ...current.settings, firstWorkoutNote: "dismissed" }, settingsUpdatedAt: new Date().toISOString() }))} syncStatus={syncStatus} /></ViewErrorBoundary></TabsContent>
+          <TabsContent id="panel-today" aria-labelledby="mobile-tab-today desktop-tab-today" value="today"><ViewErrorBoundary onReload={restart} label="Today" resetKey={view}>{sampleOpen ? <SampleWorkoutPreview unit={displayedState.settings.defaultUnit} onClose={() => setSampleOpen(false)} onAdd={demoActive ? undefined : () => { applyProjectedUpdate(addSamplePlan); setSampleOpen(false); }} /> : <TodayView existingWorkoutRequest={navigation.existingWorkoutRequest} onExistingWorkoutOpened={navigation.consumeExistingWorkoutRequest} state={displayedState} onHyrox={() => setHyroxOpen(true)} onStartBlank={startBlank} onQuickCardio={quickCardio} onImport={() => setImportOpen(true)} onCoach={() => setCoachOpen(true)} onResume={() => setWorkoutOpen(true)} onStartPlan={startPlannedWorkout} onReschedulePlan={reschedulePlan} onSkipPlan={setSkipWorkoutId} onHistory={() => setView("history")} onTrainingCalendar={() => { setCalendarRequest((value) => value + 1); setView("progress"); }} onBodyweightLog={() => { setBodyweightPromptOpen(true); setView("progress"); }} onEditGoals={() => openSettingsSection("training-goals")} onRemoveStarter={() => applyProjectedUpdate(removeStarterState)} onUndoBlank={() => applyProjectedUpdate(undoBlankStart)} onDismissCoachingPrompt={() => { applyProjectedUpdate(dismissCoachingPrompt); openSettingsSection("coach-profile"); }} onDismissFirstNote={() => applyProjectedUpdate(current => ({ ...current, settings: { ...current.settings, firstWorkoutNote: "dismissed" }, settingsUpdatedAt: new Date().toISOString() }))} syncStatus={syncStatus} />}</ViewErrorBoundary></TabsContent>
           <TabsContent id="panel-history" aria-labelledby="mobile-tab-history desktop-tab-history" value="history"><ViewErrorBoundary onReload={restart} label="History" resetKey={view}><HistoryView existingWorkoutRequest={navigation.existingWorkoutRequest} onExistingWorkoutOpened={navigation.consumeExistingWorkoutRequest} state={displayedState} demoActive={demoActive} onEdit={editWorkout} onRepeat={repeatWorkout} onReplan={replanWorkout} onDelete={deleteWorkout} /></ViewErrorBoundary></TabsContent>
           <TabsContent id="panel-coach" aria-labelledby="mobile-tab-coach desktop-tab-coach" value="coach"><ViewErrorBoundary onReload={restart} label="Coach" resetKey={view}><CoachView state={displayedState} onEditGoals={() => openSettingsSection("training-goals")} onEditProfile={() => openSettingsSection("coach-profile")} onBuild={() => setCoachOpen(true)} onImport={() => setImportOpen(true)} /></ViewErrorBoundary></TabsContent>
           <TabsContent id="panel-progress" aria-labelledby="mobile-tab-progress desktop-tab-progress" value="progress"><ViewErrorBoundary onReload={restart} label="Progress" resetKey={view}><ProgressView onUpdateSettings={updateSettings} state={displayedState} calendarRequest={calendarRequest} onCalendarOpened={consumeCalendarRequest} onChangeActivityType={changeActivityType} onLogBodyweight={logBodyweight} bodyweightPromptOpen={bodyweightPromptOpen} onBodyweightPromptChange={setBodyweightPromptOpen} onSaveWaist={saveWaist} /></ViewErrorBoundary></TabsContent>

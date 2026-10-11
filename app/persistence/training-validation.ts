@@ -112,6 +112,7 @@ export const storedStateBoundary = z.object({
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
     welcomeChoice: z.enum(["starter", "blank"]).optional(),
     firstWorkoutNote: z.enum(["show", "dismissed"]).optional(),
+    coachingPromptDismissed: z.boolean().optional(),
   }).passthrough(),
   settingsUpdatedAt: timestamp,
   pendingConflicts: z.array(conflictSchema).optional(), resolvedConflictIds: stringArray.optional(),

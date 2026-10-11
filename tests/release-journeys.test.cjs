@@ -13,10 +13,10 @@ test('new-user guide routes to goals; example drafts cancel safely, append on Sa
   const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
   try {
     root.render(React.createElement(App));
-    await until(() => button('Start with an example'), 'welcome opens');
+    await until(() => button('Start blank'), 'welcome opens');
     assert.equal(document.querySelector('.today-bodyweight-nudge'), null, 'brand-new user has no overdue bodyweight reminder');
     button('Start blank').click();
-    await until(() => !button('Start with an example'), 'blank choice leaves the log empty');
+    await until(() => !button('Start blank'), 'blank choice leaves the log empty');
     assert.deepEqual((await storage.loadTrainingState()).goals, []);
     assert.equal((await storage.loadTrainingState()).coachProfile, '');
     tab('Settings');
