@@ -33,6 +33,7 @@ import { trainingWeekStreak } from "../domain/training-streak";
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
 import { nextOpenBlock } from "../domain/completion";
 import { goalsAreStarter } from "./goal-examples";
+import { welcomePending } from "./first-steps";
 import { starterRemovable } from "./starter-plan";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
@@ -699,7 +700,7 @@ export function TodayView({
         </section>
       )}
 
-      {active ? <div className="active-secondary-actions"><button type="button" onClick={onImport}>Import a plan</button><button type="button" onClick={onCoach}>Ask ChatGPT</button></div> : <section className="action-grid">
+      {active ? <div className="active-secondary-actions"><button type="button" onClick={onImport}>Import a plan</button><button type="button" onClick={onCoach}>Ask ChatGPT</button></div> : !welcomePending(state) && <section className="action-grid">
         <button type="button" className="primary-action" onClick={onImport}>
           <span className="action-icon"><Clipboard /></span>
           <span>

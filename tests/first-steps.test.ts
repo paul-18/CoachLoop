@@ -15,6 +15,8 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   assert.match(today, /Start blank/);
   assert.match(today, /Restore backup/);
   assert.match(today, /Nothing is logged/);
+  assert.match(today, /no AI inside the app/);
+  assert.doesNotMatch(today, /Explore demo/);
   assert.doesNotMatch(today, /Change 30 minutes/);
   assert.doesNotMatch(today, /Paste a workout/);
   assert.doesNotMatch(today, /How this works/);
