@@ -31,6 +31,7 @@ import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
 import { activityStillOpen, nextOpenBlock, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
@@ -372,7 +373,7 @@ function ExerciseEditor({
             }) });
           }} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>
           </div></details></div>
-          <div className="mt-1 flex items-center gap-2"><p className="previous-result text-sm text-white/55">{previous ? `Last: ${previous}` : "No previous result"}</p>{recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="min-h-11 shrink-0 px-3 text-xs text-[var(--lime)]/80">Last {recentHistory.length}</Button>}</div>
+          <div className="mt-1 flex items-center gap-2">{previous ? <p className="previous-result text-sm text-white/55">Last: {previous}</p> : recentHistory.length === 0 ? <p className="previous-result text-sm text-white/55">No previous result</p> : null}{recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="min-h-11 shrink-0 px-3 text-xs text-[var(--lime)]/80">{recentHistory.length === 1 ? "Last session" : `Last ${recentHistory.length} sessions`}</Button>}</div>
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}><DialogContent className="max-h-[80dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-md"><DialogHeader><DialogTitle>{exercise.name} history</DialogTitle><DialogDescription className="text-white/60">Recent completed results. Warm-ups are labelled.</DialogDescription></DialogHeader><div className="space-y-3">{recentHistory.map((entry) => <div key={entry.date} className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="mb-1 text-xs font-bold text-white/60">{formatDate(entry.date)}</p>{entry.sets.map((set, index) => <p key={`${index}-${set}`} className="text-sm text-white/78">{set}</p>)}</div>)}</div></DialogContent></Dialog>
 
         </div>
@@ -518,11 +519,19 @@ function CardioEditor({
   });
   if (!open && !activity.completed) {
     const summary = [activity.activityType === "other" ? "Custom activity" : activity.activityType.replace(/_/g, " "), activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "", activity.intensity].filter(Boolean).join(" · ");
-    return <button type="button" className="completed-block activity-summary" onClick={() => setOpen(true)} aria-label={`Log ${activity.name}`}><span className="completed-block-copy"><strong>{activity.name}</strong><small>{summary}</small></span><span className="completed-block-edit">Log <ChevronDown /></span></button>;
+    const warning = unusualActivityWarning(activity);
+    return <>
+      <button type="button" className="completed-block activity-summary" onClick={() => setOpen(true)} aria-label={`Log ${activity.name}`}><span className="completed-block-copy"><strong>{activity.name}</strong><small>{summary}</small></span><span className="completed-block-edit">Log <ChevronDown /></span></button>
+      {warning && <p role="status" className="activity-warning">{warning}</p>}
+    </>;
   }
   if (activity.completed && !showCompleted) {
     const facts = [activityEffortSummary(activity), performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null, performedDistance(activity) !== null ? `${formatMeasure(distanceValue(performedDistance(activity)!)!)} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
-    return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Edit completed ${activity.name}`}><span className="completed-block-icon"><Check /></span><span className="completed-block-copy"><strong>{activity.name}</strong><small>Complete{facts ? ` · ${facts}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
+    const warning = unusualActivityWarning(activity);
+    return <>
+      <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Edit completed ${activity.name}`}><span className="completed-block-icon"><Check /></span><span className="completed-block-copy"><strong>{activity.name}</strong><small>Complete{facts ? ` · ${facts}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>
+      {warning && <p role="status" className="activity-warning">{warning}</p>}
+    </>;
   }
   return (
     <Card className={`exercise-card activity-card gap-0 py-0 shadow-none ${isNext ? "is-next-activity" : ""} ${activity.completed ? "is-complete" : "border-white/8 bg-[#171916]"}`}>
@@ -551,6 +560,7 @@ function CardioEditor({
           {showDistance && <label className="field-label">Distance {distanceUnit}<DecimalInput min={0} max={distanceUnit === "m" ? 1000000 : 1000} value={distanceValue(activity.actualDistanceKm)} onValueChange={(value) => update({ actualDistanceKm: readDistance(value) }, true)} placeholder={distanceValue(activity.plannedDistanceKm) === null ? "—" : formatMeasure(distanceValue(activity.plannedDistanceKm)!)} className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
           {activity.activityType === "ruck" && style === "single" && <label className="field-label">Pack load <span className="text-white/60">{activity.ruckLoadUnit}</span><DecimalInput min={0} max={1000} value={activity.ruckLoad} onValueChange={(ruckLoad) => update({ ruckLoad }, true)} placeholder="—" className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
         </div>}
+        {unusualActivityWarning(activity) && <p role="status" className="activity-warning">{unusualActivityWarning(activity)}</p>}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
             const changeEffort = (changes: Partial<typeof effort>) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, ...changes } : item), completed: false }, true);
@@ -813,6 +823,7 @@ export function WorkoutEditor({
     : nextBlock?.activity.name ?? "";
 
   const progress = workoutProgressCopy(workout);
+  const unusual = unusualWorkoutWarning(workout);
   const skippedSets = workout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
   const unfinishedSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
   const unfinishedActivities = workout.cardio.filter(activityStillOpen).length;
@@ -907,6 +918,7 @@ export function WorkoutEditor({
             <Button onClick={() => { finishFromMenu.current = false; setFinishOpen(true); }} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(workout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
+              {unusual && <p role="status" className="activity-warning">{unusual}</p>}
               <div className="finish-review">
                 {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
                 <WorkoutVolume workout={workout} unit={state.settings.defaultUnit} />
@@ -916,7 +928,7 @@ export function WorkoutEditor({
                 <label className="field-label">Notes · optional<Textarea value={workout.notes} onChange={(event) => onUpdate({ ...workout, notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label></div>
               </div>
               {finishError && <p role="alert" className="text-sm text-red-200">{finishError}</p>}
-              <AlertDialogFooter><AlertDialogCancel disabled={finishing} className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction disabled={finishing} onClick={async event => { event.preventDefault(); setFinishing(true); setFinishError(""); try { await onFinish(); setRestUntil(null); setFinishOpen(false); } catch { setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings."); } finally { setFinishing(false); } }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{finishing ? "Saving…" : finishLabel}</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogFooter><AlertDialogCancel disabled={finishing} className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction disabled={finishing} onClick={async event => { event.preventDefault(); setFinishing(true); setFinishError(""); try { await onFinish(); setRestUntil(null); setFinishOpen(false); } catch { setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings."); } finally { setFinishing(false); } }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{unusualSaveLabel(unusual, finishing, finishLabel)}</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
