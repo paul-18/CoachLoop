@@ -10,7 +10,7 @@ import { formatDate, type MainView } from "../views/shared";
 import type { useTrainingPersistence } from "../persistence/use-training-persistence";
 
 export function useWorkoutController(persistence: ReturnType<typeof useTrainingPersistence>, setView: Dispatch<SetStateAction<MainView>>) {
-  const { state, displayedState, setState, applyProjectedUpdate, saveRecoveryCopy, commitState, latestStateRef } = persistence;
+  const { displayedState, setState, applyProjectedUpdate, saveRecoveryCopy, commitState, liveStateRef, demoActive } = persistence;
   const [workoutOpen, setWorkoutOpen] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const historyScrollRef = useRef<number | null>(null);
@@ -21,7 +21,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const [coachOpen, setCoachOpen] = useState(false);
   const [lastImportId, setLastImportId] = useState<string | null>(null);
   const [skipWorkoutId, setSkipWorkoutId] = useState<string | null>(null);
-  const skipWorkout = state.workouts.find((workout) => workout.id === skipWorkoutId) ?? null;
+  const skipWorkout = displayedState.workouts.find((workout) => workout.id === skipWorkoutId) ?? null;
   const activeWorkout = selectedActiveWorkout(displayedState);
   const activeChoices = displayedState.workouts.filter((workout) => workout.status === "active");
   const editingWorkout = displayedState.workouts.find((workout) => workout.id === editingWorkoutId && workout.status === "completed") ?? null;
@@ -31,14 +31,14 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     applyProjectedUpdate((current) => ({ ...current, workouts: current.workouts.map((item) => item.id === workout.id ? { ...workout, updatedAt: new Date().toISOString() } : item) }));
 
   const startWorkout = async (workout: WorkoutSession) => {
-    const before = latestStateRef.current;
+    const before = liveStateRef.current;
     await commitState(current => startWorkoutState(current, workout));
     setWorkoutOpen(true);
     saveRecoveryCopy(before, "before-start");
   };
 
   const savePlannedWorkout = async (workout: WorkoutSession) => {
-    if (latestStateRef.current.workouts.some(w => w.id === workout.id)) return;
+    if (liveStateRef.current.workouts.some(w => w.id === workout.id)) return;
     const planned: WorkoutSession = {
       ...workout,
       status: "planned",
@@ -54,7 +54,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const startPlannedWorkout = (id: string) => {
-    const workout = state.workouts.find((item) => item.id === id && item.status === "planned");
+    const workout = liveStateRef.current.workouts.find((item) => item.id === id && item.status === "planned");
     if (workout) void startWorkout(workout).catch(saveFailure);
   };
 
@@ -66,22 +66,24 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
   const skipPlannedWorkout = (id: string, reason: string, importReplacement: boolean) => {
     const skippedAt = new Date().toISOString();
+    const current = liveStateRef.current;
     const next = {
-      ...state,
-      workouts: state.workouts.map((workout) => workout.id === id
+      ...current,
+      workouts: current.workouts.map((workout) => workout.id === id
         ? { ...workout, status: "skipped" as const, skippedAt, skipReason: reason, startedAt: null, completedAt: null, updatedAt: skippedAt }
         : workout),
     };
-    saveRecoveryCopy(state, "before-skip");
+    saveRecoveryCopy(current, "before-skip");
     setState(next);
     toast.success("Workout marked skipped");
     if (importReplacement) window.setTimeout(() => setImportOpen(true), 0);
   };
 
   const saveFailure = (error: unknown) => toast.error(`${error instanceof Error ? error.message : "Could not save"}. Your draft is retained; retry when storage is available.`);
-  const startBlank = () => { void startWorkout(makeWorkout(state.settings.defaultUnit, state.settings.defaultRestSec)).catch(saveFailure); };
+  const startBlank = () => { const current = liveStateRef.current; void startWorkout(makeWorkout(current.settings.defaultUnit, current.settings.defaultRestSec)).catch(saveFailure); };
   const quickCardio = (type: CardioEntry["activityType"]) => {
-    const workout = makeWorkout(state.settings.defaultUnit, state.settings.defaultRestSec, `${makeCardio(type).name} session`);
+    const current = liveStateRef.current;
+    const workout = makeWorkout(current.settings.defaultUnit, current.settings.defaultRestSec, `${makeCardio(type).name} session`);
     const activity = makeCardio(type);
     workout.exercises = [];
     workout.cardio = [activity];
@@ -90,7 +92,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const finishWorkout = async (updatedWorkout?: WorkoutSession) => {
-    const finishingWorkout = updatedWorkout ?? selectedActiveWorkout(latestStateRef.current);
+    const finishingWorkout = updatedWorkout ?? selectedActiveWorkout(liveStateRef.current);
     if (!finishingWorkout) return;
     const next = await commitState(current => finishWorkoutState(current, finishingWorkout));
     saveRecoveryCopy(next, "workout-complete");
@@ -107,7 +109,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const editWorkout = (id: string) => {
-    if (!state.workouts.some((item) => item.id === id && item.status === "completed")) return;
+    if (!liveStateRef.current.workouts.some((item) => item.id === id && item.status === "completed")) return;
     historyScrollRef.current = window.scrollY;
     setEditingWorkoutId(id);
     setWorkoutOpen(true);
@@ -135,8 +137,8 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const repeatWorkout = (id: string) => {
-    if (state.activeWorkoutId) return toast.error("Finish the active workout first");
-    const original = state.workouts.find((workout) => workout.id === id);
+    if (liveStateRef.current.activeWorkoutId) return toast.error("Finish the active workout first");
+    const original = liveStateRef.current.workouts.find((workout) => workout.id === id);
     if (!original) return;
     if (original.hyrox) {
       const fresh = makeHyroxWorkout(original.hyrox.division, original.hyrox.segments, original.hyrox.setupLabel);
@@ -148,7 +150,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const replan = async (id: string) => {
-    const original = state.workouts.find((workout) => workout.id === id && workout.status === "skipped");
+    const original = liveStateRef.current.workouts.find((workout) => workout.id === id && workout.status === "skipped");
     if (!original) return;
     if (original.hyrox) {
       await savePlannedWorkout(makeHyroxWorkout(original.hyrox.division, original.hyrox.segments, original.hyrox.setupLabel));
@@ -164,6 +166,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const replanWorkout = (id: string) => { void replan(id).catch(saveFailure); };
 
   const deleteWorkout = (id: string) => {
+    if (demoActive) { toast.error("Exit demo before deleting a workout"); return; }
     setState((current) => ({
       ...current,
       workouts: current.workouts.filter((workout) => workout.id !== id),

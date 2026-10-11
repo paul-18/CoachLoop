@@ -16,7 +16,10 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   assert.match(today, /Restore backup/);
   assert.match(today, /Nothing is logged/);
   assert.match(today, /no AI inside the app/);
-  assert.doesNotMatch(today, /Explore demo/);
+  assert.doesNotMatch(today, /Explore demo is the same as the example/);
+  const restoreAt = today.indexOf("Restore backup");
+  const demoAt = today.indexOf("Explore demo");
+  assert.ok(restoreAt >= 0 && demoAt > restoreAt);
   assert.doesNotMatch(today, /Change 30 minutes/);
   assert.doesNotMatch(today, /Paste a workout/);
   assert.doesNotMatch(today, /How this works/);

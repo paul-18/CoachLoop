@@ -13,7 +13,7 @@ function freshLog(state: TrainingState) {
   return welcomePending(state);
 }
 
-export function FirstSteps({ state, view, onStarter, onBlank, onRestore }: {
+export function FirstSteps({ state, view, onStarter, onBlank, onRestore, onDemo }: {
   state: TrainingState;
   view: MainView;
   onSetup?: (section: "coach-profile" | "training-goals" | "backup") => void;
@@ -23,6 +23,7 @@ export function FirstSteps({ state, view, onStarter, onBlank, onRestore }: {
   onStarter?: () => void;
   onBlank?: () => void;
   onRestore?: () => void;
+  onDemo?: () => void;
 }) {
   if (view === "settings" || state.workouts.some(workout => workout.status === "completed")) return null;
   if (!freshLog(state)) {
@@ -43,5 +44,7 @@ export function FirstSteps({ state, view, onStarter, onBlank, onRestore }: {
     </div>
     <p className="first-steps-choice">Start with an example adds two goals, a coach profile, and a Starter session you can edit. Start blank leaves those empty, and you can come back. Nothing is logged until you train.</p>
     <Button variant="ghost" className="first-steps-restore" onClick={onRestore}>Restore backup</Button>
+    <Button variant="ghost" className="first-steps-restore" onClick={onDemo}>Explore demo</Button>
+    <p className="first-steps-choice">Explore demo opens sample workouts in this window. It does not change the log on this phone. Refreshing the page leaves demo.</p>
   </section>;
 }

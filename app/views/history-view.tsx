@@ -119,6 +119,7 @@ export function HistoryView({
   onRepeat,
   onReplan,
   onDelete,
+  demoActive = false,
 }: {
   existingWorkoutRequest?: string | null;
   onExistingWorkoutOpened?: () => void;
@@ -127,6 +128,7 @@ export function HistoryView({
   onRepeat: (id: string) => void;
   onReplan: (id: string) => void;
   onDelete: (id: string) => void;
+  demoActive?: boolean;
 }) {
   const [initialUi] = useState(savedHistoryUi);
   const [search, setSearch] = useState(initialUi.search);
@@ -181,7 +183,7 @@ export function HistoryView({
 
   return (
     <div className="page-stack">
-      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={!state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
+      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={demoActive || !state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => { event.preventDefault(); historyOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-lg">
           <DialogHeader><DialogTitle>Completed training history</DialogTitle><DialogDescription className="text-white/48">Every completed set and activity, grouped by date. No skipped plans or notes. This text is for reading and saving; a JSON backup in Settings is needed to restore app data.</DialogDescription></DialogHeader>
@@ -226,7 +228,7 @@ export function HistoryView({
                           <Button size="sm" variant="outline" onClick={() => onRepeat(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Repeat</Button>
                         </>
                       )}
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem disabled={demoActive} onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem disabled={demoActive} onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                       <AlertDialog open={deleteId === workout.id} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
                         <AlertDialogContent onCloseAutoFocus={(event) => { event.preventDefault(); deleteButtons.current.get(workout.id)?.focus(); }} className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/60">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>
