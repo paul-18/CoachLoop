@@ -13,7 +13,7 @@ export function weeklyCards(state: TrainingState) {
       const lifts = state.workouts.filter(workout => workout.status === "completed" && dateInWindow(workout.date, 7)).map(workout => ({ date: workout.date, ...workoutLiftingVolume(workout, state.settings.defaultUnit) }));
       const volume = lifts.reduce((sum, lift) => sum + lift.volume, 0);
       const sets = lifts.reduce((sum, lift) => sum + lift.countedSets, 0);
-      return { id, title, value: `${Math.round(volume).toLocaleString()} ${state.settings.defaultUnit} × reps`, detail: `${sets} loaded sets · excludes BW`, dates: [...new Set(lifts.filter(lift => lift.countedSets > 0).map(lift => lift.date))] };
+      return { id, title, value: `${Math.round(volume).toLocaleString()} ${state.settings.defaultUnit} × reps`, detail: `${sets} loaded set${sets === 1 ? "" : "s"} · excludes bodyweight`, dates: [...new Set(lifts.filter(lift => lift.countedSets > 0).map(lift => lift.date))], empty: sets === 0 };
     }
     const start = new Date(); start.setDate(start.getDate() - 6);
     const rows = activityRows(state, id, localDate(start), localDate());
@@ -27,6 +27,6 @@ export function weeklyCards(state: TrainingState) {
     const value = distanceTypes.includes(id) ? `${Number(distance.toFixed(2))} km` : id === "circuit" || id === "force" ? `${sessions}` : `${Math.round(minutes)} min`;
     const load = id === "ruck" && breakdown.rucks.loadDistance ? ` · ${Math.round(breakdown.rucks.loadDistance)} ${state.settings.defaultUnit}·km` : "";
     const detail = `${sessions} session${sessions === 1 ? "" : "s"}${distanceTypes.includes(id) || id === "circuit" || id === "force" ? ` · ${Math.round(minutes)} min` : ""}${load}`;
-    return { id, title, value, detail, dates };
+    return { id, title, value, detail, dates, empty: sessions === 0 };
   });
 }

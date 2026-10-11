@@ -601,6 +601,10 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .demo-bar strong { font-size: .84rem; }
 .demo-bar span { flex: 1; min-width: 12rem; font-size: .82rem; line-height: 1.4; }
 .demo-bar button { min-height: 44px; }
+.activity-warning { margin: 8px 0 0; color: #f3d48a; font-size: .82rem; line-height: 1.45; }
+.goal-text-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 420px; gap: 14px; border-color: rgba(255,255,255,.56); background: #151713; color: white; }
+.goal-text-dialog [data-slot="dialog-description"] { color: rgba(255,255,255,.65); }
+.goal-text-input { min-height: 88px; max-height: 140px; width: 100%; resize: vertical; border-color: rgba(255,255,255,.56); background: rgba(0,0,0,.2); font-size: 16px; line-height: 1.45; }
 .activity-editor input.has-actual { color: #fff; font-weight: 750; }
 .activity-editor input.is-target { color: rgba(255,255,255,.45); }
 .exercise-card .previous-result { color: #aeb5a7; }

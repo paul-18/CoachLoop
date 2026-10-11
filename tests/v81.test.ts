@@ -26,7 +26,7 @@ test("visible shortcut order follows the selected order, with hidden options aft
 });
 test("strength weekly total is load times reps rather than plain pounds",()=>{
  const state=defaultState(),w=makeWorkout("lb",120);w.date=localDate();w.status="completed";const s=w.exercises[0].sets[0];s.completed=true;s.actualReps="5";s.actualWeight=100;s.loadType="weighted";w.exercises[0].sets=[s];state.workouts=[w];state.settings.weeklyCards=["strength"];
- const card=weeklyCards(state)[0];assert.match(card.value,/500 lb × reps/);assert.match(card.detail,/excludes BW/);
+ const card=weeklyCards(state)[0];assert.match(card.value,/500 lb × reps/);assert.match(card.detail,/1 loaded set/);assert.match(card.detail,/excludes bodyweight/);
 });
 test("coverage uses clearly separated gold levels as evidence increases",()=>{
  const low=coverageColor({muscle:"Chest",effectiveSets:1,days:1}),high=coverageColor({muscle:"Chest",effectiveSets:10,days:1});assert.equal(low,"#806039");assert.equal(high,"#ffe3a3");assert.notEqual(low,high);assert.equal(coverageColor({muscle:"Chest",effectiveSets:0,days:0}),"#303438");

@@ -14,6 +14,14 @@ export function goalsAreStarter(goals: string[], unit: Unit = "lb") {
   return goals.length === expected.length && goals.every((goal, index) => goal === expected[index]);
 }
 
+/** Stable list key without adding an id to saved goals. Unique text stays with the goal when it moves. */
+export function goalListKey(goals: readonly string[], index: number) {
+  const goal = goals[index] ?? "";
+  if (!goal) return `empty-${index}`;
+  const occurrence = goals.slice(0, index).filter(item => item === goal).length;
+  return occurrence === 0 ? goal : `${goal}\u0000${occurrence}`;
+}
+
 export const GOAL_EXAMPLES = [
   { label: "Bench", text: STARTER_GOALS[0] },
   { label: "5k", text: STARTER_GOALS[1] },

@@ -15,11 +15,28 @@ test("one or two chosen weekly cards render without showing unselected categorie
   const state = defaultState();
   state.settings.weeklyCards = ["run"];
   let html = renderToStaticMarkup(createElement(ActivityBreakdown, { state }));
-  assert.match(html, /<span>Runs<\/span>/); assert.doesNotMatch(html, /<span>Strength<\/span>|<span>Rucks<\/span>/);
+  assert.match(html, /Nothing in the last 7 days yet/);
+  assert.doesNotMatch(html, /<span>Strength<\/span>|<span>Rucks<\/span>|<span>Runs<\/span>/);
   state.settings.weeklyCards = ["water_polo", "circuit"];
   assert.deepEqual(weeklyCards(state).map(card => card.id), ["water_polo", "circuit"]);
   html = renderToStaticMarkup(createElement(ActivityBreakdown, { state }));
-  assert.match(html, /<span>Water polo<\/span>/); assert.match(html, /<span>Circuits<\/span>/); assert.doesNotMatch(html, /<span>Runs<\/span>/);
+  assert.match(html, /Nothing in the last 7 days yet/);
+  assert.doesNotMatch(html, /<span>Runs<\/span>|<span>Water polo<\/span>|<span>Circuits<\/span>/);
+  const workout = makeWorkout("lb", 120);
+  workout.exercises = [];
+  workout.status = "completed";
+  const polo = makeCardio("water_polo");
+  polo.completed = true;
+  polo.actualDurationMin = 40;
+  const circuit = makeCardio("circuit");
+  circuit.completed = true;
+  circuit.actualDurationMin = 20;
+  workout.cardio = [polo, circuit];
+  state.workouts = [workout];
+  html = renderToStaticMarkup(createElement(ActivityBreakdown, { state }));
+  assert.match(html, /<span>Water polo<\/span>/);
+  assert.match(html, /<span>Circuits<\/span>/);
+  assert.doesNotMatch(html, /<span>Runs<\/span>/);
 });
 
 test("additional weekly activity cards use completed evidence only and exclude future dates", () => {
