@@ -28,8 +28,9 @@ import { formatLoad, performedReps, performedWeight } from "../domain/training-m
 import { localDate, type TrainingState, type Unit, type WorkoutSession } from "../domain/training-types";
 
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
+import { FirstWorkoutNote } from "./first-workout-note";
 
-import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress } from "../domain/completion";
 
 import { WorkoutVolume } from "./workout-editor";
 
@@ -53,12 +54,12 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
       {orderedWorkoutBlocks(workout).map((block) => {
         if (block.type === "exercise") {
           const exercise = block.exercise;
-          const completedSets = exercise.sets.filter((set) => set.completed);
+          const progress = exerciseSetProgress(exercise.sets);
           return (
             <details key={exercise.id} className="history-exercise" open={exercise.sets.length <= 6 ? true : undefined}>
               <summary className="history-detail-heading">
                 <div><h3>{exercise.name}</h3>{exercise.notes && <p>Your note: {exercise.notes}</p>}</div>
-                <span className="flex shrink-0 items-center gap-2"><Badge variant="outline" className="border-white/9 text-white/48">{completedSets.length}/{exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}</Badge><ChevronDown className="history-chevron" /></span>
+                <span className="flex shrink-0 items-center gap-2"><Badge variant="outline" className="border-white/9 text-white/48">{progress.skippedOnly ? "Skipped" : `${progress.done}/${progress.total} ${progress.total === 1 ? "set" : "sets"}`}</Badge><ChevronDown className="history-chevron" /></span>
               </summary>
               {exercise.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{exercise.coachNotes}</p></details>}
               {exercise.sets.length ? (
@@ -85,7 +86,7 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
         const distance = !hasCompletedActivityWork(item) ? item.plannedDistanceKm : performedDistance(item);
         return (
           <section key={item.id} className={`history-exercise ${item.completed ? "" : "history-activity-incomplete"}`}>
-            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{item.completed ? item.completedAsPlanned ? "As prescribed" : "Completed" : hasCompletedActivityWork(item) ? "Partly completed" : "Not completed"}</Badge></div>
+            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.skipped && !item.completed ? "border-amber-300/15 text-amber-200/65" : item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{activityHistoryLabel(item)}</Badge></div>
             {item.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{item.coachNotes}</p></details>}
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
             {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.completed ? effort.actualDistanceM : effort.plannedDistanceM, effort.completed ? effort.actualLoad : effort.plannedLoad, effort.completed ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
@@ -119,6 +120,7 @@ export function HistoryView({
   onRepeat,
   onReplan,
   onDelete,
+  onDismissFirstNote,
   demoActive = false,
 }: {
   existingWorkoutRequest?: string | null;
@@ -128,6 +130,7 @@ export function HistoryView({
   onRepeat: (id: string) => void;
   onReplan: (id: string) => void;
   onDelete: (id: string) => void;
+  onDismissFirstNote?: () => void;
   demoActive?: boolean;
 }) {
   const [initialUi] = useState(savedHistoryUi);
@@ -183,10 +186,11 @@ export function HistoryView({
 
   return (
     <div className="page-stack">
+      {state.settings.firstWorkoutNote === "show" && <FirstWorkoutNote onDismiss={onDismissFirstNote} />}
       <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={demoActive || !state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => { event.preventDefault(); historyOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-lg">
-          <DialogHeader><DialogTitle>Completed training history</DialogTitle><DialogDescription className="text-white/48">Every completed set and activity, grouped by date. No skipped plans or notes. This text is for reading and saving; a JSON backup in Settings is needed to restore app data.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Completed training history</DialogTitle><DialogDescription className="text-white/48">Every completed set and activity, grouped by date. No skipped plans or notes. This text is for reading and saving; a backup file from Settings is needed to restore the log.</DialogDescription></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-3"><label className="field-label">From<Input type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} className="mt-1 border-white/10 bg-black/20" /></label><label className="field-label">To<Input type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} className="mt-1 border-white/10 bg-black/20" /></label><label className="field-label">Exercise<NativeSelect value={exportExercise} onChange={(event) => setExportExercise(event.target.value)} className="mt-1 w-full border-white/10 bg-black/20"><NativeSelectOption value="">All exercises</NativeSelectOption>{exportExercises.map((name) => <NativeSelectOption key={name} value={name}>{name}</NativeSelectOption>)}</NativeSelect></label></div>
           <pre className="max-h-[42dvh] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-white/75">{exportText}</pre>
           <DialogFooter className="gap-2 sm:gap-0"><Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={async () => { if (await copyText(exportText)) toast.success("History copied"); else toast.error("Could not copy. Select the history text and copy it manually."); }}><Copy /> Copy text</Button><Button className="bg-[var(--lime)] font-bold text-[#11140d] hover:bg-[var(--lime)]/90" onClick={() => downloadText(exportText, `coach-loop-history-${localDate()}.txt`, "text/plain;charset=utf-8")}><Download /> Download .txt</Button></DialogFooter>
@@ -240,7 +244,7 @@ export function HistoryView({
           })}
         </div>
       ) : (
-        <EmptyPanel icon={History} title={search ? "No matching sessions" : "Your history starts here"} text={search ? "Try a different exercise or workout name." : "Complete a workout and it will become available for search, review, editing, and ChatGPT exports."} />
+        <EmptyPanel icon={History} title={search ? "No matching sessions" : "Your history starts here"} text={search ? "Try a different exercise or workout name." : "Complete a workout and it will become available for search, review, editing, and copying into your AI chat."} />
       )}
       {pageControls && <Button variant="outline" onClick={() => historyStart.current?.scrollIntoView({ block: "start", behavior: "instant" })}>Back to history pages</Button>}
       <DailyReview state={state} onOpen={id=>{ const all = state.workouts.filter(w => w.status === "completed" || w.status === "skipped").sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt ?? b.skippedAt ?? "").localeCompare(a.completedAt ?? a.skippedAt ?? "")); setSearch("");setStatusFilter("all");setExpanded(id);setPage(Math.floor(Math.max(0, all.findIndex(w => w.id === id)) / pageSize)); }} />

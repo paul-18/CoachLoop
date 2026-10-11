@@ -36,7 +36,8 @@ import { goalsAreStarter } from "./goal-examples";
 import { welcomePending } from "./first-steps";
 import { blankStartReversible, coachingPromptVisible, starterRemovable } from "./starter-plan";
 
-import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
+import { copyText, countLabel, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
+import { FirstWorkoutNote } from "./first-workout-note";
 
 import { CoachCue } from "./workout-editor";
 import { RunPlan } from "./run-plan";
@@ -147,12 +148,12 @@ export function ImportWorkoutDialog({
               <Textarea
                 value={text}
                 onChange={(event) => onTextChange(event.target.value)}
-                aria-label="FITLOG workout text" placeholder="Paste ChatGPT’s reply here…"
+                aria-label="FITLOG workout text" placeholder="Paste your AI chat’s reply here…"
                 className="min-h-56 resize-y border-white/10 bg-black/20 font-mono text-sm leading-6 text-white placeholder:text-white/25"
               />
               {error && (
                 <div className="rounded-xl border border-red-400/20 bg-red-400/8 p-4 text-sm leading-6 text-red-100">
-                  {error} Use the Coach screen first so ChatGPT receives the exact format.
+                  {error} Use the Coach screen first so your AI chat receives the exact format.
                 </div>
               )}
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -579,6 +580,7 @@ export function TodayView({
   onRemoveStarter,
   onUndoBlank,
   onDismissCoachingPrompt,
+  onOpenCoachingPreferences,
   onDismissFirstNote,
   syncStatus,
 }: {
@@ -601,6 +603,7 @@ export function TodayView({
   onRemoveStarter?: () => void;
   onUndoBlank?: () => void;
   onDismissCoachingPrompt?: () => void;
+  onOpenCoachingPreferences?: () => void;
   onDismissFirstNote?: () => void;
   syncStatus: SyncStatus;
 }) {
@@ -642,12 +645,9 @@ export function TodayView({
 
       {!active && state.workouts.some(workout => workout.starterSeed && workout.status === "planned") && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-guide"><h2>How this sample plan works</h2><p>It is an example you added, not a finished workout. Preview it, then start it. Tick a set to accept the suggested load, or type your own. Finish the workout when you stop. Remove starter stays available until you change that plan.</p></section>}
 
-      {!active && coachingPromptVisible(state) && <section className="starter-guide"><p>{state.settings.welcomeChoice === "blank" ? "Add coaching preferences if you want them included when you copy a brief for your own AI chat." : "The coach profile is still the starter text. Change it before you ask an AI for a plan."}</p><Button type="button" variant="outline" onClick={onDismissCoachingPrompt}>Set coaching preferences</Button></section>}
+      {!active && coachingPromptVisible(state) && <section className="starter-guide"><p>{state.settings.welcomeChoice === "blank" ? "Add coaching preferences if you want them included when you copy a brief for your own AI chat." : "The coach profile is still the starter text. Change it before you ask an AI for a plan."}</p><div className="first-steps-actions"><Button type="button" variant="outline" onClick={onOpenCoachingPreferences}>Set coaching preferences</Button><Button type="button" variant="ghost" onClick={onDismissCoachingPrompt}>Not now</Button></div></section>}
 
-      {state.settings.firstWorkoutNote === "show" && <section className="first-workout-note" role="status">
-        <p>Saved on this phone. Next: back up once from Settings, or ask your AI for a plan.</p>
-        <Button type="button" variant="ghost" onClick={onDismissFirstNote}>Got it</Button>
-      </section>}
+      {state.settings.firstWorkoutNote === "show" && <FirstWorkoutNote onDismiss={onDismissFirstNote} />}
 
       {!active && state.goals.some(goal => goal.trim()) && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-goals">
         <div className="section-heading">
@@ -697,7 +697,7 @@ export function TodayView({
                       {workout.starterSeed && <Badge variant="outline" className="border-white/15 text-white/70">Starter</Badge>}
                       <Badge className="border-sky-300/15 bg-sky-300/8 text-sky-200/75">{timing}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-white/60">{workout.exercises.length + workout.cardio.length} blocks · {exerciseSets} sets</p>
+                    <p className="mt-1 text-sm text-white/60">{countLabel(workout.exercises.length + workout.cardio.length, "block")} · {countLabel(exerciseSets, "set")}</p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Button size="sm" onClick={() => setPreviewId(workout.id)} className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90">Preview</Button>
@@ -710,19 +710,19 @@ export function TodayView({
         </section>
       )}
 
-      {active ? <div className="active-secondary-actions"><button type="button" onClick={onImport}>Import a plan</button><button type="button" onClick={onCoach}>Ask ChatGPT</button></div> : !welcomePending(state) && <section className="action-grid">
+      {active ? <div className="active-secondary-actions"><button type="button" onClick={onImport}>Import a plan</button><button type="button" onClick={onCoach}>Ask your AI chat</button></div> : !welcomePending(state) && <section className="action-grid">
         <button type="button" className="primary-action" onClick={onImport}>
           <span className="action-icon"><Clipboard /></span>
           <span>
             <strong>Import workout</strong>
-            <small>Paste ChatGPT’s FITLOG plan</small>
+            <small>Paste your AI chat’s FITLOG plan</small>
           </span>
           <CirclePlus className="ml-auto size-5 opacity-50" />
         </button>
         <button type="button" className="secondary-action" onClick={onCoach}>
           <span className="action-icon"><Bot /></span>
           <span>
-            <strong>Ask ChatGPT</strong>
+            <strong>Ask your AI chat</strong>
             <small>Copy recent training and goals</small>
           </span>
         </button>
