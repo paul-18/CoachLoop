@@ -2,11 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { displayedDistance } from "../app/domain/completion";
 import { strengthRecords } from "../app/domain/training-metrics";
-import { defaultState, makeSet, makeWorkout } from "../app/domain/training-types";
+import { defaultState, makeSet, makeWorkout, QUICK_LOG_OPTIONS } from "../app/domain/training-types";
 import { storedStateBoundary } from "../app/persistence/training-validation";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QuickLogButtons } from "../app/views/quick-log-buttons";
+import { WorkoutEditor } from "../app/views/workout-editor";
+import { exampleFitlog, parseFitlog } from "../app/interchange/fitlog";
+import { blankStartState, starterPlanState } from "../app/views/starter-plan";
 
 test("1005 metres displays as 1005, not a binary tail", () => {
   assert.equal(displayedDistance(1005 / 1000, "m"), 1005);
@@ -31,11 +34,21 @@ test("NaN weight is not treated as a positive load", () => {
 });
 
 test("a new log only offers run, bike, circuit and yoga", () => {
-  const markup = renderToStaticMarkup(createElement(QuickLogButtons, { settings: defaultState().settings, disabled: false, limited: true, onChoose: () => {} }));
-  assert.match(markup, />Run</);
-  assert.match(markup, />Bike</);
-  assert.match(markup, />Circuit</);
-  assert.match(markup, />Yoga</);
-  assert.doesNotMatch(markup, />Swim</);
-  assert.doesNotMatch(markup, />Ruck</);
+  for (const next of [starterPlanState(defaultState()), blankStartState(defaultState())]) {
+    assert.deepEqual(next.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
+    const markup = renderToStaticMarkup(createElement(QuickLogButtons, { settings: next.settings, disabled: false, onChoose: () => {} }));
+    assert.match(markup, />Run</);
+    assert.doesNotMatch(markup, />Swim</);
+    assert.doesNotMatch(markup, />Ruck</);
+  }
+  assert.ok(QUICK_LOG_OPTIONS.some(option => option.type === "swim"));
+  assert.ok(defaultState().settings.quickLogActivities?.includes("water_polo"));
+});
+
+test("the example bike stays closed until it is logged", () => {
+  const workout = parseFitlog(exampleFitlog(), "lb", {});
+  const markup = renderToStaticMarkup(createElement(WorkoutEditor, { workout, state: defaultState(), saveStatus: "saved", onUpdate: () => {}, onFinish: async () => {}, onBack: () => {}, onIncrement: () => {} }));
+  assert.match(markup, /Log Easy bike/);
+  assert.match(markup, /5 min/);
+  assert.doesNotMatch(markup, /Activity name/);
 });

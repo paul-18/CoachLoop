@@ -496,6 +496,7 @@ function CardioEditor({
   onRemove: () => void;
 }) {
   const [showCompleted, setShowCompleted] = useState(false);
+  const [open, setOpen] = useState(false);
   const style = activityLoggingStyle(activity);
   const efforts = activity.efforts ?? [];
   const hasCompletedEfforts = efforts.some((effort) => effort.completed);
@@ -513,6 +514,10 @@ function CardioEditor({
     completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : activity.completedAsPlanned,
     updatedAt: new Date().toISOString(),
   });
+  if (!open && !activity.completed) {
+    const summary = [activity.activityType === "other" ? "Custom activity" : activity.activityType.replace(/_/g, " "), activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "", activity.intensity].filter(Boolean).join(" · ");
+    return <button type="button" className="completed-block activity-summary" onClick={() => setOpen(true)} aria-label={`Log ${activity.name}`}><span className="completed-block-copy"><strong>{activity.name}</strong><small>{summary}</small></span><span className="completed-block-edit">Log <ChevronDown /></span></button>;
+  }
   if (activity.completed && !showCompleted) {
     const facts = [activityEffortSummary(activity), performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null, performedDistance(activity) !== null ? `${formatMeasure(distanceValue(performedDistance(activity)!)!)} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
     return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Edit completed ${activity.name}`}><span className="completed-block-icon"><Check /></span><span className="completed-block-copy"><strong>{activity.name}</strong><small>Complete{facts ? ` · ${facts}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
@@ -535,6 +540,7 @@ function CardioEditor({
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
+        {!activity.completed && <Button type="button" variant="ghost" className="w-full text-white/70" onClick={() => setOpen(false)}>Collapse</Button>}
         {activity.completed && <Button variant="ghost" className="w-full text-[var(--lime)]" onClick={() => setShowCompleted(false)}><Check /> Complete · Collapse <ChevronUp /></Button>}
         {activity.coachNotes && <CoachCue text={activity.coachNotes} />}
         {activity.intervals && (activity.activityType === "run" ? <RunPlan text={activity.intervals} /> : activity.intervals.length > 105 ? <details className="activity-instructions"><summary>{activity.intervals.slice(0, 100).trimEnd()}… · More</summary><p>{activity.intervals}</p></details> : <p className="activity-instructions">{activity.intervals}</p>)}

@@ -23,12 +23,12 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   assert.doesNotMatch(started.coachProfile, /Coach profile field/);
   assert.equal(started.workouts.length, 1);
   assert.equal(started.workouts[0]?.status, "planned");
-  assert.equal(started.settings.welcomeChoice, "starter");
+  assert.deepEqual(started.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state: started, view: "today", onStarter: () => {}, onBlank: () => {} })), "");
   const blank = blankStartState(state);
   assert.deepEqual(blank.goals, []);
   assert.equal(blank.coachProfile, "");
-  assert.equal(blank.workouts.length, 0);
+  assert.deepEqual(blank.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state: blank, view: "today", onStarter: () => {}, onBlank: () => {} })), "");
   const history = renderToStaticMarkup(createElement(FirstSteps, { state, view: "history", onStarter: () => {}, onBlank: () => {} }));
   assert.match(history, /Start on Today/);

@@ -173,6 +173,7 @@ export const QUICK_LOG_OPTIONS = [
   { type: "water_polo", label: "Water polo" },
 ] as const;
 export type QuickLogActivityType = (typeof QUICK_LOG_OPTIONS)[number]["type"];
+export const STARTER_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = ["run", "bike", "circuit", "yoga"];
 export const DEFAULT_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = QUICK_LOG_OPTIONS.map(option => option.type);
 
 export interface AppSettings {

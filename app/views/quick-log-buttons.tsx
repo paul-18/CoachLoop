@@ -3,9 +3,8 @@ import { DEFAULT_QUICK_LOG_ACTIVITIES, QUICK_LOG_OPTIONS, type AppSettings, type
 import { GrapplingIcon, RunningIcon, SoccerBallIcon, SwimmingIcon, YogaIcon } from "./sport-icons";
 
 const icons = { run: RunningIcon, swim: SwimmingIcon, bike: Bike, ruck: Backpack, circuit: RotateCcw, soccer: SoccerBallIcon, grappling: GrapplingIcon, yoga: YogaIcon, water_polo: Waves };
-export const STARTER_QUICK_LOG: QuickLogActivityType[] = ["run", "bike", "circuit", "yoga"];
-export function QuickLogButtons({ settings, disabled, onChoose, limited = false }: { settings: AppSettings; disabled: boolean; onChoose: (type: QuickLogActivityType) => void; limited?: boolean }) {
-  const selected = limited ? STARTER_QUICK_LOG : settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
+export function QuickLogButtons({ settings, disabled, onChoose }: { settings: AppSettings; disabled: boolean; onChoose: (type: QuickLogActivityType) => void }) {
+  const selected = settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
   return <div className="quick-grid">{selected.map(type => {
     const option = QUICK_LOG_OPTIONS.find(option => option.type === type);
     if (!option) return null;

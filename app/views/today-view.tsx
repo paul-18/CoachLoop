@@ -29,7 +29,7 @@ import { formatLoad, formatMeasure } from "../domain/training-metrics";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
-import { localDate, currentCoachCheckIn, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
+import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
 
@@ -701,14 +701,14 @@ export function TodayView({
         </button>
       </section>}
 
-      {!active && <section>
+      {!active && (state.settings.welcomeChoice || state.workouts.length > 0 || state.goals.some(goal => goal.trim()) || state.coachProfile.trim()) && <section>
         <div className="section-heading">
           <div>
             <h2>Quick log</h2>
           </div>
         </div>
-        <QuickLogButtons settings={state.settings} disabled={Boolean(active)} limited={!state.workouts.some(workout => workout.status === "completed")} onChoose={onQuickCardio} />
-        {!state.workouts.some(workout => workout.status === "completed") && <p className="mt-2 text-sm text-white/60">Run, bike, circuit, and yoga for now. More activities are in Settings after your first workout.</p>}
+        <QuickLogButtons settings={state.settings} disabled={Boolean(active)} onChoose={onQuickCardio} />
+        {state.settings.quickLogActivities?.join() === STARTER_QUICK_LOG_ACTIVITIES.join() && <p className="mt-2 text-sm text-white/60">More activities are in Settings.</p>}
       </section>}
 
       {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
