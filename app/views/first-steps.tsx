@@ -39,10 +39,10 @@ export function FirstSteps({ state, view, onStarter, onBlank, onRestore, onDemo,
     <p>Coach Loop is a private workout log. What you finish stays on this phone. There is no account, and no AI inside the app.</p>
     <p>Log a session on Today. When you want a plan, ask your own AI chat, then paste its FITLOG reply here.</p>
     <div className="first-steps-actions">
-      <Button onClick={onDemo}>Explore demo</Button>
-      <Button variant="outline" onClick={onSample}>See a sample workout</Button>
+      <Button onClick={onDemo}>Explore a sample log</Button>
+      <Button variant="outline" onClick={onSample}>Preview one workout</Button>
     </div>
-    <p className="first-steps-choice">Explore demo opens a recent sample log in this window. See a sample workout shows one example plan. Neither is added to your History.</p>
+    <p className="first-steps-choice">Explore a sample log opens a recent sample log in this window. Preview one workout shows one example plan. Neither is added to your History. Changes in the sample log are discarded when you exit or refresh.</p>
     <h3>Set up my log</h3>
     <div className="first-steps-actions">
       <Button variant="outline" onClick={onStarter}>Use example goals</Button>

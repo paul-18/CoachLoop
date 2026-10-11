@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QuickLogButtons } from "../app/views/quick-log-buttons";
 import { WorkoutEditor } from "../app/views/workout-editor";
 import { exampleFitlog, parseFitlog } from "../app/interchange/fitlog";
-import { blankStartState, starterPlanState } from "../app/views/starter-plan";
+import { blankStartState, exampleSetupState } from "../app/views/starter-plan";
 
 test("1005 metres displays as 1005, not a binary tail", () => {
   assert.equal(displayedDistance(1005 / 1000, "m"), 1005);
@@ -34,7 +34,7 @@ test("NaN weight is not treated as a positive load", () => {
 });
 
 test("a new log only offers run, bike, circuit and yoga", () => {
-  for (const next of [starterPlanState(defaultState()), blankStartState(defaultState())]) {
+  for (const next of [exampleSetupState(defaultState()), blankStartState(defaultState())]) {
     assert.deepEqual(next.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
     const markup = renderToStaticMarkup(createElement(QuickLogButtons, { settings: next.settings, disabled: false, onChoose: () => {} }));
     assert.match(markup, />Run</);

@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { defaultState, makeWorkout } from "../app/domain/training-types";
 import { FirstSteps } from "../app/views/first-steps";
-import { blankStartReversible, blankStartState, starterPlanState, undoBlankStart } from "../app/views/starter-plan";
+import { addSamplePlan, blankStartReversible, blankStartState, exampleSetupState, undoBlankStart } from "../app/views/starter-plan";
 import { DEFAULT_QUICK_LOG_ACTIVITIES, STARTER_QUICK_LOG_ACTIVITIES } from "../app/domain/training-types";
 
 test("a blank start can be undone before anything is added", () => {
@@ -29,7 +29,7 @@ test("changing the quick-log list survives going back from a blank start", () =>
 
 test("the welcome screen explains the log before the choices", () => {
   const markup = renderToStaticMarkup(createElement(FirstSteps, { state: defaultState(), view: "today", onStarter: () => {}, onBlank: () => {} }));
-  const choice = markup.indexOf("Explore demo");
+  const choice = markup.indexOf("Explore a sample log");
   const explanation = markup.indexOf("private workout log");
   assert.ok(explanation >= 0 && explanation < choice);
   assert.match(markup, /no AI inside the app/);
@@ -37,7 +37,7 @@ test("the welcome screen explains the log before the choices", () => {
 });
 
 test("the starter plan is still a planned example", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   assert.equal(started.workouts[0]?.status, "planned");
   assert.equal(started.workouts[0]?.starterSeed, true);
 });

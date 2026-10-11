@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultState, makeWorkout } from "../app/domain/training-types";
-import { removeStarterState, starterPlanState } from "../app/views/starter-plan";
+import { addSamplePlan, exampleSetupState, removeStarterState } from "../app/views/starter-plan";
 
 test("removing the starter keeps a quick-log list the user changed", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   started.settings.quickLogActivities = ["run", "swim"];
   const removed = removeStarterState(started);
   assert.deepEqual(removed.settings.quickLogActivities, ["run", "swim"]);
@@ -12,13 +12,13 @@ test("removing the starter keeps a quick-log list the user changed", () => {
 });
 
 test("removing the starter keeps an untouched quick-log list instead of restoring every activity", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   const removed = removeStarterState(started);
   assert.deepEqual(removed.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
 });
 
 test("an edited profile stays when the starter session is removed", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   started.coachProfile = "My own notes";
   const extra = makeWorkout("lb", 20);
   extra.name = "Saturday run";

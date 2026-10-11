@@ -50,28 +50,6 @@ export function dismissCoachingPrompt(state: TrainingState): TrainingState {
   return { ...state, settings: { ...state.settings, coachingPromptDismissed: true }, settingsUpdatedAt: new Date().toISOString() };
 }
 
-export function starterPlanState(state: TrainingState): TrainingState {
-  if (state.settings.welcomeChoice) return state;
-  const now = new Date().toISOString();
-  let workouts = state.workouts;
-  if (!workouts.length) {
-    try {
-      const parsed = parseFitlog(exampleFitlog(state.settings.defaultUnit), state.settings.defaultUnit, state.exerciseAliases);
-      workouts = [{ ...parsed, name: "Starter session", starterSeed: true, status: "planned", startedAt: null, completedAt: null, skippedAt: null, skipReason: "", updatedAt: now }];
-    } catch { /* Goals and profile still save if the example cannot be read. */ }
-  }
-  return {
-    ...state,
-    goals: starterGoals(state.settings.defaultUnit),
-    goalsUpdatedAt: now,
-    coachProfile: DEFAULT_COACH_PROFILE,
-    coachProfileUpdatedAt: now,
-    workouts,
-    settings: { ...state.settings, welcomeChoice: "starter", quickLogActivities: [...STARTER_QUICK_LOG_ACTIVITIES] },
-    settingsUpdatedAt: now,
-  };
-}
-
 export function blankStartState(state: TrainingState): TrainingState {
   if (state.settings.welcomeChoice) return state;
   const now = new Date().toISOString();

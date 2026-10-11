@@ -4,7 +4,7 @@ import { defaultState, makeSet, makeWorkout } from "../app/domain/training-types
 import { finishWorkoutState } from "../app/domain/workout-transitions";
 import { FITLOG_EXAMPLE_SNIPPET, parseFitlog } from "../app/interchange/fitlog";
 import { storedStateBoundary } from "../app/persistence/training-validation";
-import { removeStarterState, starterPlanState, starterRemovable } from "../app/views/starter-plan";
+import { addSamplePlan, exampleSetupState, removeStarterState, starterRemovable } from "../app/views/starter-plan";
 
 test("the short FITLOG example is valid and does not log a result", () => {
   const workout = parseFitlog(FITLOG_EXAMPLE_SNIPPET, "lb", {});
@@ -14,7 +14,7 @@ test("the short FITLOG example is valid and does not log a result", () => {
 });
 
 test("removing the starter keeps unrelated workouts and edited goals", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   const kept = makeWorkout("lb", 100);
   kept.name = "My own workout";
   const withExtra = { ...started, workouts: [...started.workouts, kept], goals: ["Stay healthy"] };
@@ -28,14 +28,14 @@ test("removing the starter keeps unrelated workouts and edited goals", () => {
 });
 
 test("a started starter session is not deleted", () => {
-  const started = starterPlanState(defaultState());
+  const started = addSamplePlan(exampleSetupState(defaultState()));
   started.workouts[0].status = "active";
   assert.equal(starterRemovable(started), false);
   assert.equal(removeStarterState(started), started);
 });
 
 test("the first real completion shows one note, and a skip does not", () => {
-  const state = starterPlanState(defaultState());
+  const state = addSamplePlan(exampleSetupState(defaultState()));
   const skipped = { ...state.workouts[0], status: "skipped" as const, skippedAt: new Date().toISOString() };
   const afterSkip = { ...state, workouts: [skipped] };
   assert.equal(afterSkip.settings.firstWorkoutNote, undefined);
