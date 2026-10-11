@@ -101,9 +101,14 @@ export function buildDemoState(today = localDate()): TrainingState {
     { name: "Plank", sets: [workingSet("lb", "1", null, "bodyweight"), workingSet("lb", "1", null, "bodyweight")] },
   ]);
 
-  const olderPush = push(dateBefore(today, 12), 135, 65);
-  olderPush.exercises[0].name = "Incline Bench Press";
+  const olderPush = push(dateBefore(today, 12), 115, 65);
+  const earlyBench = strengthSession("lb", "Bench", dateBefore(today, 11), now, [
+    { name: "Barbell Bench Press", sets: [workingSet("lb", "5", 125), workingSet("lb", "5", 135), workingSet("lb", "5", 145)] },
+  ]);
   const recentPush = push(dateBefore(today, 6), 155, 75);
+  const laterBench = strengthSession("lb", "Bench", dateBefore(today, 3), now, [
+    { name: "Barbell Bench Press", sets: [workingSet("lb", "5", 155), workingSet("lb", "5", 175), workingSet("lb", "5", 185)] },
+  ]);
   const ruck = makeCardio("ruck", "Loaded walk");
   ruck.completed = true;
   ruck.actualDistanceKm = 4.6;
@@ -126,6 +131,8 @@ export function buildDemoState(today = localDate()): TrainingState {
     lower(dateBefore(today, 4), 185),
     activitySession("Easy run", dateBefore(today, 5), now, run("Easy run", easyDistance, easyMinutes, "Easy")),
     recentPush,
+    earlyBench,
+    laterBench,
     activitySession("Recovery", dateBefore(today, 8), now, mobility),
     activitySession("Ruck", dateBefore(today, 9), now, ruck),
     lower(dateBefore(today, 10), 175),

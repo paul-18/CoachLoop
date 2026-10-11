@@ -72,4 +72,24 @@ test("demo code does not touch the service worker, the editor lease, or IndexedD
   }));
   assert.match(settings, /off in demo mode/);
   assert.match(settings, /disabled/);
+  const open = renderToStaticMarkup(createElement(SettingsView, {
+    state: defaultState(),
+    canonicalState: defaultState(),
+    setState: () => {},
+    onResolveConflict: async () => {},
+    onRestoreBackup: async () => {},
+    onReset: async () => {},
+    syncStatus: "synced",
+    syncFailure: null,
+    onRetrySync: () => {},
+    lastSyncedAt: null,
+    offlineReady: "ready",
+    updateReady: false,
+    onEnterDemo: () => {},
+  }));
+  const resetAt = open.indexOf("Erase this device");
+  const versionAt = open.indexOf("Local storage");
+  const demoAt = open.indexOf("Explore demo");
+  assert.ok(resetAt >= 0 && versionAt > resetAt && demoAt > versionAt);
+  assert.match(open.slice(demoAt - 120, demoAt), /<details/);
 });

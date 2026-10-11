@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildDemoState, projectDemoUpdate } from "../app/domain/demo-session";
 import { coverageForLastDays, unmappedExerciseNamesLastDays } from "../app/domain/training-coverage";
+import { buildExerciseTrends } from "../app/domain/training-insights";
 import { defaultState } from "../app/domain/training-types";
 import { validatedState } from "../app/persistence/training-validation";
 import { prepareLoadedState } from "../app/persistence/migrations";
@@ -57,6 +58,9 @@ test("demo strength names are recognized and coverage is uneven", () => {
   assert.ok(fortnight.some(item => item.days === 1 && item.effectiveSets > 0));
   const loads = fortnight.map(item => item.effectiveSets).filter(value => value > 0);
   assert.ok(Math.max(...loads) > Math.min(...loads));
+  const bench = buildExerciseTrends(state, today).find(series => series.name.toLowerCase() === "barbell bench press");
+  assert.ok(bench && bench.points.length >= 3);
+  assert.ok(bench.points.every((point, index) => index === 0 || point.value > bench.points[index - 1].value));
 });
 
 test("demo data is built once per entry, not while editing", () => {
