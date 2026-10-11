@@ -199,6 +199,13 @@ SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). 
 Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Runs: INTERVALS|warm-up; repeats and recovery; cool-down. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOBILITY|name; MOVE|movement|prescription.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 
+export const FITLOG_EXAMPLE_SNIPPET = `[FITLOG:1]
+WORKOUT|Bench practice|2026-01-15
+EXERCISE|Barbell Bench Press
+SET|5|135 lb total|RPE 7
+REST|120
+[/FITLOG]`;
+
 export function exampleFitlog() {
   return `[FITLOG:1]
 WORKOUT|Example session — change it before you start|${localDate()}

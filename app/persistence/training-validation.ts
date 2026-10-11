@@ -74,7 +74,7 @@ const workoutSchema = z.object({
   notes: z.string(), sessionRpe: z.string(),
   source: z.enum(["manual", "fitlog", "repeat", "history"]),
   importWarnings: stringArray.optional(), importFingerprint: z.string().optional(),
-  originKey: z.string().optional(), updatedAt: timestamp.optional(), hyrox: hyroxSchema.optional(),
+  originKey: z.string().optional(), starterSeed: z.boolean().optional(), updatedAt: timestamp.optional(), hyrox: hyroxSchema.optional(),
 }).passthrough();
 const checkInSchema = z.object({ date: z.string(), energy: z.string(), sleep: z.string(), soreness: z.string(), restrictions: z.string(), schedule: z.string() });
 const conflictSchema = z.object({
@@ -110,6 +110,7 @@ export const storedStateBoundary = z.object({
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
     welcomeChoice: z.enum(["starter", "blank"]).optional(),
+    firstWorkoutNote: z.enum(["show", "dismissed"]).optional(),
   }).passthrough(),
   settingsUpdatedAt: timestamp,
   pendingConflicts: z.array(conflictSchema).optional(), resolvedConflictIds: stringArray.optional(),

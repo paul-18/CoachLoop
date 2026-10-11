@@ -30,6 +30,7 @@ import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
+import { starterRemovable } from "./starter-plan";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
 
@@ -131,7 +132,7 @@ export function ImportWorkoutDialog({
             Bring a workout in
           </DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Paste your AI’s reply, or load the safe example. Only the FITLOG block is read, and it is listed before anything is saved.
+            Paste your AI’s reply. FITLOG is the block between [FITLOG:1] and [/FITLOG]. Only that block is read, and it is listed before anything is saved.
           </DialogDescription>
         </DialogHeader>
 
@@ -570,6 +571,9 @@ export function TodayView({
   onHistory,
   onBodyweightLog,
   onTrainingCalendar,
+  onEditGoals,
+  onRemoveStarter,
+  onDismissFirstNote,
   syncStatus,
 }: {
   existingWorkoutRequest?: string | null;
@@ -587,6 +591,9 @@ export function TodayView({
   onHistory: () => void;
   onBodyweightLog: () => void;
   onTrainingCalendar: () => void;
+  onEditGoals?: () => void;
+  onRemoveStarter?: () => void;
+  onDismissFirstNote?: () => void;
   syncStatus: SyncStatus;
 }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -624,6 +631,20 @@ export function TodayView({
         <span className="text-xs text-white/50" aria-label={`Published app version ${APP_RELEASE}`}>{APP_RELEASE}</span>
         {(syncStatus === "offline" || syncStatus === "error") && <span className="data-pill sync-exception"><CloudOff />{syncCopy[syncStatus]}</span>}
       </section>
+
+      {state.settings.firstWorkoutNote === "show" && <section className="first-workout-note" role="status">
+        <p>Saved on this phone. Next: back up once from Settings, or ask your AI for a plan.</p>
+        <Button type="button" variant="ghost" onClick={onDismissFirstNote}>Got it</Button>
+      </section>}
+
+      {!active && state.goals.some(goal => goal.trim()) && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-goals">
+        <div className="section-heading">
+          <div><p className="eyebrow">Goals</p><h2>Starter goals</h2></div>
+          <Button type="button" variant="ghost" onClick={onEditGoals}>Edit</Button>
+        </div>
+        <ol>{state.goals.filter(goal => goal.trim()).map(goal => <li key={goal}>{goal}</li>)}</ol>
+        {starterRemovable(state) && <Button type="button" variant="ghost" className="starter-remove" onClick={onRemoveStarter}>Remove starter</Button>}
+      </section>}
 
       {!active && state.workouts.length > 0 && (visibleEvents.length > 0 || upcomingRetests.length > 0) && <div className="today-context-list">{visibleEvents.map((event) => { const days = Math.round((Date.parse(`${event.date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={event.id} className="today-context-line">{days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} until`} · {event.label}</p>; })}{upcomingRetests.map(({ item, due }) => { const days = Math.round((Date.parse(`${due}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000); return <p key={item.id} className="today-context-line">{days <= 0 ? "Re-test due" : `${days} day${days === 1 ? "" : "s"} until re-test`} · {item.name}</p>; })}</div>}
       {!active && state.workouts.length > 0 && <button type="button" className="today-context-line today-streak-link" onClick={onTrainingCalendar} title="A week counts when you complete training on five different days, Monday through Sunday. Rest days do not break it. Open training calendar."><span className="font-semibold text-[var(--lime)]">{streak.weeks > 0 ? `${streak.weeks}-week training streak` : "Build a training streak"}</span> · {streak.daysThisWeek}/{streak.targetDays} days this week <ChevronRight aria-hidden="true" size={15} /></button>}

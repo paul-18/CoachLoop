@@ -11,9 +11,10 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   const state = defaultState();
   const today = renderToStaticMarkup(createElement(FirstSteps, { state, view: "today", onStarter: () => {}, onBlank: () => {} }));
   assert.match(today, /Welcome to Coach Loop/);
-  assert.match(today, /Try the starter plan/);
+  assert.match(today, /Start with an example/);
   assert.match(today, /Start blank/);
-  assert.match(today, /No account, no cloud/);
+  assert.match(today, /Restore backup/);
+  assert.match(today, /Nothing is logged/);
   assert.doesNotMatch(today, /Change 30 minutes/);
   assert.doesNotMatch(today, /Paste a workout/);
   assert.doesNotMatch(today, /How this works/);
@@ -22,6 +23,8 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   assert.match(started.coachProfile, /one next session/);
   assert.doesNotMatch(started.coachProfile, /Coach profile field/);
   assert.equal(started.workouts.length, 1);
+  assert.equal(started.workouts[0]?.name, "Starter session");
+  assert.equal(started.workouts[0]?.starterSeed, true);
   assert.equal(started.workouts[0]?.status, "planned");
   assert.deepEqual(started.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state: started, view: "today", onStarter: () => {}, onBlank: () => {} })), "");
@@ -31,7 +34,7 @@ test("a new log offers a starter plan or a blank log, and the example workout is
   assert.deepEqual(blank.settings.quickLogActivities, ["run", "bike", "circuit", "yoga"]);
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state: blank, view: "today", onStarter: () => {}, onBlank: () => {} })), "");
   const history = renderToStaticMarkup(createElement(FirstSteps, { state, view: "history", onStarter: () => {}, onBlank: () => {} }));
-  assert.match(history, /Start on Today/);
+  assert.match(history, /Choose how to start on Today/);
   const sample = parseFitlog(sampleWorkout(), "lb", {});
   assert.equal(sample.cardio[0]?.name, "Easy bike");
   assert.equal(sample.cardio[0]?.activityType, "bike");

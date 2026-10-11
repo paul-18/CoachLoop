@@ -214,6 +214,7 @@ function SetRow({
             loadType: actualWeight === null ? set.loadType : "weighted",
           })}
           placeholder={set.loadType === "bodyweight" ? "BW" : set.plannedWeight === null ? "—" : String(set.plannedWeight)}
+          className={set.actualWeight == null ? "is-target" : "has-actual"}
         />
       </label>
       <label className="set-input">
@@ -227,6 +228,7 @@ function SetRow({
           value={set.actualReps}
           onChange={(event) => onChange({ actualReps: event.target.value })}
           placeholder={set.plannedReps || "0"}
+          className={set.actualReps.trim() ? "has-actual" : "is-target"}
         />
       </label>
       <Button
@@ -545,7 +547,7 @@ function CardioEditor({
         {activity.coachNotes && <CoachCue text={activity.coachNotes} />}
         {activity.intervals && (activity.activityType === "run" ? <RunPlan text={activity.intervals} /> : activity.intervals.length > 105 ? <details className="activity-instructions"><summary>{activity.intervals.slice(0, 100).trimEnd()}… · More</summary><p>{activity.intervals}</p></details> : <p className="activity-instructions">{activity.intervals}</p>)}
         {style !== "efforts" && <div className="activity-basics">
-          <label className="field-label">Minutes<DecimalInput min={0} max={1440} value={activity.actualDurationMin} onValueChange={(actualDurationMin) => update({ actualDurationMin }, true)} placeholder={activity.plannedDurationMin === null ? "—" : formatMeasure(activity.plannedDurationMin)} className="mt-1 h-9 border-white/8 bg-black/20" /></label>
+          <label className="field-label">Minutes<DecimalInput min={0} max={1440} value={activity.actualDurationMin} onValueChange={(actualDurationMin) => update({ actualDurationMin }, true)} placeholder={activity.plannedDurationMin === null ? "—" : formatMeasure(activity.plannedDurationMin)} className={`mt-1 h-9 border-white/8 bg-black/20 ${activity.actualDurationMin == null ? "is-target" : "has-actual"}`} /></label>
           {showDistance && <label className="field-label">Distance {distanceUnit}<DecimalInput min={0} max={distanceUnit === "m" ? 1000000 : 1000} value={distanceValue(activity.actualDistanceKm)} onValueChange={(value) => update({ actualDistanceKm: readDistance(value) }, true)} placeholder={distanceValue(activity.plannedDistanceKm) === null ? "—" : formatMeasure(distanceValue(activity.plannedDistanceKm)!)} className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
           {activity.activityType === "ruck" && style === "single" && <label className="field-label">Pack load <span className="text-white/60">{activity.ruckLoadUnit}</span><DecimalInput min={0} max={1000} value={activity.ruckLoad} onValueChange={(ruckLoad) => update({ ruckLoad }, true)} placeholder="—" className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
         </div>}

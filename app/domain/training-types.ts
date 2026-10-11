@@ -142,6 +142,8 @@ export interface WorkoutSession {
   /** Used only to warn before importing the same FITLOG block twice. */
   importFingerprint?: string;
   originKey?: string;
+  /** True only for the untouched example plan created by Start with an example. */
+  starterSeed?: boolean;
   updatedAt?: string;
 }
 
@@ -191,6 +193,8 @@ export interface AppSettings {
   coachCheckIn: CoachCheckIn;
   lastCoachBriefAt: string | null;
   welcomeChoice?: "starter" | "blank";
+  /** Shown once after the first real completed workout, then dismissed for good. */
+  firstWorkoutNote?: "show" | "dismissed";
 }
 
 export interface FieldConflict {

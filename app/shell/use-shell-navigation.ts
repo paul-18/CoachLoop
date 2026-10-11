@@ -7,9 +7,9 @@ export function useShellNavigation() {
   const [view, setView] = useState<MainView>("today");
   const [bodyweightPromptOpen, setBodyweightPromptOpen] = useState(false);
   const [calendarRequest, setCalendarRequest] = useState(0);
-  const [settingsSection, setSettingsSection] = useState<"coach-profile" | "training-goals" | null>(null);
+  const [settingsSection, setSettingsSection] = useState<"coach-profile" | "training-goals" | "backup" | null>(null);
   const consumeSettingsSection = useCallback(() => setSettingsSection(null), []);
-  const openSettingsSection = (section: "coach-profile" | "training-goals") => { setSettingsSection(section); setView("settings"); };
+  const openSettingsSection = (section: "coach-profile" | "training-goals" | "backup") => { setSettingsSection(section); setView("settings"); };
   const consumeCalendarRequest = useCallback(() => setCalendarRequest(0), []);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });

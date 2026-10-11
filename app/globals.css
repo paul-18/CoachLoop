@@ -583,7 +583,17 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .compact-set-row, .set-table-heading { grid-template-columns: 44px minmax(0,1.2fr) minmax(0,1fr) 44px; }
 .optional-effort-sets { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; padding-block: 8px; }
 .optional-effort-sets input { margin-top: 4px; }
-.exercise-card .set-input input::placeholder { color: #a6ada1; opacity: 1; }
+.exercise-card .set-input input::placeholder { color: #7f8774; opacity: 1; font-weight: 500; }
+.exercise-card .set-input input.is-target { color: rgba(255,255,255,.45); }
+.exercise-card .set-input input.has-actual { color: #fff; font-weight: 750; }
+.starter-goals { margin: 0; }
+.starter-goals ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+.starter-goals li { font-weight: 700; }
+.starter-remove, .first-steps-restore { min-height: 44px; color: rgba(255,255,255,.7); }
+.first-workout-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid rgba(var(--theme-accent-rgb),.25); border-radius: 16px; padding: 12px 14px; background: rgba(var(--theme-accent-rgb),.06); }
+.first-workout-note p { margin: 0; color: rgba(255,255,255,.86); font-size: .9rem; line-height: 1.45; }
+.activity-editor input.has-actual { color: #fff; font-weight: 750; }
+.activity-editor input.is-target { color: rgba(255,255,255,.45); }
 .exercise-card .previous-result { color: #aeb5a7; }
 .set-table-heading { color: #b0b7a8; }
 .completed-block-copy small { overflow-wrap: anywhere; }
