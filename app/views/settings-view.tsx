@@ -1,5 +1,5 @@
 import { orderedQuickLogOptions } from "../domain/quick-log-order";
-import { GoalExamples } from "./goal-examples";
+import { GoalExamples, goalsAreStarter } from "./goal-examples";
 import { BackupVerification } from "./backup-verification";
 import { useStorageHealth } from "../pwa/use-storage-health";
 import { parseBackupReview, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
@@ -181,14 +181,14 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       </section>
       <details className="page-disclosure" onToggle={event => { if (event.currentTarget.open) void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read")); }}><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">
-        <summary><span><strong>Training goals</strong><small>{state.goals.length === 2 && state.goals[0] === "Bench press 225 lb" && state.goals[1] === "Run a 5k under 30 minutes" ? "Starter goals · edit anytime" : "Included in every coach brief"}</small></span><ChevronDown /></summary>
+        <summary><span><strong>Training goals</strong><small>{goalsAreStarter(state.goals, state.settings.defaultUnit) ? "Starter goals · edit anytime" : "Included in every coach brief"}</small></span><ChevronDown /></summary>
         <div className="pt-4">
         <p className="mb-3 text-sm leading-6 text-white/55">Rank your goals from most to least important. Your coach brief includes this order.</p>
         <div className="space-y-2">
           {state.goals.map((goal, index) => <div key={index} className="goal-read-card"><p>{goal}</p><div className="goal-actions"><Button type="button" variant="outline" size="sm" onClick={() => setTextEdit({ kind: "goal", index, value: goal })}>Edit</Button><Button type="button" variant="ghost" size="icon" disabled={index === 0} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} aria-label={`Move goal ${index + 1} up`}><ChevronUp /></Button><Button type="button" variant="ghost" size="icon" disabled={index === state.goals.length - 1} onClick={() => updateGoals((goals) => { const next = [...goals]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} aria-label={`Move goal ${index + 1} down`}><ChevronDown /></Button><Button type="button" variant="ghost" size="icon" onClick={() => updateGoals((goals) => goals.filter((_, goalIndex) => goalIndex !== index))} aria-label={`Remove goal ${index + 1}`}><X /></Button></div></div>)}
           {!state.goals.length && <p className="text-sm text-white/60">No goals yet.</p>}
           <Button variant="outline" onClick={() => setTextEdit({ kind: "new-goal", value: "" })}><Plus /> Add goal</Button>
-          <GoalExamples onChoose={(value) => setTextEdit({ kind: "new-goal", value })} />
+          <GoalExamples unit={state.settings.defaultUnit} onChoose={(value) => setTextEdit({ kind: "new-goal", value })} />
         </div>
         </div>
       </details>

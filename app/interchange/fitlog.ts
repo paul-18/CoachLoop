@@ -206,7 +206,20 @@ SET|5|135 lb total|RPE 7
 REST|120
 [/FITLOG]`;
 
-export function exampleFitlog() {
+export function exampleFitlog(unit: Unit = "lb") {
+  const bench = unit === "kg"
+    ? `SET|5|20 kg total||WARMUP
+SET|5|60 kg total|RPE 7
+SET|5|70 kg total|RPE 7
+SET|5|75 kg total|RPE 8
+SET|5|80 kg total|RPE 8
+SET|3|85 kg total|RPE 8`
+    : `SET|5|45 lb total||WARMUP
+SET|5|135 lb total|RPE 7
+SET|5|155 lb total|RPE 7
+SET|5|175 lb total|RPE 8
+SET|3|185 lb total|RPE 8`;
+  const raise = unit === "kg" ? "4 kg each" : "10 lb each";
   return `[FITLOG:1]
 WORKOUT|Example session — change it before you start|${localDate()}
 CARDIO|Easy bike
@@ -215,13 +228,9 @@ DURATION|5
 INTENSITY|Easy
 NOTES|Five easy minutes first. Shorten it if you need to.
 EXERCISE|Barbell Bench Press
-SET|5|45 lb total||WARMUP
-SET|5|135 lb total|RPE 7
-SET|5|155 lb total|RPE 7
-SET|5|175 lb total|RPE 8
-SET|3|185 lb total|RPE 8
+${bench}
 REST|120
-NOTES|One light warm-up, then four heavier sets. Change a load if it is too much today.
+NOTES|One light warm-up, then heavier sets. Change a load if it is too much today.
 EXERCISE|Pull-up
 SET|5|Bodyweight|RPE 6
 REST|90
@@ -231,9 +240,9 @@ SET|6|Bodyweight|RPE 6
 REST|90
 NOTES|Bodyweight. Skip it if your shoulders are unhappy.
 EXERCISE|Dumbbell Lateral Raise
-SET|10|10 lb each|RPE 6
+SET|10|${raise}|RPE 6
 REST|60
-NOTES|Light dumbbells. Change the load.
+NOTES|Light dumbbells, per hand. Change the load.
 MOBILITY|Easy mobility
 MOVE|Hip flexor stretch|30 sec/side
 MOVE|Doorway chest stretch|30 sec/side

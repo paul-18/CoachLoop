@@ -1,7 +1,7 @@
 import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 import { STARTER_QUICK_LOG_ACTIVITIES, type TrainingState, type WorkoutSession } from "../domain/training-types";
-import { STARTER_GOALS } from "./goal-examples";
+import { goalsAreStarter, starterGoals } from "./goal-examples";
 
 function seedIsClean(workout: WorkoutSession) {
   if (!workout.starterSeed || workout.status !== "planned") return false;
@@ -16,13 +16,13 @@ export function starterPlanState(state: TrainingState): TrainingState {
   let workouts = state.workouts;
   if (!workouts.length) {
     try {
-      const parsed = parseFitlog(exampleFitlog(), state.settings.defaultUnit, state.exerciseAliases);
+      const parsed = parseFitlog(exampleFitlog(state.settings.defaultUnit), state.settings.defaultUnit, state.exerciseAliases);
       workouts = [{ ...parsed, name: "Starter session", starterSeed: true, status: "planned", startedAt: null, completedAt: null, skippedAt: null, skipReason: "", updatedAt: now }];
     } catch { /* Goals and profile still save if the example cannot be read. */ }
   }
   return {
     ...state,
-    goals: [...STARTER_GOALS],
+    goals: starterGoals(state.settings.defaultUnit),
     goalsUpdatedAt: now,
     coachProfile: DEFAULT_COACH_PROFILE,
     coachProfileUpdatedAt: now,
@@ -48,7 +48,7 @@ export function removeStarterState(state: TrainingState): TrainingState {
   const seeds = state.workouts.filter(workout => workout.starterSeed);
   if (seeds.some(workout => !seedIsClean(workout))) return state;
   const now = new Date().toISOString();
-  const goalsMatch = state.goals.length === STARTER_GOALS.length && state.goals.every((goal, index) => goal === STARTER_GOALS[index]);
+  const goalsMatch = goalsAreStarter(state.goals, state.settings.defaultUnit);
   const profileMatch = state.coachProfile === DEFAULT_COACH_PROFILE;
   const settings = { ...state.settings };
   delete settings.welcomeChoice;

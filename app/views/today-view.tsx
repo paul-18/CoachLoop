@@ -31,6 +31,7 @@ import { trainingWeekStreak } from "../domain/training-streak";
 
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
 import { nextOpenBlock } from "../domain/completion";
+import { goalsAreStarter } from "./goal-examples";
 import { starterRemovable } from "./starter-plan";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
@@ -164,7 +165,7 @@ export function ImportWorkoutDialog({
                 <button
                   type="button"
                   onClick={() => {
-                    const sample = exampleFitlog();
+                    const sample = exampleFitlog(state.settings.defaultUnit);
                     keepPreview.current = true;
                     onTextChange(sample);
                     setWarningsReviewed(false);
@@ -638,10 +639,10 @@ export function TodayView({
 
       {!active && state.goals.some(goal => goal.trim()) && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-goals">
         <div className="section-heading">
-          <div><p className="eyebrow">Goals</p><h2>Starter goals</h2></div>
+          <div><p className="eyebrow">Goals</p><h2>{goalsAreStarter(state.goals, state.settings.defaultUnit) ? "Starter goals" : "Your goals"}</h2></div>
           <Button type="button" variant="ghost" onClick={onEditGoals}>Edit</Button>
         </div>
-        <ol>{state.goals.filter(goal => goal.trim()).map(goal => <li key={goal}>{goal}</li>)}</ol>
+        <ol>{state.goals.filter(goal => goal.trim()).map((goal, index) => <li key={`${index}:${goal}`}>{goal}</li>)}</ol>
         {starterRemovable(state) && <Button type="button" variant="ghost" className="starter-remove" onClick={onRemoveStarter}>Remove starter</Button>}
       </section>}
 
