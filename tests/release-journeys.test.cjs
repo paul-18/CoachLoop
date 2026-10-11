@@ -13,10 +13,15 @@ test('new-user guide routes to goals; example drafts cancel safely, append on Sa
   const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
   try {
     root.render(React.createElement(App));
-    await until(() => button('Add goals'), 'first-use guide opens');
+    await until(() => button('Try the starter plan'), 'welcome opens');
     assert.equal(document.querySelector('.today-bodyweight-nudge'), null, 'brand-new user has no overdue bodyweight reminder');
-    button('Add goals').click();
-    await until(() => document.querySelector('#training-goals')?.open, 'guide opens training goals in Settings');
+    button('Start blank').click();
+    await until(() => !button('Try the starter plan'), 'blank choice leaves the log empty');
+    assert.deepEqual((await storage.loadTrainingState()).goals, []);
+    assert.equal((await storage.loadTrainingState()).coachProfile, '');
+    tab('Settings');
+    await until(() => document.querySelector('#training-goals'), 'settings has training goals');
+    document.querySelector('#training-goals').open = true;
     document.querySelector('#training-goals details').open = true;
     button('Try bench goal').click();
     await until(() => document.querySelector('textarea'), 'example opens editor');

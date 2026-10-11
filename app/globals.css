@@ -43,6 +43,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .desktop-rail { position: fixed; inset: 0 auto 0 0; z-index: 20; display: none; width: 242px; flex-direction: column; border-right: 1px solid rgba(255,255,255,.065); background: rgba(16,18,15,.88); padding: 28px 22px 24px; backdrop-filter: blur(22px); }
 .rail-brand { min-height: 46px; flex: 0 0 auto; }
 .rail-nav { height: auto; margin-top: 42px; flex: 0 0 auto; }
+.desktop-rail .rail-nav { height: auto !important; }
 .app-mark-copy p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-tab { width: 100%; height: 46px; justify-content: flex-start; gap: 12px; border-radius: 13px; padding: 0 14px; color: rgba(255,255,255,.56); font-size: .92rem; font-weight: 750; }
 .rail-tab:hover { color: rgba(255,255,255,.8); background: rgba(255,255,255,.035); }
@@ -75,7 +76,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .primary-action, .secondary-action { display: flex; min-height: 78px; align-items: center; gap: 14px; border-radius: 18px; padding: 14px; text-align: left; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
 .primary-action { border: 1px solid rgba(var(--theme-accent-rgb),.18); background: linear-gradient(120deg,rgba(var(--theme-accent-rgb),.12),rgba(var(--theme-accent-rgb),.035)); color: #fff; }
 .secondary-action { border: 1px solid rgba(255,255,255,.075); background: rgba(255,255,255,.025); color: #fff; }
-.primary-action:hover, .secondary-action:hover { transform: translateY(-1px); border-color: rgba(var(--theme-accent-rgb),.2); background-color: rgba(255,255,255,.56); }
+.primary-action:hover, .secondary-action:hover { transform: translateY(-1px); border-color: rgba(var(--theme-accent-rgb),.2); background-color: rgba(255,255,255,.045); }
 .primary-action:disabled, .secondary-action:disabled, .quick-grid button:disabled { opacity: .35; pointer-events: none; }
 .action-icon { display: grid; width: 48px; height: 48px; place-items: center; flex: 0 0 auto; border-radius: 15px; background: rgba(var(--theme-accent-rgb),.1); color: var(--lime); }
 .action-icon svg { width: 21px; height: 21px; } .primary-action strong, .secondary-action strong { display: block; font-size: .94rem; font-weight: 850; letter-spacing: -.02em; }

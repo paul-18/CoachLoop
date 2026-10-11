@@ -181,7 +181,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       </section>
       <details className="page-disclosure" onToggle={event => { if (event.currentTarget.open) void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read")); }}><summary><span>Recovery copies<small>Automatic copies saved on this device</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download JSON</Button></div>) : <p className="text-sm text-white/50">No recovery copies yet.</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">
-        <summary><span><strong>Training goals</strong><small>Included in every coach brief</small></span><ChevronDown /></summary>
+        <summary><span><strong>Training goals</strong><small>{state.goals.length === 2 && state.goals[0] === "Bench press 225 lb" && state.goals[1] === "Run a 5k under 30 minutes" ? "Starter goals · edit anytime" : "Included in every coach brief"}</small></span><ChevronDown /></summary>
         <div className="pt-4">
         <p className="mb-3 text-sm leading-6 text-white/55">Rank your goals from most to least important. Your coach brief includes this order.</p>
         <div className="space-y-2">
@@ -194,13 +194,13 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       </details>
       <details id="coach-profile" className="settings-panel profile-editor">
         <summary>
-          <span><strong>Coach profile</strong><small>Your background and long-term coaching preferences</small></span>
+          <span><strong>Coach profile</strong><small>{state.coachProfile === DEFAULT_COACH_PROFILE ? "Starter coach profile" : "Your background and long-term coaching preferences"}</small></span>
           <ChevronDown />
         </summary>
         <div className="mt-5">
-          <p className="profile-read-text">{state.coachProfile || "No profile yet. Open starter guidance, change it so it describes you, then Save."}</p>
+          <p className="profile-read-text">{state.coachProfile || "No profile yet."}</p>
           <div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" onClick={() => setTextEdit({ kind: "profile", value: state.coachProfile })}>Edit coach profile</Button><Button type="button" variant="ghost" size="sm" onClick={() => setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE, starter: true })}><RotateCcw /> Use starter guidance</Button></div>
-          <p className="mt-3 text-sm leading-5 text-white/60">This starting profile is ready to save. Edit it whenever you want. Put today’s sleep, soreness, and upcoming PT in the Coach brief form, not here.</p>
+          <p className="mt-3 text-sm leading-5 text-white/60">Edit this whenever you want. Put today’s sleep, soreness, and upcoming PT in the Coach brief form, not here.</p>
         </div>
       </details>
       <details className="settings-panel profile-editor">

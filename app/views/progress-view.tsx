@@ -257,7 +257,7 @@ export function ProgressView({ onUpdateSettings, state, onLogBodyweight, onSaveW
                 <div className="trend-detail">{activePoint ? <><strong title={activePoint.exercise}>{activePoint.exercise}</strong><span>{dateLabel(activePoint.point.date)} · {activePoint.point.setLabel}{activePoint.point.effort ? ` · ${activePoint.point.effort}` : ""}</span></> : <span>Tap a point to see the recorded set.</span>}</div>
                 {showBodyweight && bodyweightPoints.length > 0 && <p className="mt-2 text-xs text-amber-200/65">Dashed gold line: bodyweight · right-hand scale.</p>}
               </>
-            ) : <div className="trend-empty">{selectedExercises.length ? "No unambiguous entries in this time range. Try All." : "Choose an exercise to display."}</div>}
+            ) : <div className="trend-empty">{selectedExercises.length ? "No completed sets in this range. Try All time." : "Choose an exercise to display."}</div>}
             {selectedSeries[0] && selectedSeries[0].points.length > 0 && <Button type="button" variant="outline" className="exercise-trend-history-button mt-2 border-white/10 bg-transparent text-white" aria-label={`View ${selectedSeries[0].name} history`} onClick={() => setExerciseHistoryOpen(true)}>View exercise history</Button>}
           </>
         ) : <EmptyPanel icon={BarChart3} title="Your chart starts with one completed set" text="Record actual reps and, for weighted exercises, weight. Bodyweight movements chart best reps instead." />}

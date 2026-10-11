@@ -12,7 +12,13 @@ import type {
   WorkoutSession,
 } from "../domain/training-types";
 
-export const DEFAULT_COACH_PROFILE = `I train for a stronger bench and a faster 5k. Sessions usually start with an easy bike, then bench press, pull-ups, dips, and lateral raises, and finish with short mobility. Progress a load only when the last session felt solid.`;
+export const DEFAULT_COACH_PROFILE = `Act as my long-term strength, physique, running, and conditioning coach. Each time I check in, recommend one next session — there is no fixed weekly plan; you program day by day from what I actually did.
+
+Base everything on the completed training history, goals, bodyweight entries, and schedule in each brief. Never assume a planned workout was completed. Treat skipped sessions as skipped, and keep planned and completed work clearly separate.
+
+Account for accumulated load, recovery, sleep, injuries, travel, and anything else in the brief. Keep training challenging and productive — no junk volume.
+
+Be direct: recommend the next useful session from recent history, explain your reasoning briefly, and when I ask for a workout, return exactly one importable FITLOG block and nothing else.`;
 const plannedSetLine = (set: TrainingSet) => {
   const load = formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode);
   const effort = set.plannedRpe

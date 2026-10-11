@@ -189,6 +189,7 @@ export interface AppSettings {
   installedHintDismissed: boolean;
   coachCheckIn: CoachCheckIn;
   lastCoachBriefAt: string | null;
+  welcomeChoice?: "starter" | "blank";
 }
 
 export interface FieldConflict {

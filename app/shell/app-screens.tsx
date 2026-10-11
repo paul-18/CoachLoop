@@ -7,9 +7,8 @@ import { HistoryView } from "../views/history-view";
 import { CoachView } from "../views/coach-view";
 import { ProgressView } from "../views/progress-view";
 import { SettingsView } from "../views/settings-view";
-import { FirstSteps, sampleWorkout } from "../views/first-steps";
-import { STARTER_GOALS } from "../views/goal-examples";
-import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
+import { FirstSteps } from "../views/first-steps";
+import { blankStartState, starterPlanState } from "../views/starter-plan";
 import { ViewErrorBoundary } from "./view-error-boundary";
 import type { ShellModel } from "./use-shell-model";
 
@@ -18,7 +17,7 @@ export function AppScreens({ model }: { model: ShellModel }) {
   const { persistence, navigation, workouts, progress, offline, restart, onApplyUpdate } = model;
   const { state, displayedState, applyProjectedUpdate, resolveConflict, restoreBackup, resetAll, busy, syncStatus, syncFailure, retrySync, lastSyncedAt, localSaveStatus, setLocalSaveRetry } = persistence;
   const { view, setView, navigateTab, returnTabToTop, openSettingsSection, calendarRequest, setCalendarRequest, consumeCalendarRequest, bodyweightPromptOpen, setBodyweightPromptOpen, settingsSection, consumeSettingsSection } = navigation;
-  const { lastImportId, setLastImportId, deleteWorkout, setCoachOpen, setImportOpen, setImportDraft, setImportListFirst, activeChoices, resumeWorkout, setWorkoutOpen, workoutOpen, activeWorkout, setHyroxOpen, startBlank, quickCardio, startPlannedWorkout, reschedulePlan, setSkipWorkoutId, editWorkout, repeatWorkout, replanWorkout } = workouts;
+  const { lastImportId, setLastImportId, deleteWorkout, setCoachOpen, setImportOpen, activeChoices, resumeWorkout, setWorkoutOpen, workoutOpen, activeWorkout, setHyroxOpen, startBlank, quickCardio, startPlannedWorkout, reschedulePlan, setSkipWorkoutId, editWorkout, repeatWorkout, replanWorkout } = workouts;
   const { offlineReady, updateReady, release, checkUpdates } = offline;
   const { logBodyweight, updateSettings, changeActivityType, saveWaist } = progress;
   return (
@@ -34,7 +33,7 @@ export function AppScreens({ model }: { model: ShellModel }) {
           {lastImportId && state.workouts.some(w => w.id === lastImportId && w.status === "planned" && !w.exercises.some(e => e.sets.some(set => set.completed)) && !w.cardio.some(c => c.completed || c.efforts?.some(e => e.completed))) && <div className="reliability-bar"><span>Last imported plan</span><Button size="sm" variant="outline" onClick={() => { deleteWorkout(lastImportId); setLastImportId(null); toast("Unstarted import undone"); }}>Undo import</Button></div>}
 
 
-          {!displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onSetup={openSettingsSection} onCoach={() => setCoachOpen(true)} onImport={() => setImportOpen(true)} onSample={() => { setImportDraft(sampleWorkout()); setImportListFirst(true); setImportOpen(true); }} onAcceptGoals={() => applyProjectedUpdate(current => current.goals.some(goal => goal.trim()) ? current : { ...current, goals: [...STARTER_GOALS], goalsUpdatedAt: new Date().toISOString() })} onAcceptProfile={() => applyProjectedUpdate(current => current.coachProfile.trim() ? current : { ...current, coachProfile: DEFAULT_COACH_PROFILE, coachProfileUpdatedAt: new Date().toISOString() })} />}
+          {!displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onStarter={() => applyProjectedUpdate(starterPlanState)} onBlank={() => applyProjectedUpdate(blankStartState)} />}
           
           {(activeChoices.length > 1 || (activeChoices.length > 0 && !state.activeWorkoutId)) && <div role="status" className="m-3 rounded-xl border border-amber-300/25 p-3 text-sm"><p className="font-bold">Choose the workout to resume</p><div className="mt-2 flex flex-wrap gap-2">{activeChoices.map((choice) => <Button key={choice.id} size="sm" variant="outline" onClick={() => { resumeWorkout(choice.id); }}>{choice.name} · {choice.date}</Button>)}</div></div>}
           {localSaveStatus === "error" && <div role="alert" className="m-3 rounded-xl border border-red-300/30 bg-red-950/30 p-3 text-sm">Latest changes are not saved on this device. <Button size="sm" onClick={() => setLocalSaveRetry((value) => value + 1)}>Retry save</Button></div>}

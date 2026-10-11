@@ -311,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v97 gives a new log two short goals and a coach profile, opens the example as a list with four heavier bench sets, and limits quick log to run, bike, circuit, and yoga until the first completed workout. 1005 m displays as 1005. v96 keeps one recovery copy when you erase this device, stores rounded targets when you repeat a workout, and shows the real muscle match for an aliased exercise. See [v97 notes](docs/releases/V97-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V97-QC.md).
+v98 starts a new log with two choices: a starter plan (225 lb bench, a 5k under 30 minutes, a day-by-day coach profile, and the example workout) or a blank log. v97 limited quick log for a new log and showed 1005 m as 1005. See [v98 notes](docs/releases/V98-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V98-QC.md).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 

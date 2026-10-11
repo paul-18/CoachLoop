@@ -109,6 +109,7 @@ export const storedStateBoundary = z.object({
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
+    welcomeChoice: z.enum(["starter", "blank"]).optional(),
   }).passthrough(),
   settingsUpdatedAt: timestamp,
   pendingConflicts: z.array(conflictSchema).optional(), resolvedConflictIds: stringArray.optional(),
