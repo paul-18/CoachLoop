@@ -4,8 +4,10 @@ The app README and current upload instructions stay in the repository root.
 
 - [User README](../README.md)
 - [Current upload instructions](../UPDATE-INSTRUCTIONS.txt)
-- [Latest v101 changes](releases/V101-UPDATE-NOTES.md)
-- [Latest v101 iPhone checks](releases/V101-QC.md)
+- [Latest v102 changes](releases/V102-UPDATE-NOTES.md)
+- [Latest v102 checks](releases/V102-QC.md)
+- [v101 changes](releases/V101-UPDATE-NOTES.md)
+- [v101 iPhone checks](releases/V101-QC.md)
 - [v95 changes](releases/V95-UPDATE-NOTES.md)
 - [v95 iPhone checks](releases/V95-QC.md)
 - [v95 upload steps](releases/V95-UPLOAD.txt)

@@ -46,7 +46,7 @@ It covers strength workouts, cardio, sports, conditioning, and mobility.
 ### Bring your own AI
 
 - Chat with your AI **outside** Coach Loop, in its own app or website.
-- Some buttons mention ChatGPT, but the workflow is plain copied text. Any assistant that can follow the **FITLOG** format should work.
+- The buttons say **your AI chat**. The workflow is plain copied text. Any assistant that can follow the **FITLOG** format should work.
 - Coach Loop has **no built-in AI chat, no API connection, and no account**. Any subscription belongs to the AI service you choose.
 
 ### At a glance
@@ -238,9 +238,9 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 
 **Backups**
 
-- Use **Settings → Download full backup** regularly and store the JSON somewhere safe (Files, iCloud Drive).
+- Use **Settings → Download full backup** regularly and store that file somewhere you control. On an iPhone, Files or iCloud Drive works. On another phone or a computer, use that device’s files. iCloud Drive is not on every device. The file is structured workout data (JSON) the app can read back.
 - Choose **Verify saved backup** to inspect the JSON saved in Files without restoring or changing your log. It reports compatibility, counts, dates and supported legacy migration notices; it does not confirm latest-export matching. Malformed measurement records are rejected instead of being silently discarded or assigned a different unit.
-- To move to another device, open Coach Loop there and choose **Restore JSON backup**, then review the preview.
+- To move to another device, open Coach Loop there and choose **Restore backup**, then review the preview.
 - **Merge** combines records and keeps newer revisions. An older backup may therefore leave newer local goals, profile or measurements unchanged.
 - **Complete restore** makes workouts, goals, coach profile, measurements and settings match the backup. Current-only records are removed, so download a current backup first. A local recovery copy is also saved before the restore.
 - Full JSON backup export and restore use the same **50 MB** limit. Larger-than-10-MB backups are supported, but allow extra time on a phone. If your log exceeds 50 MB, the app refuses to create a file labelled a restorable full backup; keep the log and request a split-backup solution rather than clearing storage.
@@ -258,7 +258,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 <details>
 <summary><b>Do I need ChatGPT?</b></summary>
 
-No. Any AI assistant that can follow the FITLOG format should work. Some buttons mention ChatGPT because that's what the workflow was first built around.
+No. Any AI assistant that can follow the FITLOG format should work. Coach Loop copies text; it does not connect to a specific AI provider.
 </details>
 
 <details>
@@ -286,7 +286,7 @@ Open the installed app while online, then check **Settings → On this device �
 <details>
 <summary><b>I lost my data.</b></summary>
 
-If you have a JSON backup, use **Settings → Restore JSON backup**. Choose **Merge** to combine records and keep newer changes, or **Complete restore** to replace workouts, goals, profile, measurements and settings with the backup. Complete restore removes current records absent from that backup; a recovery copy is saved first. If a workout was accidentally deleted, use **Merge** with **Recover deleted records with new IDs** in the restore preview. Ordinary restore preserves deletion protection. Without an external backup, data cleared from browser storage cannot be recovered, so back up regularly.
+If you have a backup file, use **Settings → Restore backup**. Choose **Merge** to combine records and keep newer changes, or **Complete restore** to replace workouts, goals, profile, measurements and settings with the backup. Complete restore removes current records absent from that backup; a recovery copy is saved first. If a workout was accidentally deleted, use **Merge** with **Recover deleted records with new IDs** in the restore preview. Ordinary restore preserves deletion protection. Without an external backup, data cleared from browser storage cannot be recovered, so back up regularly.
 </details>
 
 <details>
@@ -310,6 +310,8 @@ Start a new chat with **Start a new chat → Copy full context**.
 ---
 
 ## Updates
+
+v102 warns before saving an impossible distance and duration, aligns History counts with the workout header, and shows a skipped activity as Skipped. The first saved-workout note also appears on History. First-run choices are Explore a sample log, Preview one workout, and Set up my log. Not now dismisses the coaching prompt without marking the profile done. See [v102 notes](docs/releases/V102-UPDATE-NOTES.md) and [v102 checks](docs/releases/V102-QC.md).
 
 v101 aligns workout counts, lets you skip an activity without the rest timer pointing at it, and keeps the first-run screen to two choices plus Restore backup. A kilogram log gets a 100 kg bench goal. See [v101 notes](docs/releases/V101-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V101-QC.md).
 
