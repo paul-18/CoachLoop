@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import type { Unit } from "../domain/training-types";
 import { samplePlan } from "./starter-plan";
+import { countLabel } from "./shared";
 
 export function SampleWorkoutPreview({ unit, onClose, onAdd }: { unit: Unit; onClose: () => void; onAdd?: () => void }) {
   const workout = samplePlan(unit);
@@ -17,7 +18,7 @@ export function SampleWorkoutPreview({ unit, onClose, onAdd }: { unit: Unit; onC
         }
         const exercise = workout.exercises.find((item) => item.id === block.id);
         if (!exercise) return null;
-        return <li key={block.id}><strong>{exercise.name}</strong> — {exercise.sets.length} planned sets</li>;
+        return <li key={block.id}><strong>{exercise.name}</strong> — {countLabel(exercise.sets.length, "planned set")}</li>;
       })}
     </ol>
     <div className="first-steps-actions">

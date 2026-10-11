@@ -133,13 +133,17 @@ export const formatDuration = (seconds: number) => {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 };
 
+export function countLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export const summarizeWorkout = (workout: WorkoutSession) => {
   if (workout.hyrox) return hyroxSummary(workout.hyrox);
   const sets = workout.exercises.reduce(
-    (sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length,
+    (sum, exercise) => sum + exercise.sets.filter((set) => set.completed && !set.skipped).length,
     0,
   );
-  const activities = workout.cardio.filter(hasCompletedActivityWork);
+  const activities = workout.cardio.filter(activity => !activity.skipped && hasCompletedActivityWork(activity));
   const duration = activities.reduce(
     (sum, activity) => sum + (performedDuration(activity) ?? 0),
     0,

@@ -140,3 +140,22 @@ export function hasGenuineTraining(workout: WorkoutSession) {
   const activity = workout.cardio.some(item => !item.skipped && (item.completed || !!item.efforts?.some(effort => effort.completed)));
   return workingSet || activity;
 }
+
+/** Same completed-set rule as the workout header: skipped work is left out. */
+export function exerciseSetProgress(sets: Array<{ completed: boolean; skipped?: boolean }>) {
+  const countable = sets.filter(set => !set.skipped || set.completed);
+  const done = countable.filter(set => set.completed && !set.skipped).length;
+  return {
+    done,
+    total: countable.length,
+    skippedOnly: sets.length > 0 && sets.every(set => Boolean(set.skipped) && !set.completed),
+  };
+}
+
+/** History badge. An explicit skip stays Skipped; a missing flag stays unfinished, not skipped. */
+export function activityHistoryLabel(activity: CardioEntry): string {
+  if (activity.skipped && !activity.completed) return "Skipped";
+  if (activity.completed) return activity.completedAsPlanned ? "As prescribed" : "Completed";
+  if (hasCompletedActivityWork(activity)) return "Partly completed";
+  return "Not completed";
+}
