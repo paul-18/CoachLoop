@@ -240,6 +240,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         <div className="settings-title"><div><h2>Install on iPhone</h2><p>In Safari, tap Share, then Add to Home Screen. The tracker works offline after the first load.</p></div><Save className="text-sky-300" /></div>
         </div>
       </details>}
+      {onEnterDemo && !demoActive && <details className="settings-panel profile-editor"><summary><span><strong>Explore demo</strong><small>Sample log in this window only</small></span><ChevronDown /></summary><div className="pt-4"><p className="text-sm text-white/65">Opens sample workouts in this window. Your saved log is not changed. Exit demo, or refresh the page, to come back.</p><Button type="button" variant="outline" className="mt-3" onClick={onEnterDemo}>Explore demo</Button></div></details>}
       <details className="settings-panel border-red-400/10 profile-editor">
         <summary><span><strong>Reset & erase data</strong><small>Destructive actions · backup first</small></span><ChevronDown /></summary>
         <div className="pt-4">
@@ -254,7 +255,6 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
         setTextEdit(null);
       }} />}
       <footer className="pt-4 text-center text-xs text-white/60">Coach Loop {APP_RELEASE} · Local storage</footer>
-      {onEnterDemo && !demoActive && <details className="settings-panel profile-editor"><summary><span><strong>Explore demo</strong><small>Sample log in this window only</small></span><ChevronDown /></summary><div className="pt-4"><p className="text-sm text-white/65">Opens sample workouts in this window. Your saved log is not changed. Exit demo, or refresh the page, to come back.</p><Button type="button" variant="outline" className="mt-3" onClick={onEnterDemo}>Explore demo</Button></div></details>}
     </div>
   );
 }

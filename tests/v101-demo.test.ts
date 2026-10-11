@@ -88,8 +88,7 @@ test("demo code does not touch the service worker, the editor lease, or IndexedD
     onEnterDemo: () => {},
   }));
   const resetAt = open.indexOf("Erase this device");
-  const versionAt = open.indexOf("Local storage");
   const demoAt = open.indexOf("Explore demo");
-  assert.ok(resetAt >= 0 && versionAt > resetAt && demoAt > versionAt);
+  assert.ok(demoAt >= 0 && resetAt > demoAt);
   assert.match(open.slice(demoAt - 120, demoAt), /<details/);
 });
