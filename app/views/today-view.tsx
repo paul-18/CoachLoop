@@ -34,7 +34,8 @@ import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type Card
 import { nextOpenBlock } from "../domain/completion";
 import { goalsAreStarter } from "./goal-examples";
 import { welcomePending } from "./first-steps";
-import { starterRemovable } from "./starter-plan";
+import { blankStartReversible, starterRemovable } from "./starter-plan";
+import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
 
 import { copyText, formatDate, orderedWorkoutBlocks, syncCopy } from "./shared";
 
@@ -577,6 +578,8 @@ export function TodayView({
   onTrainingCalendar,
   onEditGoals,
   onRemoveStarter,
+  onUndoBlank,
+  onEditProfile,
   onDismissFirstNote,
   syncStatus,
 }: {
@@ -597,6 +600,8 @@ export function TodayView({
   onTrainingCalendar: () => void;
   onEditGoals?: () => void;
   onRemoveStarter?: () => void;
+  onUndoBlank?: () => void;
+  onEditProfile?: () => void;
   onDismissFirstNote?: () => void;
   syncStatus: SyncStatus;
 }) {
@@ -633,6 +638,12 @@ export function TodayView({
         <span className="text-xs text-white/50" aria-label={`Published app version ${APP_RELEASE}`}>{APP_RELEASE}</span>
         {(syncStatus === "offline" || syncStatus === "error") && <span className="data-pill sync-exception"><CloudOff />{syncCopy[syncStatus]}</span>}
       </section>
+
+      {blankStartReversible(state) && <section className="starter-guide"><p>Nothing is filled in yet. Back returns to the two ways to start.</p><Button type="button" variant="outline" onClick={onUndoBlank}>Back</Button></section>}
+
+      {!active && state.workouts.some(workout => workout.starterSeed && workout.status === "planned") && !state.workouts.some(workout => workout.status === "completed") && <section className="starter-guide"><h2>How the Starter session works</h2><p>It is a planned example, not a finished workout. Preview it, then start it. Tick a set to accept the suggested load, or type your own. Finish the workout when you stop. Remove starter stays available until you change that plan.</p></section>}
+
+      {!active && state.settings.welcomeChoice && !state.workouts.some(workout => workout.status === "active") && (!state.coachProfile.trim() || state.coachProfile === DEFAULT_COACH_PROFILE) && <section className="starter-guide"><p>{state.settings.welcomeChoice === "blank" ? "Add coaching preferences if you want them included when you copy a brief for your own AI chat." : "The coach profile is still the starter text. Change it before you ask an AI for a plan."}</p><Button type="button" variant="outline" onClick={onEditProfile}>Set coaching preferences</Button></section>}
 
       {state.settings.firstWorkoutNote === "show" && <section className="first-workout-note" role="status">
         <p>Saved on this phone. Next: back up once from Settings, or ask your AI for a plan.</p>

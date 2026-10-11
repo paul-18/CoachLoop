@@ -1,6 +1,6 @@
 import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
 import { DEFAULT_COACH_PROFILE } from "../interchange/coach-export";
-import { STARTER_QUICK_LOG_ACTIVITIES, type TrainingState, type WorkoutSession } from "../domain/training-types";
+import { STARTER_QUICK_LOG_ACTIVITIES, DEFAULT_QUICK_LOG_ACTIVITIES, type TrainingState, type WorkoutSession } from "../domain/training-types";
 import { goalsAreStarter, starterGoals } from "./goal-examples";
 
 function seedIsClean(workout: WorkoutSession) {
@@ -36,6 +36,18 @@ export function blankStartState(state: TrainingState): TrainingState {
   if (state.settings.welcomeChoice) return state;
   const now = new Date().toISOString();
   return { ...state, settings: { ...state.settings, welcomeChoice: "blank", quickLogActivities: [...STARTER_QUICK_LOG_ACTIVITIES] }, settingsUpdatedAt: now };
+}
+
+export function blankStartReversible(state: TrainingState) {
+  return state.settings.welcomeChoice === "blank" && !state.workouts.length && !state.goals.some(goal => goal.trim()) && !state.coachProfile.trim();
+}
+
+export function undoBlankStart(state: TrainingState): TrainingState {
+  if (!blankStartReversible(state)) return state;
+  const settings = { ...state.settings };
+  delete settings.welcomeChoice;
+  if (settings.quickLogActivities?.join() === STARTER_QUICK_LOG_ACTIVITIES.join()) settings.quickLogActivities = [...DEFAULT_QUICK_LOG_ACTIVITIES];
+  return { ...state, settings, settingsUpdatedAt: new Date().toISOString() };
 }
 
 export function starterRemovable(state: TrainingState) {

@@ -35,12 +35,13 @@ export function FirstSteps({ state, view, onStarter, onBlank, onRestore }: {
   if (view !== "today") return <p className="first-steps-elsewhere">Choose how to start on Today.</p>;
   return <section className="first-steps" aria-label="Welcome">
     <h2>Welcome to Coach Loop.</h2>
-    <p>Your log stays on this phone. No account, and no AI inside the app. When you want a plan, ask your own AI chat, then paste its FITLOG reply back here.</p>
+    <p>Coach Loop is a private workout log. What you finish stays on this phone. There is no account, and no AI inside the app.</p>
+    <p>Log a session on Today. When you want a plan, ask your own AI chat, then paste its FITLOG reply here.</p>
     <div className="first-steps-actions">
       <Button onClick={onStarter}>Start with an example</Button>
       <Button variant="outline" onClick={onBlank}>Start blank</Button>
     </div>
-    <p className="first-steps-choice">Start with an example adds two goals, a coach profile, and a Starter session you can edit. Start blank leaves those empty. Nothing is logged until you train.</p>
+    <p className="first-steps-choice">Start with an example adds two goals, a coach profile, and a Starter session you can edit. Start blank leaves those empty, and you can come back. Nothing is logged until you train.</p>
     <Button variant="ghost" className="first-steps-restore" onClick={onRestore}>Restore backup</Button>
   </section>;
 }
