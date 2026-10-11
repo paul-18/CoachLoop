@@ -28,15 +28,15 @@ test('inserting through a set menu persists warm-ups between existing rows and p
   try {
     root.render(React.createElement(App)); await enter();
     const previous = await savedSets();
-    await choose('Options for Barbell Bench Press, warm-up set 1', 'Insert set after');
+    await choose('Options for Barbell Bench Press, W1', 'Insert set after');
     await until(async () => (await savedSets()).length === 3, 'insert durably saved');
     let sets = await savedSets(), inserted = sets[1];
     assert.equal(sets[0].id, warmup.id); assert.equal(sets[2].id, working.id);
     assert.deepEqual(sets[0], previous[0]); assert.deepEqual(sets[2], previous[1]);
     assert.equal(inserted.warmup, true); assert.equal(inserted.completed, false); assert.equal(inserted.actualReps, '');
     const rows = [...document.querySelectorAll('.set-row[role="group"]')];
-    assert.match(rows[1].getAttribute('aria-label'), /warm-up set 2/); assert.match(rows[2].getAttribute('aria-label'), /set 3/);
-    await choose('Options for Barbell Bench Press, set 3', 'Insert set before');
+    assert.match(rows[1].getAttribute('aria-label'), /W2/); assert.match(rows[2].getAttribute('aria-label'), /Set 1/);
+    await choose('Options for Barbell Bench Press, Set 1', 'Insert set before');
     await until(async () => (await savedSets()).length === 4, 'before insert saved');
     sets = await savedSets(); assert.equal(sets[1].id, inserted.id); assert.equal(sets[2].warmup, false); assert.equal(sets[3].id, working.id);
     assert.equal(sets[2].completed, false);

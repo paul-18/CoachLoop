@@ -92,17 +92,17 @@ test('repeated set controls name exercise, set and units; evidence error is asso
   try {
     root.render(React.createElement(App)); await until(() => document.querySelector('.active-workout-card'), 'active'); document.querySelector('.active-workout-card').click();
     await until(() => document.querySelector('.workout-shell'), 'editor');
-    assert.ok(document.querySelector('[aria-label="Barbell Bench Press, set 1, actual weight in pounds total"]'));
-    assert.ok(document.querySelector('[aria-label="Cable Seated Row, set 1, actual reps"]'));
-    const reps = document.querySelector('[aria-label="Barbell Bench Press, set 1, actual reps"]');
+    assert.ok(document.querySelector('[aria-label="Barbell Bench Press, Set 1, actual weight in pounds total"]'));
+    assert.ok(document.querySelector('[aria-label="Cable Seated Row, Set 1, actual reps"]'));
+    const reps = document.querySelector('[aria-label="Barbell Bench Press, Set 1, actual reps"]');
     inputValue(dom, reps, 'abc'); await until(() => reps.getAttribute('aria-invalid') === 'true', 'invalid described');
     assert.ok(document.getElementById(reps.getAttribute('aria-describedby')).textContent.includes('positive whole'));
     inputValue(dom, reps, '8'); await until(() => reps.getAttribute('aria-invalid') === 'false', 'corrected');
-    const options = document.querySelector('[aria-label="Options for Barbell Bench Press, set 1"]');
+    const options = document.querySelector('[aria-label="Options for Barbell Bench Press, Set 1"]');
     options.focus(); options.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true, ctrlKey: false }));
     await until(() => [...document.querySelectorAll('[role="menuitem"]')].some(e => e.textContent === 'Add set note'), 'set menu');
     [...document.querySelectorAll('[role="menuitem"]')].find(e => e.textContent === 'Add set note').click();
-    await until(() => document.querySelector('[aria-label="Note for Barbell Bench Press, set 1"]'), 'note dialog');
+    await until(() => document.querySelector('[aria-label="Note for Barbell Bench Press, Set 1"]'), 'note dialog');
     document.querySelector('[role="dialog"] button:not([data-slot="dialog-close"])').click();
     await until(() => !document.querySelector('[role="dialog"]'), 'note closed');
     await until(() => document.activeElement === options, 'note returns focus to original set');
