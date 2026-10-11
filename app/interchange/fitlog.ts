@@ -78,12 +78,25 @@ const normalizeType = (name: string): CardioEntry["activityType"] => {
   return "other";
 };
 
+/** Trailing " -", ":", or "—" groups only. Linear so a long almost-match cannot backtrack. */
+const stripTrailingSeparators = (value: string) => {
+  let end = value.length;
+  while (end > 0) {
+    const mark = value[end - 1];
+    if (mark !== "-" && mark !== ":" && mark !== "—") break;
+    let cursor = end - 1;
+    while (cursor > 0 && /\s/.test(value[cursor - 1])) cursor -= 1;
+    end = cursor;
+  }
+  return value.slice(0, end);
+};
+
 const parseMobilityMove = (value: string) => {
   const trimmed = value.trim().replace(/\s+/g, " ");
   const counted = / (\d+ ?[x×] ?.+)$/i.exec(trimmed);
   const timed = / (\d+(?:\.\d+)? (?:sec|secs|seconds|min|mins|minutes)(?:\/side)?)$/i.exec(trimmed);
   const tail = [counted, timed].filter((match): match is RegExpExecArray => match !== null).sort((left, right) => left.index - right.index)[0];
-  const name = (tail ? trimmed.slice(0, tail.index) : trimmed).replace(/(?:\s*[-:—])+$/, "").trim();
+  const name = stripTrailingSeparators(tail ? trimmed.slice(0, tail.index) : trimmed).trim();
   return {
     id: uid("move"),
     name: name || "Movement",
