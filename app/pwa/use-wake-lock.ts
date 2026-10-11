@@ -34,6 +34,7 @@ export function useWakeLock() {
           if (sentinel !== next) return;
           sentinel = null;
           setWakeLockHeld(false);
+          if (!disposed && document.visibilityState === "visible") void acquire();
         });
       } catch {
         if (!disposed) setWakeLockHeld(false);

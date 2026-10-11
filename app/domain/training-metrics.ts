@@ -2,7 +2,7 @@ import { localDate, type TrainingSet, type TrainingState, type WorkoutSession, t
 
 export { canonicalExerciseName, exerciseIdentity } from "./exercise-identity";
 import { canonicalExerciseName } from "./exercise-identity";
-export { performedDuration, performedDistance, completedActivityValues, parseExactReps, performedReps, performedWeight, completedSetValues, formatMeasure, roundedMeasure } from "./completion";
+export { performedDuration, performedDistance, completedActivityValues, parseExactReps, performedReps, performedWeight, completedSetValues, formatMeasure, roundedMeasure, displayedDistance } from "./completion";
 import { parseExactReps, performedReps, performedWeight } from "./completion";
 export const weightModeLabel = (mode: WeightMode) =>
   mode === "per_hand" ? "each" : mode === "added" ? "added" : "total";
@@ -62,7 +62,7 @@ export const strengthRecords = (state: TrainingState, targetUnit: Unit, sinceDat
       if (!isPrimaryStrengthExercise(name) || !set.completed || set.warmup || set.loadType !== "weighted" || set.weightMode !== "total") return;
       const reps = parseExactReps(performedReps(set));
       const weight = performedWeight(set);
-      if (reps === null || weight === null || weight <= 0) return;
+      if (reps === null || weight === null || !Number.isFinite(weight) || weight <= 0) return;
       const normalizedWeight = convertWeight(weight, set.unit, targetUnit);
       const e1rm = estimatedOneRepMax(normalizedWeight, reps);
       if (e1rm === null) return;

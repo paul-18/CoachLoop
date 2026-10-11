@@ -11,6 +11,13 @@ export function formatMeasure(value: number, maxDecimals = 2): string {
   return String(Number(value.toFixed(maxDecimals)));
 }
 
+/** Kilometres shown in km, or metres, without a binary tail such as 1004.9999999999999. */
+export function displayedDistance(kilometres: number, unit: "m" | "km" = "km"): number {
+  if (!Number.isFinite(kilometres)) return kilometres;
+  const shown = unit === "m" ? kilometres * 1000 : kilometres;
+  return Number(shown.toFixed(2));
+}
+
 /** Same rounding as formatMeasure, for a copied plan target rather than a display string. */
 export function roundedMeasure(value: number | null, maxDecimals = 2): number | null {
   if (value === null || !Number.isFinite(value)) return value;

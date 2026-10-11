@@ -209,9 +209,12 @@ INTENSITY|Easy
 NOTES|Five easy minutes first. Shorten it if you need to.
 EXERCISE|Barbell Bench Press
 SET|5|45 lb total||WARMUP
-SET|5|95 lb total|RPE 6
+SET|5|135 lb total|RPE 7
+SET|5|155 lb total|RPE 7
+SET|5|175 lb total|RPE 8
+SET|3|185 lb total|RPE 8
 REST|120
-NOTES|Weighted example only. Change both loads before you start.
+NOTES|One light warm-up, then four heavier sets. Change a load if it is too much today.
 EXERCISE|Pull-up
 SET|5|Bodyweight|RPE 6
 REST|90

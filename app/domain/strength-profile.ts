@@ -34,7 +34,7 @@ export function strengthProfile(state: TrainingState, unit: Unit, days = 42) {
           const current = results.get(lift);
           if (!current || reps > current.value) results.set(lift, { lift, date: workout.date, display: `${reps} reps`, value: reps, reps });
         } else {
-          if (set.loadType !== "weighted" || set.weightMode !== "total" || weight === null || weight <= 0 || reps > 10) continue;
+          if (set.loadType !== "weighted" || set.weightMode !== "total" || weight === null || !Number.isFinite(weight) || weight <= 0 || reps > 10) continue;
           const value = estimatedOneRepMax(convertWeight(weight, set.unit, unit), reps);
           if (value === null) continue;
           const current = results.get(lift);

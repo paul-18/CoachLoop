@@ -9,8 +9,10 @@ import { parseFitlog } from "../app/interchange/fitlog";
 test("first-use guide starts with goals and profile, and the example is a short mixed session", () => {
   const state = defaultState();
   const today = renderToStaticMarkup(createElement(FirstSteps, { state, view: "today", onSetup: () => {}, onCoach: () => {}, onSample: () => {}, onImport: () => {} }));
+  assert.match(today, /Use these goals/);
+  assert.match(today, /Use this profile/);
+  assert.match(today, /Bench press 225 lb/);
   assert.match(today, /Add goals/);
-  assert.match(today, /Add coach profile/);
   assert.match(today, /See an example workout/);
   assert.match(today, /Ask your AI stays off/);
   assert.doesNotMatch(today, /Paste a workout/);
@@ -28,7 +30,8 @@ test("first-use guide starts with goals and profile, and the example is a short 
   assert.equal(sample.cardio[0]?.plannedDurationMin, 5);
   assert.deepEqual(sample.exercises.map(exercise => exercise.name), ["Barbell Bench Press", "Pull-up", "Dip", "Dumbbell Lateral Raise"]);
   assert.equal(sample.exercises[0]?.sets[0]?.warmup, true);
-  assert.equal(sample.exercises[0]?.sets[1]?.plannedWeight, 95);
+  assert.deepEqual(sample.exercises[0]?.sets.slice(1).map(set => set.plannedWeight), [135, 155, 175, 185]);
+  assert.equal(sample.exercises[0]?.sets[1]?.plannedWeight, 135);
   assert.equal(sample.exercises[1]?.sets[0]?.loadType, "bodyweight");
   assert.equal(sample.exercises[3]?.sets[0]?.weightMode, "per_hand");
   assert.equal(sample.cardio[1]?.activityType, "mobility");

@@ -133,6 +133,8 @@ export function HistoryView({
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "skipped">(initialUi.filter);
   const [expanded, setExpanded] = useState<string | null>(initialUi.expanded);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const historyOptionsRef = useRef<HTMLButtonElement>(null);
+  const deleteButtons = useRef(new Map<string, HTMLButtonElement>());
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
@@ -179,9 +181,9 @@ export function HistoryView({
 
   return (
     <div className="page-stack">
-      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={!state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
+      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={!state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
-        <DialogContent onOpenAutoFocus={(event) => event.preventDefault()} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-lg">
+        <DialogContent onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => { event.preventDefault(); historyOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-lg">
           <DialogHeader><DialogTitle>Completed training history</DialogTitle><DialogDescription className="text-white/48">Every completed set and activity, grouped by date. No skipped plans or notes. This text is for reading and saving; a JSON backup in Settings is needed to restore app data.</DialogDescription></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-3"><label className="field-label">From<Input type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} className="mt-1 border-white/10 bg-black/20" /></label><label className="field-label">To<Input type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} className="mt-1 border-white/10 bg-black/20" /></label><label className="field-label">Exercise<NativeSelect value={exportExercise} onChange={(event) => setExportExercise(event.target.value)} className="mt-1 w-full border-white/10 bg-black/20"><NativeSelectOption value="">All exercises</NativeSelectOption>{exportExercises.map((name) => <NativeSelectOption key={name} value={name}>{name}</NativeSelectOption>)}</NativeSelect></label></div>
           <pre className="max-h-[42dvh] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-white/75">{exportText}</pre>
@@ -189,7 +191,7 @@ export function HistoryView({
         </DialogContent>
       </Dialog>
       <Input aria-label="Search workouts or exercises" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder="Search workouts or exercises…" className="h-12 border-white/9 bg-white/[0.025] px-4" />
-      <div ref={historyStart} className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setPage(0); }}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/45">{workouts.length} sessions</span></div>
+      <div ref={historyStart} className="history-filters" aria-label="Filter history">{(["all", "completed", "skipped"] as const).map((value) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setPage(0); }}>{value === "all" ? "All sessions" : value === "completed" ? "Completed" : "Skipped"}</button>)}<span className="text-xs text-white/60">{workouts.length} sessions</span></div>
       {pageControls}
       {workouts.length ? (
         <div className="space-y-3">
@@ -203,9 +205,9 @@ export function HistoryView({
                       <p className="font-extrabold tracking-[-0.02em] text-white">{workout.name}</p>
                       {workout.status === "skipped" && <Badge variant="outline" className="border-amber-300/20 text-amber-200/70">Skipped</Badge>}
                     </div>
-                    <p className="mt-1 text-sm text-white/42">{formatDate(workout.date)} · {workout.status === "skipped" ? workout.skipReason || "No reason recorded" : summarizeWorkout(workout)}</p>
+                    <p className="mt-1 text-sm text-white/60">{formatDate(workout.date)} · {workout.status === "skipped" ? workout.skipReason || "No reason recorded" : summarizeWorkout(workout)}</p>
                   </div>
-                  {isOpen ? <ChevronUp className="size-4 text-white/35" /> : <ChevronDown className="size-4 text-white/35" />}
+                  {isOpen ? <ChevronUp className="size-4 text-white/60" /> : <ChevronDown className="size-4 text-white/60" />}
                 </button>
                 {isOpen && (
                   <div className="mt-5 border-t border-white/7 pt-5">
@@ -224,9 +226,9 @@ export function HistoryView({
                           <Button size="sm" variant="outline" onClick={() => onRepeat(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Repeat</Button>
                         </>
                       )}
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setDeleteId(workout.id)} className="text-red-300"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                       <AlertDialog open={deleteId === workout.id} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
-                        <AlertDialogContent className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/45">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                        <AlertDialogContent onCloseAutoFocus={(event) => { event.preventDefault(); deleteButtons.current.get(workout.id)?.focus(); }} className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/60">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>
                     </div>
                   </div>

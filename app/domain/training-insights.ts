@@ -60,7 +60,7 @@ export function buildExerciseTrends(state: TrainingState, today = localDate()): 
         value = reps;
       } else {
         const weight = performedWeight(set);
-        if (set.loadType !== "weighted" || weight === null || weight <= 0) return;
+        if (set.loadType !== "weighted" || weight === null || !Number.isFinite(weight) || weight <= 0) return;
         value = convertWeight(weight, set.unit, state.settings.defaultUnit);
         metric = isPrimaryStrengthExercise(name) && set.weightMode === "total" ? "e1rm" : "load";
         if (metric === "e1rm") {

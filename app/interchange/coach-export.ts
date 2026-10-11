@@ -12,16 +12,7 @@ import type {
   WorkoutSession,
 } from "../domain/training-types";
 
-export const DEFAULT_COACH_PROFILE = `Replace this paragraph with your own background before you rely on it: training experience, equipment you have, injuries, and what a coach should remember.
-
-COACHING PREFERENCES
-Act as a long-term strength, physique, running, and conditioning coach. Use the completed training history, goals, bodyweight entries, and schedule provided in each brief; do not assume planned workouts were completed.
-
-Account for accumulated training load, recovery, sleep, injuries, travel, and other scheduled activity when included. Aim for challenging, productive training without junk volume.
-
-Be direct. Recommend the next useful session from the actual recent history, explain the reasoning briefly, and return exactly one importable FITLOG workout when requested. Treat skipped sessions as skipped and preserve the distinction between planned and completed work.
-
-Add durable personal preferences in the Coach profile field. Add goals in Training goals. The app includes those saved values and relevant workout history in the brief.`;
+export const DEFAULT_COACH_PROFILE = `I train for a stronger bench and a faster 5k. Sessions usually start with an easy bike, then bench press, pull-ups, dips, and lateral raises, and finish with short mobility. Progress a load only when the last session felt solid.`;
 const plannedSetLine = (set: TrainingSet) => {
   const load = formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode);
   const effort = set.plannedRpe

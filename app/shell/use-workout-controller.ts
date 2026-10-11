@@ -16,6 +16,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const historyScrollRef = useRef<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importDraft, setImportDraft] = useState("");
+  const [importListFirst, setImportListFirst] = useState(false);
   const [hyroxOpen, setHyroxOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const [lastImportId, setLastImportId] = useState<string | null>(null);
@@ -175,5 +176,5 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
 
   const resumeWorkout = (id: string) => { void commitState(current => resumeWorkoutState(current, id)).then(() => setWorkoutOpen(true)).catch(saveFailure); };
-  return { workoutOpen, setWorkoutOpen, editingWorkoutId, importOpen, setImportOpen, importDraft, setImportDraft, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
+  return { workoutOpen, setWorkoutOpen, editingWorkoutId, importOpen, setImportOpen, importDraft, setImportDraft, importListFirst, setImportListFirst, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
 }

@@ -311,7 +311,7 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-v96 keeps one recovery copy when you erase this device, stores rounded targets when you repeat a workout, and shows the real muscle match for an aliased exercise. v95 prints effort totals without long decimal tails, stops a bad mobility paste from freezing the tab, and lets you try again if the editor lock stops. A new log starts with a short card and a bodyweight-squat example instead of a heavy sample plan. v94 adds the missing Insert set before and Insert set after actions on a set’s number/W menu. See [v96 notes](docs/releases/V96-UPDATE-NOTES.md), [iPhone QC](docs/releases/V96-QC.md) and [v96 upload steps](docs/releases/V96-UPLOAD.txt).
+v97 gives a new log two short goals and a coach profile, opens the example as a list with four heavier bench sets, and limits quick log to run, bike, circuit, and yoga until the first completed workout. 1005 m displays as 1005. v96 keeps one recovery copy when you erase this device, stores rounded targets when you repeat a workout, and shows the real muscle match for an aliased exercise. See [v97 notes](docs/releases/V97-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V97-QC.md).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 

@@ -48,6 +48,7 @@ export function ImportWorkoutDialog({
   onStart,
   onSave,
   onOpenExisting,
+  listFirst = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,6 +58,7 @@ export function ImportWorkoutDialog({
   onStart: (workout: WorkoutSession) => Promise<void>;
   onSave: (workout: WorkoutSession) => Promise<void>;
   onOpenExisting?: (workout: WorkoutSession) => void;
+  listFirst?: boolean;
 }) {
   const [preview, setPreview] = useState<WorkoutSession | null>(null);
   const [error, setError] = useState("");
@@ -64,12 +66,14 @@ export function ImportWorkoutDialog({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const keepPreview = useRef(false);
+  const listed = useRef(false);
 
   useEffect(() => {
     if (!open) {
       setPreview(null);
       setError("");
       setWarningsReviewed(false);
+      listed.current = false;
     }
   }, [open]);
   useEffect(() => {
@@ -81,6 +85,18 @@ export function ImportWorkoutDialog({
     setError("");
     setWarningsReviewed(false);
   }, [text]);
+  useEffect(() => {
+    if (!open || !listFirst || listed.current || !text.trim()) return;
+    listed.current = true;
+    try {
+      setPreview(parseFitlog(text, state.settings.defaultUnit, state.exerciseAliases));
+      setError("");
+      setWarningsReviewed(false);
+    } catch (cause) {
+      setPreview(null);
+      setError(cause instanceof Error ? cause.message : "This workout could not be read.");
+    }
+  }, [open, listFirst, text, state.settings.defaultUnit, state.exerciseAliases]);
 
   const review = () => {
     setWarningsReviewed(false);
@@ -138,7 +154,7 @@ export function ImportWorkoutDialog({
                 <p className="text-sm font-semibold text-white">Safe example</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-white/70">
                   <li>Easy bike — 5 minutes</li>
-                  <li>Barbell bench press — light warm-up, then a working set</li>
+                  <li>Barbell bench press — light warm-up, then four heavier sets</li>
                   <li>Pull-up and dip — bodyweight</li>
                   <li>Lateral raise — light dumbbells</li>
                   <li>Easy mobility</li>
@@ -175,7 +191,7 @@ export function ImportWorkoutDialog({
                     </p>
                     <h3 className="mt-2 text-xl font-black tracking-[-0.035em]">{preview.name}</h3>
                     {preview.name.startsWith("Example session") && <p className="mt-2 text-sm leading-6 text-white/60">Example only. Change the weights if they do not fit you. Go back to the text if you want a different plan.</p>}
-                    <p className="mt-1 text-sm text-white/45">{formatDate(preview.date)}</p>
+                    <p className="mt-1 text-sm text-white/60">{formatDate(preview.date)}</p>
                   </div>
                   <Badge className={preview.importWarnings?.length ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-[var(--lime)]/20 bg-[var(--lime)]/10 text-[var(--lime)]"}>
                     {preview.importWarnings?.length ? "Review warnings" : "Valid FITLOG"}
@@ -200,7 +216,7 @@ export function ImportWorkoutDialog({
               {orderedWorkoutBlocks(preview).map((block) => block.type === "exercise" ? (
                 <div key={block.exercise.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
                   <p className="font-bold">{block.exercise.name}</p>
-                  <p className="mt-1 text-sm text-white/45">
+                  <p className="mt-1 text-sm text-white/60">
                     {block.exercise.sets.length} sets · {block.exercise.restSec}s rest
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -215,7 +231,7 @@ export function ImportWorkoutDialog({
               ) : (
                 <div key={block.activity.id} className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><p className="min-w-0 font-bold">{block.activity.name}</p><label className="text-xs text-white/60">Category <NativeSelect aria-label={`Category for ${block.activity.name}`} value={block.activity.activityType} onChange={(event) => setPreview((current) => current ? { ...current, cardio: current.cardio.map((item) => item.id === block.activity.id ? { ...item, activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined } : item) } : current)} className="ml-2 inline-block h-9 w-auto max-w-36 border-white/15 bg-[#20231e] text-white">{(["run", "ruck", "bike", "swim", "water_polo", "row", "walk", "hike", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label></div>
-                  <p className="mt-1 text-sm text-white/45">
+                  <p className="mt-1 text-sm text-white/60">
                     {block.activity.plannedDurationMin ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "Duration open"}
                     {block.activity.plannedDistanceKm ? ` · ${formatMeasure(block.activity.plannedDistanceKm)} km` : ""}
                     {block.activity.intensity ? ` · ${block.activity.intensity}` : ""}
@@ -423,7 +439,7 @@ export function CoachDialog({
               <NativeSelectOption value="14">Last 14 days</NativeSelectOption>
               <NativeSelectOption value="30">Last 30 days</NativeSelectOption>
             </NativeSelect>
-            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/42 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
+            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/60 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
           </label>
           <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
             <p className="text-xs leading-5 text-white/55">Readiness and PT are remembered today after Copy or Mark sent. Clear them for a fresh check-in.</p>
@@ -489,7 +505,7 @@ export function CoachDialog({
           </details>
           <details className="sm:col-span-2 rounded-xl border border-white/8 bg-black/15 p-4">
             <summary className="cursor-pointer text-sm font-bold text-white/70">Preview copied text</summary>
-            <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap text-xs leading-5 text-white/45">{prompt}</pre>
+            <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap text-xs leading-5 text-white/60">{prompt}</pre>
           </details>
         </div>
         <DialogFooter className="border-t border-white/8 p-5">
@@ -634,7 +650,7 @@ export function TodayView({
               <p className="eyebrow">Saved for later</p>
               <h2>Planned workouts</h2>
             </div>
-            <Badge variant="outline" className="border-white/10 text-white/45">{planned.length}</Badge>
+            <Badge variant="outline" className="border-white/10 text-white/60">{planned.length}</Badge>
           </div>
           <div className="space-y-3">
             {planned.map((workout) => {
@@ -647,11 +663,11 @@ export function TodayView({
                       <h3 className="truncate font-extrabold tracking-[-0.02em] text-white">{workout.name}</h3>
                       <Badge className="border-sky-300/15 bg-sky-300/8 text-sky-200/75">{timing}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-white/42">{workout.exercises.length + workout.cardio.length} blocks · {exerciseSets} sets</p>
+                    <p className="mt-1 text-sm text-white/60">{workout.exercises.length + workout.cardio.length} blocks · {exerciseSets} sets</p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Button size="sm" onClick={() => setPreviewId(workout.id)} className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90">Preview</Button>
-                    <Button size="icon-sm" variant="ghost" aria-label={`Skip ${workout.name}`} onClick={() => onSkipPlan(workout.id)} className="text-white/45 hover:bg-white/7 hover:text-white"><X /></Button>
+                    <Button size="icon-sm" variant="ghost" aria-label={`Skip ${workout.name}`} onClick={() => onSkipPlan(workout.id)} className="text-white/60 hover:bg-white/7 hover:text-white"><X /></Button>
                   </div>
                 </article>
               );
@@ -691,7 +707,8 @@ export function TodayView({
             <h2>Quick log</h2>
           </div>
         </div>
-        <QuickLogButtons settings={state.settings} disabled={Boolean(active)} onChoose={onQuickCardio} />
+        <QuickLogButtons settings={state.settings} disabled={Boolean(active)} limited={!state.workouts.some(workout => workout.status === "completed")} onChoose={onQuickCardio} />
+        {!state.workouts.some(workout => workout.status === "completed") && <p className="mt-2 text-sm text-white/60">Run, bike, circuit, and yoga for now. More activities are in Settings after your first workout.</p>}
       </section>}
 
       {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}

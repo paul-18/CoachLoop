@@ -186,7 +186,7 @@ export function AppMark({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <div className="app-mark-copy min-w-0">
           <p className="text-[1.05rem] font-black tracking-[-0.04em] text-white">Coach Loop</p>
-          <p className="text-xs font-medium text-white/42">Local training log · {APP_RELEASE}</p>
+          <p className="text-xs font-medium text-white/60">Local training log · {APP_RELEASE}</p>
         </div>
       )}
     </div>
@@ -204,7 +204,7 @@ export const navItems: { value: MainView; label: string; icon: typeof Activity }
 export function StatTile({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="stat-tile">
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/38">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/60">{label}</p>
       <p className="mt-2 text-[1.75rem] font-black tracking-[-0.06em] text-white">{value}</p>
       <p className="mt-1 text-sm text-white/46">{detail}</p>
     </div>
