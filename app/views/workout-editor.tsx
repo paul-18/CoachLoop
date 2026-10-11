@@ -30,7 +30,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, markTypedActivitiesComplete, nextOpenBlock, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -172,8 +172,9 @@ function PlateVisualizer({
 function SetRow({
   exerciseName,
   isNext,
+  numberLabel,
+  numberShort,
   set,
-  index,
   onChange,
   onToggle,
   onMatchPrevious,
@@ -185,8 +186,9 @@ function SetRow({
 }: {
   exerciseName: string;
   isNext: boolean;
+  numberLabel: string;
+  numberShort: string;
   set: TrainingSet;
-  index: number;
   onChange: (changes: Partial<TrainingSet>) => void;
   onToggle: () => void;
   onMatchPrevious?: () => void;
@@ -198,7 +200,7 @@ function SetRow({
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const optionsTrigger = useRef<HTMLButtonElement>(null);
-  const context = `${exerciseName || "Unnamed exercise"}, ${set.warmup ? "warm-up " : ""}set ${index + 1}`;
+  const context = `${exerciseName || "Unnamed exercise"}, ${numberLabel}`;
   const evidenceError = (set.completed || set.actualReps.trim() || set.rpe.trim() || set.rir.trim()) ? setEvidenceError(set) : null;
   const errorId = `evidence-${set.id}`;
   const targetEffort = set.plannedRpe ? `RPE ${set.plannedRpe}` : set.plannedRir ? `RIR ${set.plannedRir}` : "";
@@ -206,7 +208,7 @@ function SetRow({
     <>
     <div className={`set-row compact-set-row ${set.completed ? "is-complete" : set.skipped ? "is-skipped" : ""} ${isNext ? "is-next" : ""}`} role="group" aria-label={`${context}${isNext ? ", next unfinished set" : ""}`}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{set.warmup ? "W" : index + 1}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{numberShort}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("before")}><Plus /> Insert set before</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("after")}><Plus /> Insert set after</DropdownMenuItem>
@@ -291,7 +293,7 @@ function ExerciseEditor({
   barWeightLb: number;
   barWeightKg: number;
   onChange: (exercise: ExerciseBlock) => void;
-  onCompleteSet: (seconds: number) => void;
+  onCompleteSet: (setId: string, seconds: number) => void;
   onRemove: () => void;
   onLater: () => void;
   onSubstitute: (anchor: HTMLButtonElement | null) => void;
@@ -330,6 +332,7 @@ function ExerciseEditor({
       } },
     });
   };
+  const setNumbers = setDisplayNumbers(exercise.sets);
   const allDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed || set.skipped);
   if (allDone && !showCompleted) {
     const summary = compactSetSummary(exercise.sets);
@@ -408,10 +411,11 @@ function ExerciseEditor({
             <SetRow
               exerciseName={exercise.name}
               isNext={set.id === nextSetId}
+              numberLabel={setNumbers[index].label}
+              numberShort={setNumbers[index].short}
               set={set}
               increment={set.unit === (exercise.sets[0]?.unit ?? defaultUnit) && set.weightMode === exercise.sets[0]?.weightMode ? increment : 0}
               onSkip={() => updateSet(set.id, {skipped:!set.skipped,completed:false,completedAsPlanned:false})}
-              index={index}
               onChange={(changes) => updateSet(set.id, changes)}
               onToggleWarmup={() => updateSet(set.id, { warmup: !set.warmup })}
               onInsert={position => {
@@ -452,7 +456,7 @@ function ExerciseEditor({
                   actualReps: values?.actualReps ?? (clearingAcceptedPlan ? "" : currentSet.actualReps),
                   actualWeight: values ? values.actualWeight : clearingAcceptedPlan ? null : currentSet.actualWeight,
                 });
-                if (completing && !currentSet.warmup && exercise.restSec) onCompleteSet(exercise.restSec);
+                if (completing && !currentSet.warmup && exercise.restSec) onCompleteSet(set.id, exercise.restSec);
                 if (completing) setShowCompleted(false);
               }}
               onRemove={() => removeSet(set.id)}
@@ -488,7 +492,7 @@ function ExerciseEditor({
             <Plus /> Add set
           </Button>
         </div>
-        <details className="log-notes optional-effort"><summary>Effort · optional{exercise.sets.some((set) => set.rpe || set.rir) ? " · recorded" : ""}</summary><div className="optional-effort-sets">{exercise.sets.map((set, index) => { const rir = Boolean(set.rir) || (!set.rpe && !set.plannedRpe && Boolean(set.plannedRir)); return <label key={set.id} className="field-label">Set {index + 1} · {rir ? "RIR" : "RPE"}<Input inputMode="decimal" value={rir ? set.rir : set.rpe} placeholder="—" onChange={(event) => updateSet(set.id, rir ? { rir: event.target.value, rpe: "" } : { rpe: event.target.value, rir: "" })} /></label>; })}</div></details>
+        <details className="log-notes optional-effort"><summary>Effort · optional{exercise.sets.some((set) => set.rpe || set.rir) ? " · recorded" : ""}</summary><div className="optional-effort-sets">{exercise.sets.map((set, index) => { const rir = Boolean(set.rir) || (!set.rpe && !set.plannedRpe && Boolean(set.plannedRir)); return <label key={set.id} className="field-label">{setNumbers[index].label} · {rir ? "RIR" : "RPE"}<Input inputMode="decimal" value={rir ? set.rir : set.rpe} placeholder="—" onChange={(event) => updateSet(set.id, rir ? { rir: event.target.value, rpe: "" } : { rpe: event.target.value, rir: "" })} /></label>; })}</div></details>
         <details className="log-notes"><summary>{exercise.notes ? "Your notes" : "Add your notes"}</summary><Textarea
           value={exercise.notes}
           onChange={(event) => onChange({ ...exercise, notes: event.target.value, updatedAt: new Date().toISOString() })}
@@ -705,17 +709,27 @@ export function WorkoutEditor({
   const isEditingHistory = Boolean(workout.completedAt);
   const finishLabel = isEditingHistory ? "Finish editing" : "Finish workout";
   const restStorageKey = `coach-loop-rest-${workout.id}`;
+  const restFromKey = `coach-loop-rest-from-${workout.id}`;
   const [restUntil, updateRestUntil] = useState<number | null>(() => {
     try {
       const deadline = Number(localStorage.getItem(restStorageKey));
       return Number.isFinite(deadline) && deadline > Date.now() ? deadline : null;
     } catch { return null; }
   });
-  const setRestUntil = (deadline: number | null) => {
+  const [restFrom, setRestFrom] = useState<{ blockId: string; setId?: string } | null>(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(restFromKey) ?? "null") as { blockId?: string; setId?: string } | null;
+      return saved?.blockId ? { blockId: saved.blockId, setId: saved.setId } : null;
+    } catch { return null; }
+  });
+  const setRestUntil = (deadline: number | null, from?: { blockId: string; setId?: string } | null) => {
     updateRestUntil(deadline);
+    if (deadline === null || from !== undefined) setRestFrom(deadline === null ? null : from ?? null);
     try {
       if (deadline === null) localStorage.removeItem(restStorageKey);
       else localStorage.setItem(restStorageKey, String(deadline));
+      if (deadline === null || !from) sessionStorage.removeItem(restFromKey);
+      else sessionStorage.setItem(restFromKey, JSON.stringify(from));
     } catch { /* The live timer still works if browser storage is unavailable. */ }
   };
   const latestWorkout = useRef(workout);
@@ -838,9 +852,15 @@ export function WorkoutEditor({
 
   const nextBlock = nextOpenBlock(workout);
   const nextSet = nextBlock?.type === "exercise" ? nextBlock.exercise.sets.find((set) => !set.completed && !set.skipped) : undefined;
-  const nextLabel = nextBlock?.type === "exercise"
-    ? `${nextBlock.exercise.name} · Set ${nextBlock.exercise.sets.findIndex((set) => set.id === nextSet?.id) + 1}`
-    : nextBlock?.activity.name ?? "";
+  const restTarget = restFrom ? nextRestTarget(workout, restFrom.blockId, restFrom.setId) : undefined;
+  const restLabelFor = (exerciseName: string, sets: { id: string; warmup?: boolean }[], setId: string) => {
+    const numbers = setDisplayNumbers(sets);
+    const at = sets.findIndex((set) => set.id === setId);
+    return `${exerciseName} · ${numbers[at]?.label ?? ""}`;
+  };
+  const nextLabel = !restUntil ? "" : restFrom
+    ? !restTarget ? "" : restTarget.type === "activity" ? restTarget.activity.name : restLabelFor(restTarget.exercise.name, restTarget.exercise.sets, restTarget.set.id)
+    : !nextBlock ? "" : nextBlock.type === "activity" ? nextBlock.activity.name : nextSet ? restLabelFor(nextBlock.exercise.name, nextBlock.exercise.sets, nextSet.id) : "";
 
   const progress = workoutProgressCopy(workout);
   const unusual = unusualWorkoutWarning(workout);
@@ -905,7 +925,7 @@ export function WorkoutEditor({
             onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
             onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
             onChange={updateExercise}
-            onCompleteSet={(seconds) => setRestUntil(Date.now() + seconds * 1000)}
+            onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
             onRemove={() => removeExercise(block.exercise.id)}
           />
         ) : (
@@ -914,7 +934,7 @@ export function WorkoutEditor({
             activity={block.activity}
             isNext={nextBlock?.type === "activity" && nextBlock.activity.id === block.activity.id}
             onChange={updateCardio}
-            onCompleteEffort={(seconds) => setRestUntil(Date.now() + seconds * 1000)}
+            onCompleteEffort={(seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.activity.id })}
             onLater={() => { onUpdate(moveBlockLater(workout, block.activity.id)); toast.success("Moved to the end of this workout"); }}
             onRemove={() => {
               const removed = block.activity;

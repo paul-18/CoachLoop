@@ -31,7 +31,7 @@ import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
-import { nextOpenBlock } from "../domain/completion";
+import { nextOpenBlock, setDisplayNumbers } from "../domain/completion";
 import { goalsAreStarter } from "./goal-examples";
 import { welcomePending } from "./first-steps";
 import { blankStartReversible, coachingPromptVisible, starterRemovable, starterRemovalDescription } from "./starter-plan";
@@ -543,17 +543,22 @@ export function CoachDialog({
   );
 }
 
+export function PlanPreviewExercise({ exercise }: { exercise: WorkoutSession["exercises"][number] }) {
+  const numbers = setDisplayNumbers(exercise.sets);
+  return <section className="plan-preview-block">
+    <h3>{exercise.name}</h3><p className="text-sm text-white/60">{exercise.sets.length} sets · {exercise.restSec}s rest</p>
+    <ol>{exercise.sets.map((set, index) => <li key={set.id}><span>{numbers[index].label}</span><strong>{formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps || "—"}{set.plannedRpe ? ` · RPE ${set.plannedRpe}` : set.plannedRir ? ` · RIR ${set.plannedRir}` : ""}</strong></li>)}</ol>
+    {exercise.coachNotes && <CoachCue text={exercise.coachNotes} />}{exercise.notes && <p>{exercise.notes}</p>}
+  </section>;
+}
+
 function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule }: { workout: WorkoutSession | undefined; active: boolean; onClose: () => void; onStart: (id: string) => void; onReschedule: (id: string, date: string) => void }) {
   const [date, setDate] = useState(workout?.date ?? "");
   useEffect(() => { setDate(workout?.date ?? ""); }, [workout?.id, workout?.date]);
   return <Dialog open={Boolean(workout)} onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent onOpenAutoFocus={(event) => event.preventDefault()} className="plan-preview-dialog border-white/10 bg-[#151713] text-white">
     <DialogHeader><DialogTitle>{workout?.name}</DialogTitle><DialogDescription className="text-white/60">Saved plan · {workout ? formatDate(workout.date) : ""}. Previewing does not start or log anything.</DialogDescription></DialogHeader>
     {workout && <div className="flex min-w-0 flex-wrap items-end gap-2"><label className="min-w-0 flex-1 text-xs font-bold text-white/60">Planned date<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 min-w-0 w-full border-white/10 bg-black/20 text-base" /></label>{date !== workout.date && <Button type="button" variant="outline" disabled={!date} onClick={() => onReschedule(workout.id, date)} className="border-white/10 bg-transparent text-white">Save date</Button>}</div>}
-    <div className="plan-preview-body">{workout && orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? <section key={block.exercise.id} className="plan-preview-block">
-      <h3>{block.exercise.name}</h3><p className="text-sm text-white/60">{block.exercise.sets.length} sets · {block.exercise.restSec}s rest</p>
-      <ol>{block.exercise.sets.map((set, index) => <li key={set.id}><span>{set.warmup ? "Warm-up" : `Set ${index + 1}`}</span><strong>{formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps || "—"}{set.plannedRpe ? ` · RPE ${set.plannedRpe}` : set.plannedRir ? ` · RIR ${set.plannedRir}` : ""}</strong></li>)}</ol>
-      {block.exercise.coachNotes && <CoachCue text={block.exercise.coachNotes} />}{block.exercise.notes && <p>{block.exercise.notes}</p>}
-    </section> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "", block.activity.plannedDistanceKm !== null ? `${formatMeasure(block.activity.plannedDistanceKm)} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
+    <div className="plan-preview-body">{workout && orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? <PlanPreviewExercise key={block.exercise.id} exercise={block.exercise} /> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "", block.activity.plannedDistanceKm !== null ? `${formatMeasure(block.activity.plannedDistanceKm)} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
       {block.activity.intervals && (block.activity.activityType === "run" ? <RunPlan text={block.activity.intervals} /> : <p>{block.activity.intervals}</p>)}{block.activity.mobilityMoves.map((move) => <p key={move.id}>{move.name} · {move.prescription}</p>)}{block.activity.coachNotes && <CoachCue text={block.activity.coachNotes} />}{block.activity.notes && <p>{block.activity.notes}</p>}
     </section>)}{workout?.notes && <p className="text-sm text-white/65">{workout.notes}</p>}</div>
     <div className="plan-preview-actions"><Button variant="outline" onClick={onClose}>Close</Button><Button disabled={active} className="bg-[var(--lime)] text-[#11140d]" onClick={() => { if (workout) { onClose(); onStart(workout.id); } }}><Play /> Start workout</Button></div>{active && <p className="text-sm text-white/60">Finish your current workout before starting another.</p>}

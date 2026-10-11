@@ -109,6 +109,46 @@ export function nextOpenBlock(workout: WorkoutSession) {
   return undefined;
 }
 
+/** Warm-ups and working sets each start at 1. Stored set order is unchanged. */
+export function setDisplayNumbers<T extends { warmup?: boolean }>(sets: readonly T[]) {
+  let warmups = 0;
+  let working = 0;
+  return sets.map((set) => {
+    if (set.warmup) {
+      warmups += 1;
+      return { short: `W${warmups}`, label: `W${warmups}` };
+    }
+    working += 1;
+    return { short: String(working), label: `Set ${working}` };
+  });
+}
+
+/** The next unfinished set or activity at or after this block. Earlier open work is left behind. */
+export function nextRestTarget(workout: WorkoutSession, fromBlockId: string, fromSetId?: string) {
+  const order = normalizedBlockOrder(workout);
+  const start = order.findIndex((block) => block.id === fromBlockId);
+  if (start < 0) return undefined;
+  for (let index = start; index < order.length; index += 1) {
+    const block = order[index];
+    if (block.type === "exercise") {
+      const exercise = workout.exercises.find((item) => item.id === block.id);
+      if (!exercise) continue;
+      let startAt = 0;
+      if (index === start && fromSetId) {
+        const found = exercise.sets.findIndex((set) => set.id === fromSetId);
+        if (found < 0) continue;
+        startAt = found + 1;
+      }
+      const set = exercise.sets.slice(startAt).find((item) => !item.completed && !item.skipped);
+      if (set) return { type: "exercise" as const, exercise, set };
+    } else {
+      const activity = workout.cardio.find((item) => item.id === block.id);
+      if (activity && activityStillOpen(activity)) return { type: "activity" as const, activity };
+    }
+  }
+  return undefined;
+}
+
 const countableSets = (workout: WorkoutSession) => workout.exercises.flatMap(exercise => exercise.sets).filter(set => !set.skipped || set.completed);
 const openActivities = (workout: WorkoutSession) => workout.cardio.filter(activity => !activity.skipped);
 
