@@ -29,7 +29,7 @@ test("actual_distance_without_duration_does_not_trigger_pace_check", () => {
   const activity = { ...makeCardio("run"), actualDistanceKm: 10, actualDurationMin: null, plannedDurationMin: 1 };
   const warning = unusualActivityWarning(activity);
   assert.equal(warning, null);
-  assert.equal(unusualWorkoutWarning({ ...makeWorkout("lb"), cardio: [activity] }), null);
+  assert.equal(unusualWorkoutWarning({ ...makeWorkout("lb", 60), cardio: [activity] }), null);
 });
 
 test("implausible_actual_pace_still_warns", () => {
