@@ -1,7 +1,8 @@
 COACH LOOP — APPLYING AN AI-PROVIDED UPDATE
 
-Current app release: v101. Read docs/releases/V101-UPDATE-NOTES.md and
-docs/releases/V101-QC.md before applying anything newer.
+Current repository release: v103 (`app/app-release.ts` on `main`). The prepared
+v104 candidate is not live. Check the selected release's notes, QC and exact
+baseline before applying it; do not use this file as a version-specific recipe.
 
 This is the reusable procedure. Each package also provides release-specific
 steps naming its expected baseline, ZIP, changed files and required deletions.
@@ -55,6 +56,7 @@ git status --short
    Historical committed ZIPs remain in history; don't rewrite history merely
    for cosmetic cleanup.
 
-An AI with repository access can prepare a tested branch/pull request instead.
-Inspect the diff and require green checks before merging main. Keep private
+An AI with repository access can prepare a branch/pull request. Inspect the diff
+and require green checks before merging `main`. The release gate includes a
+Playwright WebKit smoke check; CI installs WebKit before running it. Keep private
 backups out of AI workspaces; use synthetic data for failure tests.

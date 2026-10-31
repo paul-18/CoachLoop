@@ -23,42 +23,6 @@ const FASTEST_MIN_PER_KM: Partial<Record<CardioEntry["activityType"], number>> =
 const finite = (value: number | null | undefined) =>
   value === null || value === undefined || !Number.isFinite(value) ? null : value;
 
-/** Actual kilometres only. Planned distance is not a result. */
-function actualKilometres(activity: CardioEntry): number | null {
-  if (activity.efforts?.length) {
-    const pair = completedEffortPair(activity);
-    return pair ? pair.distanceKm : null;
-  }
-  return finite(activity.actualDistanceKm);
-}
-
-/** Actual minutes only. Null means the time was never entered, not zero. */
-function actualMinutes(activity: CardioEntry): number | null {
-  if (activity.efforts?.length) {
-    const pair = completedEffortPair(activity);
-    return pair ? pair.durationMin : null;
-  }
-  return finite(activity.actualDurationMin);
-}
-
-/** Both sides of every completed effort that has a result, or nothing if one side is missing. */
-function completedEffortPair(activity: CardioEntry): { distanceKm: number; durationMin: number } | null {
-  const completed = (activity.efforts ?? []).filter((effort) => effort.completed);
-  let distanceKm = 0;
-  let durationMin = 0;
-  let saw = false;
-  for (const effort of completed) {
-    const metres = finite(effort.actualDistanceM);
-    const seconds = finite(effort.actualDurationSec);
-    if (metres === null && seconds === null) continue;
-    if (metres === null || seconds === null || metres < 0 || seconds < 0) return null;
-    distanceKm += metres / 1000;
-    durationMin += seconds / 60;
-    saw = true;
-  }
-  return saw ? { distanceKm, durationMin } : null;
-}
-
 function distanceText(kilometres: number, type: CardioEntry["activityType"]) {
   if (type === "swim" || type === "row") return `${formatMeasure(kilometres * 1000)} m`;
   return `${formatMeasure(kilometres)} km`;
@@ -67,14 +31,27 @@ function distanceText(kilometres: number, type: CardioEntry["activityType"]) {
 /** Warn only when both actual distance and actual duration were entered. Planned numbers never count. */
 export function unusualActivityWarning(activity: CardioEntry): string | null {
   if (activity.skipped) return null;
-  const distance = actualKilometres(activity);
-  const duration = actualMinutes(activity);
-  if (distance === null || distance <= 0 || duration === null || duration < 0) return null;
   const limit = FASTEST_MIN_PER_KM[activity.activityType];
+  if (activity.efforts?.length) {
+    const warnings = activity.efforts.flatMap((effort, index) => {
+      const metres = finite(effort.actualDistanceM);
+      const seconds = finite(effort.actualDurationSec);
+      // Check entered results before completion too. Prescriptions are never results.
+      if (metres === null || metres <= 0 || seconds === null || seconds < 0) return [];
+      const distance = metres / 1000;
+      const duration = seconds / 60;
+      if (duration > 0 && (limit === undefined || duration / distance >= limit)) return [];
+      return [`${activity.name}, effort ${index + 1}: ${distanceText(distance, activity.activityType)} in ${formatMeasure(duration)} min. ${UNUSUAL_ENTRY_MESSAGE}`];
+    });
+    return warnings.length ? warnings.join(" ") : null;
+  }
+
+  const distance = finite(activity.actualDistanceKm);
+  const duration = finite(activity.actualDurationMin);
+  if (distance === null || distance <= 0 || duration === null || duration < 0) return null;
   const tooFast = limit !== undefined && duration / distance < limit;
   if (duration > 0 && !tooFast) return null;
-  const time = `${formatMeasure(duration)} min`;
-  return `${activity.name}: ${distanceText(distance, activity.activityType)} in ${time}. ${UNUSUAL_ENTRY_MESSAGE}`;
+  return `${activity.name}: ${distanceText(distance, activity.activityType)} in ${formatMeasure(duration)} min. ${UNUSUAL_ENTRY_MESSAGE}`;
 }
 
 export function unusualWorkoutWarning(workout: WorkoutSession): string | null {

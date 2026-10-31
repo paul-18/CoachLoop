@@ -10,6 +10,8 @@ Do not move the app address as routine maintenance. An origin change does not ca
 
 Safari tabs and installed apps can have different storage contexts depending on platform/install behavior. Check the actual device; do not promise a shared or separate log universally. The single-editor lease coordinates only clients sharing its locking/storage context.
 
+The documented public address is GitHub Pages: `https://paul-18.github.io/CoachLoop/`. A commit may also receive a Vercel status, but this repository contains no Vercel deployment configuration, so the GitHub source cannot establish whether that project is a preview or a production deployment. Any second origin has a separate local log; use one canonical address for real training until the Vercel project/domain has been checked. Do not disable or remove the external Vercel integration from a source change alone.
+
 `navigator.storage.persist()` is best-effort. Granted persistence is useful but is not a replacement for external backups. The 50 MB backup boundary remains: parsing/validation runs on the main thread and near-limit files need physical-device testing. Use disposable synthetic data for stress tests, not a personal log.
 
 Keep ZIP updates and all private data out of commits. Ignore rules cannot remove files already committed or historical ZIPs. No history rewrite is necessary without a confirmed sensitive finding and a coordinated plan.

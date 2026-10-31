@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "description": "Shared regression vectors for rules implemented by the PWA and CoachLoop-Flutter. Keep the mirrored fixture byte-for-byte identical.",
+  "actualReps": [
+    { "input": "8", "valid": true, "value": 8 },
+    { "input": " 10 ", "valid": true, "value": 10 },
+    { "input": "0", "valid": false, "value": null },
+    { "input": "8-10", "valid": false, "value": null },
+    { "input": "8.5", "valid": false, "value": null },
+    { "input": "10/side", "valid": false, "value": null },
+    { "input": "", "valid": false, "value": null }
+  ],
+  "completion": [
+    {
+      "name": "fixed prescription can be accepted as performed",
+      "plannedReps": "8",
+      "actualReps": "",
+      "plannedWeight": 60,
+      "actualWeight": null,
+      "completes": true,
+      "expectedActualReps": "8",
+      "expectedActualWeight": 60,
+      "expectedAsPlanned": true
+    },
+    {
+      "name": "a range needs actual reps",
+      "plannedReps": "8-10",
+      "actualReps": "",
+      "plannedWeight": 60,
+      "actualWeight": null,
+      "completes": false,
+      "expectedActualReps": null,
+      "expectedActualWeight": null,
+      "expectedAsPlanned": null
+    }
+  ],
+  "volume": [
+    {
+      "name": "working set uses actual load and whole reps",
+      "completed": true,
+      "warmup": false,
+      "skipped": false,
+      "loadType": "weighted",
+      "weightMode": "total",
+      "actualReps": "8",
+      "actualWeight": 60,
+      "expectedVolume": 480,
+      "expectedCountedSets": 1,
+      "expectedExcludedSets": 0
+    },
+    {
+      "name": "warmup is excluded",
+      "completed": true,
+      "warmup": true,
+      "skipped": false,
+      "loadType": "weighted",
+      "weightMode": "total",
+      "actualReps": "8",
+      "actualWeight": 60,
+      "expectedVolume": 0,
+      "expectedCountedSets": 0,
+      "expectedExcludedSets": 1
+    },
+    {
+      "name": "per-hand load counts both sides",
+      "completed": true,
+      "warmup": false,
+      "skipped": false,
+      "loadType": "weighted",
+      "weightMode": "per_hand",
+      "actualReps": "8",
+      "actualWeight": 40,
+      "expectedVolume": 640,
+      "expectedCountedSets": 1,
+      "expectedExcludedSets": 0
+    },
+    {
+      "name": "fractional legacy reps are excluded from calculations",
+      "completed": true,
+      "warmup": false,
+      "skipped": false,
+      "loadType": "weighted",
+      "weightMode": "total",
+      "actualReps": "5.5",
+      "actualWeight": 60,
+      "expectedVolume": 0,
+      "expectedCountedSets": 0,
+      "expectedExcludedSets": 1
+    }
+  ]
+}

@@ -25,6 +25,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install WebKit for the browser smoke check
+        run: pnpm exec playwright install --with-deps webkit
       - run: pnpm release:check
       - name: Save QC report
         if: always()

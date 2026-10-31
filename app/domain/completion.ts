@@ -34,7 +34,7 @@ export const completedActivityValues = (activity: CardioEntry) => ({
 
 export const parseExactReps = (value: string) => {
   const trimmed = value.trim();
-  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) return null;
+  if (!/^[1-9]\d*$/.test(trimmed)) return null;
   const number = Number(trimmed);
   return Number.isFinite(number) && number > 0 ? number : null;
 };

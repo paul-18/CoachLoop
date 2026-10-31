@@ -118,7 +118,7 @@ Example order: strength → muscle growth → running endurance. Tell your AI to
 
 Need ideas? Expand **Example goals** to try a consistency, strength, or cardio draft. Edit it for your own baseline and schedule, then tap **Save**. Cancel adds nothing; examples never replace your existing goals.
 
-The first-use guide walks through profile → ranked goals → AI brief → FITLOG import → logged results and Finish workout. It disappears from all screens, including Settings, after your first completed workout. You can also use Blank workout or Quick log without an AI.
+On first launch, choose **Explore a sample log**, **Preview one workout**, or **Set up my log**. Explore opens an isolated demo whose edits are discarded when you exit or refresh. Preview shows one plan; it is not saved unless you choose to add it. Set up offers example goals or a blank log. The guided steps then walk through profile → ranked goals → AI brief → FITLOG import → logged results and Finish workout. They disappear after your first completed workout. You can also use Blank workout or Quick log without an AI.
 
 On **Coach**, tap **Your priorities** to expand your full ranked goals. Keep it collapsed when you want a simpler screen. Profile and goal editors support multiline text with Save and Cancel.
 
@@ -126,7 +126,7 @@ On **Coach**, tap **Your priorities** to expand your full ranked goals. Keep it 
 
 **Settings → Workout defaults:** pounds or kilograms, usual rest time, bar weight.
 
-Already have a backup? Restore it with **Settings → Restore JSON backup**.
+Already have a backup? Restore it with **Settings → Restore backup**.
 
 ### 4. Start your first AI chat
 
@@ -256,7 +256,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 ## FAQ and troubleshooting
 
 <details>
-<summary><b>Do I need ChatGPT?</b></summary>
+<summary><b>Do I need a specific AI service?</b></summary>
 
 No. Any AI assistant that can follow the FITLOG format should work. Coach Loop copies text; it does not connect to a specific AI provider.
 </details>
@@ -311,13 +311,17 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
+The repository's current release is **v103**. v103 warns about implausible activity results, asks before finishing activities with entered but unconfirmed results, advances the rest timer to the next open block, numbers warm-ups separately, and clarifies starter removal and quick-log choices. See [v103 notes](docs/releases/V103-UPDATE-NOTES.md) and [v103 checks](docs/releases/V103-QC.md).
+
+The prepared **v104 candidate** tightens whole-number reps in strength calculations, keeps unusual-result review on every finish path, adds a shared training-rule fixture for the PWA and Flutter experiment, and runs a mobile-sized WebKit navigation smoke check in the release gate. It is not live until merged to `main` and the Pages deployment succeeds. See [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 device/check guidance](docs/releases/V104-QC.md).
+
 v102 warns before saving an impossible distance and duration, aligns History counts with the workout header, and shows a skipped activity as Skipped. The first saved-workout note also appears on History. First-run choices are Explore a sample log, Preview one workout, and Set up my log. Not now dismisses the coaching prompt without marking the profile done. See [v102 notes](docs/releases/V102-UPDATE-NOTES.md) and [v102 checks](docs/releases/V102-QC.md).
 
 v101 aligns workout counts, lets you skip an activity without the rest timer pointing at it, and keeps the first-run screen to two choices plus Restore backup. A kilogram log gets a 100 kg bench goal. See [v101 notes](docs/releases/V101-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V101-QC.md).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 
-v90 adds **Settings → Verify saved backup**, clearer exercise/set/unit labels, and faster routine edits by validating changed workouts while retaining integrity checks. History shows 50 sessions per page; search and exports still cover the whole log. See [v90 notes](docs/releases/V90-UPDATE-NOTES.md) and [device QC steps](docs/releases/V90-QC.md). v89's durable final saves, restore review, completed-evidence protection and controlled updates remain. v88's app-shell split remains too.
+Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
 
 After saving a JSON file in Files, use **Verify saved backup** to inspect compatibility, counts and dates without restoring it. A readable, compatible file is not proof it matches your latest export or every recorded value is correct. Keep it privately and test restoration on a disposable profile for a full recovery check.
 
@@ -325,7 +329,7 @@ The workout header shows Saving, Saved or Not saved. Finish, history-edit confir
 
 Changing a completed set to invalid actual reps or effort makes it an incomplete draft. Correct it and mark it complete again. Actual reps require a positive whole count; actual RPE is 1–10 and RIR is 0–10, using one effort scale at a time. Existing ambiguous legacy results are preserved and flagged for review. Empty sessions and warm-up-only lifting do not count as training days; completed child efforts still count when their parent activity is unfinished. Empty saved sessions remain in History and backups.
 
-To check a release locally, run `pnpm release:check`. This runs typecheck, lint, tests, build and PWA checks, then writes a report under `.release-checks/`. GitHub Actions uses the same checks and retains its QC report for 14 days. Passing automated checks should be followed by the device QC above.
+To check a release locally, install WebKit once with `pnpm exec playwright install webkit`, then run `pnpm release:check`. This runs typecheck, lint, unit/DOM tests, build, PWA checks and an iPhone-sized WebKit tab-navigation/layout smoke check, then writes a report under `.release-checks/`. GitHub Actions installs WebKit and uses the same release gate. The WebKit smoke is not a physical iPhone, Safari share-sheet, VoiceOver, or Home Screen PWA certification; follow the device QC above.
 
 Open the app online periodically. Updates are checked on return to the foreground, or open **Settings → On this device → Check updates**.
 
@@ -341,7 +345,7 @@ For a release, check both a fresh install and an update from the previous versio
 
 ### Developer setup
 
-Use Node 24 and the pinned pnpm version from `package.json`. From the repository root, run `npx --yes pnpm@11.25.0 install --frozen-lockfile`, then `npx --yes pnpm@11.25.0 run dev` for local development or `npx --yes pnpm@11.25.0 run release:check` before publishing. Local backups contain private data; keep them out of commits. The current upload procedure is [UPDATE-INSTRUCTIONS.txt](UPDATE-INSTRUCTIONS.txt); older release notes are historical.
+Use Node 24 and the pinned pnpm version from `package.json`. From the repository root, run `npx --yes pnpm@11.25.0 install --frozen-lockfile`, then `npx --yes pnpm@11.25.0 exec playwright install webkit` once and `npx --yes pnpm@11.25.0 run dev` for local development. Before publishing, run `npx --yes pnpm@11.25.0 run release:check`. Local backups contain private data; keep them out of commits. The current upload procedure is [UPDATE-INSTRUCTIONS.txt](UPDATE-INSTRUCTIONS.txt); release-specific instructions are linked from [docs/README.md](docs/README.md).
 
 For repository owners, see [upload and cleanup instructions](UPDATE-INSTRUCTIONS.txt).
 
@@ -357,6 +361,10 @@ Bug reports and ideas are welcome. Please [open an issue](../../issues) and incl
 ## Disclaimer
 
 Coach Loop is a logging tool and a way to move text between you and an AI. It is not medical advice, a physical therapist, or a replacement for a qualified coach. AI-generated workouts can be wrong, so use your judgment, scale to how you feel, and talk to a professional about injuries or health concerns.
+
+## License
+
+No reuse license is currently provided. The repository is public to read; public visibility alone does not grant permission to reuse or redistribute the code. A license can be added once the owner chooses the intended terms.
 
 ---
 

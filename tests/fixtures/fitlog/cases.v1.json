@@ -1,0 +1,28 @@
+{
+  "notice": "Synthetic regression examples, not real user or AI transcripts. Replace or extend with anonymized failed outputs when supplied.",
+  "cases": [
+    {
+      "name": "explanation outside one fenced FITLOG block is accepted",
+      "valid": true,
+      "text": "Here is the workout.\n```text\n[FITLOG:1]\nWORKOUT|Example|2026-10-31\nEXERCISE|Bench press\nSET|8|60 lb total\n[/FITLOG]\n```\nAdjust the load if needed."
+    },
+    {
+      "name": "commands flattened onto one line are rejected",
+      "valid": false,
+      "error": "Multiple FITLOG commands",
+      "text": "[FITLOG:1]\nWORKOUT|Example|2026-10-31 EXERCISE|Bench press SET|8|60 lb total\n[/FITLOG]"
+    },
+    {
+      "name": "prose in the reps column is rejected",
+      "valid": false,
+      "error": "positive whole reps or an increasing range",
+      "text": "[FITLOG:1]\nWORKOUT|Example|2026-10-31\nEXERCISE|Pallof press\nSET|10/side|10 lb total\n[/FITLOG]"
+    },
+    {
+      "name": "two complete workout blocks are rejected",
+      "valid": false,
+      "error": "exactly one complete FITLOG",
+      "text": "[FITLOG:1]\nWORKOUT|One|2026-10-31\n[/FITLOG]\n[FITLOG:1]\nWORKOUT|Two|2026-10-31\n[/FITLOG]"
+    }
+  ]
+}

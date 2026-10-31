@@ -57,6 +57,8 @@ test("missing_zero_invalid_and_partial_actual_values_are_handled", () => {
   partial.loggingStyle = "efforts";
   partial.efforts = [{ ...makeActivityEffort(), completed: true, actualDistanceM: 400, actualDurationSec: null }];
   assert.equal(unusualActivityWarning(partial), null);
+  partial.efforts = [{ ...makeActivityEffort(), completed: false, actualDistanceM: 400, actualDurationSec: 20 }];
+  assert.match(unusualActivityWarning(partial) ?? "", /effort 1: 0\.4 km in 0\.33 min/);
   const skipped = { ...makeCardio("run"), skipped: true, actualDistanceKm: 50, actualDurationMin: 1 };
   assert.equal(unusualActivityWarning(skipped), null);
 });
