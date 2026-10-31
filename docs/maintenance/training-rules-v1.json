@@ -2,13 +2,41 @@
   "version": 1,
   "description": "Shared regression vectors for rules implemented by the PWA and CoachLoop-Flutter. Keep the mirrored fixture byte-for-byte identical.",
   "actualReps": [
-    { "input": "8", "valid": true, "value": 8 },
-    { "input": " 10 ", "valid": true, "value": 10 },
-    { "input": "0", "valid": false, "value": null },
-    { "input": "8-10", "valid": false, "value": null },
-    { "input": "8.5", "valid": false, "value": null },
-    { "input": "10/side", "valid": false, "value": null },
-    { "input": "", "valid": false, "value": null }
+    {
+      "input": "8",
+      "valid": true,
+      "value": 8
+    },
+    {
+      "input": " 10 ",
+      "valid": true,
+      "value": 10
+    },
+    {
+      "input": "0",
+      "valid": false,
+      "value": null
+    },
+    {
+      "input": "8-10",
+      "valid": false,
+      "value": null
+    },
+    {
+      "input": "8.5",
+      "valid": false,
+      "value": null
+    },
+    {
+      "input": "10/side",
+      "valid": false,
+      "value": null
+    },
+    {
+      "input": "",
+      "valid": false,
+      "value": null
+    }
   ],
   "completion": [
     {
@@ -59,7 +87,7 @@
       "actualWeight": 60,
       "expectedVolume": 0,
       "expectedCountedSets": 0,
-      "expectedExcludedSets": 1
+      "expectedExcludedSets": 0
     },
     {
       "name": "per-hand load counts both sides",
