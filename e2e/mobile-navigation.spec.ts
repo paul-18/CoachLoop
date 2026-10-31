@@ -4,7 +4,7 @@ test("WebKit iPhone viewport keeps the bottom tabs usable through repeated navig
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
-  await page.goto("/CoachLoop/");
+  await page.goto("/");
   const navigation = page.locator(".mobile-nav");
   await expect(navigation).toBeVisible();
 

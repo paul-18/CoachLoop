@@ -14,7 +14,7 @@ export default defineConfig({
   projects: [{ name: "webkit", use: { ...devices["iPhone 13"], browserName: "webkit" } }],
   webServer: {
     command: "node_modules/.bin/vite preview --host 127.0.0.1 --port 4173 --strictPort",
-    url: "http://127.0.0.1:4173/CoachLoop/",
+    url: "http://127.0.0.1:4173/",
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
