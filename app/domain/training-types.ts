@@ -111,6 +111,8 @@ export interface CardioEntry {
   loggingStyle?: "single" | "routine" | "efforts";
   efforts?: ActivityEffort[];
   segments?: ActivitySegment[];
+  /** v111, segment-free routine circuits only: how many rounds the user tapped Done for. Optional, so old-shape activities load unchanged and older builds ignore it (activity schemas passthrough unknown fields). Never bumps evidenceVersion. */
+  roundsDone?: number;
   effortRestSec?: number;
   effortLoadUnit?: Unit;
   plannedDurationMin: number | null;

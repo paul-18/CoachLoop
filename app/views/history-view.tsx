@@ -57,7 +57,8 @@ function compactSegments(activity: WorkoutSession["cardio"][number]) {
   return [...groups.entries()].map(([key, parts]) => {
     if (parts[0]?.groupId) {
       const progress = segmentGroupProgress(parts);
-      return { key, label: `Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} rounds done · ${progress.done} of ${progress.total} parts` };
+      const groupWord = activity.activityType === "circuit" ? "rounds" : activity.activityType === "swim" ? "sets" : "repeats";
+      return { key, label: `Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} ${groupWord} done · ${progress.done} of ${progress.total} intervals done` };
     }
     const segment = parts[0];
     if (!segment) return { key, label: "" };

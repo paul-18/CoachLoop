@@ -121,7 +121,8 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       for (const parts of segmentGroups.values()) {
         if (parts[0]?.groupId) {
           const progress = segmentGroupProgress(parts);
-          lines.push(`- Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} rounds done · ${progress.done} of ${progress.total} parts`);
+          const groupWord = activity.activityType === "circuit" ? "rounds" : activity.activityType === "swim" ? "sets" : "repeats";
+          lines.push(`- Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} ${groupWord} done · ${progress.done} of ${progress.total} intervals done`);
         }
         for (const segment of parts) lines.push(segmentLine(segment));
       }

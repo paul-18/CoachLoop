@@ -163,11 +163,11 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .coach-cue { display: flex; align-items: baseline; gap: 7px; border-left: 2px solid rgba(102,199,255,.42); border-radius: 0 8px 8px 0; background: rgba(102,199,255,.04); padding: 6px 9px; color: rgba(220,241,255,.66); font-size: .74rem; line-height: 1.35; overflow-wrap: anywhere; }
 .coach-cue strong { flex: 0 0 auto; color: #9bdcff; font-size: .61rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .mobility-list { display: grid; gap: 1px; overflow: hidden; border: 1px solid rgba(255,255,255,.065); border-radius: 12px; background: rgba(0,0,0,.13); }
-.mobility-list > div { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); align-items: start; gap: 6px 12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.mobility-list > div { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); align-items: start; gap: 4px 8px; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,.05); }
 .mobility-list > div:last-child { border-bottom: 0; }
-.mobility-list span { display: flex; min-width: 0; align-items: center; gap: 7px; color: rgba(255,255,255,.7); font-size: .84rem; overflow-wrap: anywhere; }
+.mobility-list span { display: flex; min-width: 0; align-items: center; gap: 7px; color: rgba(255,255,255,.7); font-size: .8rem; overflow-wrap: anywhere; }
 .mobility-list span svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--lime); }
-.mobility-list strong { min-width: 0; color: var(--lime); font-size: .76rem; font-weight: 800; overflow-wrap: anywhere; white-space: normal; text-align: right; }
+.mobility-list strong { min-width: 0; color: var(--lime); font-size: .72rem; font-weight: 800; overflow-wrap: anywhere; white-space: normal; text-align: right; }
 .routine-editor { border-radius: 10px; background: rgba(255,255,255,.02); padding: 9px 11px; }
 .routine-editor summary { cursor: pointer; color: rgba(255,255,255,.48); font-size: .78rem; font-weight: 750; }
 .goals-panel { overflow: hidden; border: 1px solid rgba(255,255,255,.07); border-radius: 17px; background: rgba(255,255,255,.022); }
@@ -444,8 +444,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .rest-timer button { min-width: 44px; min-height: 44px; }
 }
 @media (max-width: 640px) {
-  .mobility-list > div { grid-template-columns: minmax(0, 1fr); }
-  .mobility-list strong { padding-left: 21px; text-align: left; }
+  /* v111: mobility stays two-column on phones too — stacking doubled every move's height. */
   .set-row { grid-template-columns: 44px minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px; }
   .set-number { width: 44px; }
   .set-input span { font-size: .75rem; letter-spacing: .02em; }
@@ -543,10 +542,14 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .activity-efforts { min-width: 0; display: grid; gap: 8px; }
 .activity-effort-plan-row { display: grid; grid-template-columns: 24px repeat(3,minmax(0,1fr)) 44px; align-items: end; gap: 5px; min-width: 0; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
 .activity-effort.is-done { border-color: rgba(var(--theme-accent-rgb),.25); background: rgba(var(--theme-accent-rgb),.055); }
-/* v108 UI fixes: a display row is number + actions, not number + 3 inputs + check,
-   so it gets its own two-column layout. The plan lives only in the Done button. */
+/* v111: a display row is leading state + plan on one line, actions on the next.
+   The check lives in the leading slot, never glued onto the plan text, and the
+   Done button reads the same ("Done") in both states, so nothing shifts. */
 .activity-effort { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 8px; align-items: center; min-width: 0; padding: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
-.activity-effort-number { text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
+.activity-effort-state { display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
+.activity-effort-state svg { width: 18px; height: 18px; }
+.activity-effort.is-done .activity-effort-state { color: var(--lime); }
+.activity-effort-plan-text { min-width: 0; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 .activity-effort-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .activity-effort-actuals { grid-column: 1 / -1; display: grid; gap: 8px; min-width: 0; }
 .activity-effort-plan-row > span { padding-bottom: 13px; text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
@@ -554,7 +557,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .activity-effort input, .activity-effort-plan-row input { height: 44px; margin-top: 4px; padding-inline: 5px; text-align: center; font-size: 1rem; }
 .activity-effort-check { flex: 1 1 180px; min-height: 44px; min-width: 0; padding-inline: 12px; border-color: rgba(255,255,255,.56); }
 .activity-effort.is-done .activity-effort-check { background: var(--lime); color: #11140d; }
-.activity-effort-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(255,255,255,.52); font-size: .8rem; }
+.activity-effort-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; grid-column: 1 / -1; color: rgba(255,255,255,.52); font-size: .8rem; }
 .activity-effort-plan { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px; color: rgba(255,255,255,.58); font-size: .8rem; }
 .activity-effort-plan summary { cursor: pointer; }
 .activity-effort-plan > div { display: grid; gap: 6px; margin-top: 8px; }
@@ -907,6 +910,29 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-part-plan { flex:1 1 auto; min-width:0; font-weight:700; line-height:1.45; text-wrap:pretty; }
 .stepper-part-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
 .stepper-done { min-height:44px; }
+.stepper-rounds-count { font-weight:800; }
+.activity-stepper-units { display:grid; gap:10px; min-width:0; }
+/* v111 swim spacing: a set row is its own padded block; title, status, and Done
+   are distinct elements with real gaps, so they can never glue into one string. */
+.activity-stepper-unit { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.stepper-unit-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; min-width:0; }
+.stepper-unit-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
+.stepper-unit-text { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.stepper-unit-title { font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
+.stepper-unit-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
+.activity-stepper-unit-stations { display:grid; gap:8px; min-width:0; }
+/* v111 quick-add: kind chips + one minutes field + Add, always visible. */
+.stepper-quick-add { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.stepper-quick-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.stepper-quick-chips button { min-height:44px; min-width:44px; padding:0 12px; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:transparent; color:inherit; font:inherit; font-weight:700; cursor:pointer; }
+.stepper-quick-chips button[aria-pressed="true"] { border-color:var(--lime); background:rgba(var(--theme-accent-rgb),.12); color:var(--lime); }
+.stepper-quick-row { display:flex; align-items:end; gap:8px; min-width:0; }
+.stepper-quick-row .field-label { flex:1 1 auto; min-width:0; }
+.stepper-quick-row button { min-height:44px; }
+/* v111 routine-circuit rounds counter. */
+.routine-rounds { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.routine-rounds-count { font-weight:800; }
+.routine-rounds button { min-height:44px; }
 .activity-stepper-expanded { display:grid; gap:10px; min-width:0; }
 .stepper-plan-fields { display:grid; gap:8px; min-width:0; }
 .stepper-actual-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; }

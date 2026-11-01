@@ -56,7 +56,7 @@ function makeWorkoutWith(dom, build) {
   return { state, workout };
 }
 
-test('v108-ui-fixes: current-part card keeps plan and intensity apart and keeps the labeled Done', async () => {
+test('v108-ui-fixes: current-interval card keeps plan and intensity apart and keeps the labeled Done', async () => {
   const dom = environment();
   const { makeCardio } = require('../app/domain/training-types.ts');
   const { state, workout } = makeWorkoutWith(dom, (workout) => {
@@ -93,10 +93,10 @@ test('v108-ui-fixes: Show-all rows and group rows keep text, status and actions 
   const { root } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
-    button('Show all · 0 of 5 parts done').click();
+    button('Show all · 5 intervals').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
     const parts = [...document.querySelectorAll('.activity-stepper-part')];
-    assert.equal(parts.length, 5, 'every part gets its own row');
+    assert.equal(parts.length, 5, 'every interval gets its own row');
     for (const part of parts) {
       assert.ok(part.querySelector('.stepper-part-text'), 'row has a tappable text line');
       assert.ok(part.querySelector('.stepper-part-status'), 'row has its own status text');
@@ -105,7 +105,7 @@ test('v108-ui-fixes: Show-all rows and group rows keep text, status and actions 
     const group = document.querySelector('.activity-segment-group');
     assert.ok(group, 'repeat group row renders');
     assert.ok(group.querySelector('button'), 'group row has its own action button');
-    assert.match(cssRule('.activity-stepper-part'), /display:\s*grid/, 'part rows are grid rows, not inline runs');
+    assert.match(cssRule('.activity-stepper-part'), /display:\s*grid/, 'interval rows are grid rows, not inline runs');
     assert.match(cssRule('.stepper-part-status'), /white-space:\s*nowrap/, 'status never wraps mid-word');
     assert.match(cssRule('.stepper-done'), /min-height:\s*44px/, 'Done keeps a 44px target');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
@@ -138,7 +138,7 @@ test('v108-ui-fixes: import preview Category control is full-width in the same p
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v108-ui-fixes: effort rows show the plan once and the Done button stays in place when completed', async () => {
+test('v111: effort rows show the plan once as its own element, with a leading check and a plain Done', async () => {
   const dom = environment();
   const { makeCardio } = require('../app/domain/training-types.ts');
   const { makeActivityEffort } = require('../app/domain/activity-logging.ts');
@@ -156,15 +156,17 @@ test('v108-ui-fixes: effort rows show the plan once and the Done button stays in
     await openActivity(dom, 'Sled Push and Pull Drag');
     const rows = [...document.querySelectorAll('.activity-effort')];
     assert.equal(rows.length, 2, 'two effort rows');
-    assert.equal(document.querySelectorAll('span.activity-effort-plan').length, 0, 'no separate plan span duplicating the button text (the Edit prescription disclosure keeps its own class)');
-    const doneButtons = [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Done: 20 m · 60 sec · 90 lb');
-    assert.equal(doneButtons.length, 2, 'plan appears exactly once per row, in its Done button');
+    assert.equal(document.querySelectorAll('span.activity-effort-plan-text').length, 2, 'plan appears exactly once per row, in its own plan element');
+    assert.equal(rows[0].querySelector('.activity-effort-plan-text').textContent, '20 m · 60 sec · 90 lb', 'plan element holds only the plan');
+    const doneButtons = [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Done');
+    assert.ok(doneButtons.length >= 2, 'plain Done action per effort');
     assert.equal([...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Did different').length, 2, 'Did different per effort');
-    const first = doneButtons[0];
+    const first = [...rows[0].querySelectorAll('button')].find(b => b.textContent.trim() === 'Done');
     first.click();
     await until(async () => (await storedActivity(storage)).efforts[0].completed === true, 'first effort stored complete');
-    assert.equal([...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Done: 20 m · 60 sec · 90 lb'), first, 'same button node after completing: no layout shift to a new control');
-    assert.ok(first.querySelector('svg'), 'completed button carries the checkmark in the same button');
+    assert.equal([...rows[0].querySelectorAll('button')].find(b => b.textContent.trim() === 'Done'), first, 'same button node after completing: no layout shift to a new control');
+    assert.ok(rows[0].querySelector('.activity-effort-state svg'), 'completed row carries the check in the leading slot, not glued onto the plan');
+    assert.equal(rows[0].querySelector('.activity-effort-plan-text').textContent, '20 m · 60 sec · 90 lb', 'plan unchanged by completion');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -180,6 +182,6 @@ test('v108-ui-fixes: stored segmented yoga still renders the stepper (parser blo
   try {
     await openActivity(dom, 'Yoga flow with parts');
     assert.ok(document.querySelector('.activity-stepper'), 'segments-exist rule unchanged: stored segmented yoga shows the stepper');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 3/);
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 3/);
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });

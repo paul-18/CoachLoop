@@ -52,7 +52,7 @@ function circuitActivity() {
   return circuit;
 }
 
-test('v109: circuit round stepper — Done Round 1 completes only round 1, skips untouched, round 2 becomes current', async () => {
+test('v109: circuit round stepper — Done round completes only round 1, skips untouched, round 2 becomes current', async () => {
   const dom = environment();
   const { defaultState, makeWorkout } = require('../app/domain/training-types.ts');
   const state = defaultState(), workout = makeWorkout('lb', 60, 'Round QC');
@@ -63,10 +63,10 @@ test('v109: circuit round stepper — Done Round 1 completes only round 1, skips
     assert.ok(document.querySelector('.grouped-activity-stepper'), 'grouped stepper renders for segmented circuit');
     assert.match(document.querySelector('.stepper-position').textContent, /Round 1 of 2/);
     assert.equal(document.querySelectorAll('.stepper-dot').length, 2, 'one dot per round, not per station');
-    assert.ok(button('Done: Round 1'), 'labeled round Done on current card');
+    assert.ok(button('Done round'), 'one Done round action on current card');
     assert.match(document.querySelector('.activity-stepper-current').textContent, /Push-ups x15/);
     assert.match(document.querySelector('.activity-stepper-current').textContent, /Goblet squat x12/);
-    button('Done: Round 1').click();
+    button('Done round').click();
     await until(() => document.querySelector('.stepper-position').textContent.includes('Round 2 of 2'), 'current advances to round 2');
     await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'round 1 station stored completed');
     const saved = await storedActivity(storage);
@@ -86,10 +86,11 @@ test('v109: circuit Done all rounds completes every remaining round as prescribe
   try {
     await openActivity(dom, 'Garage circuit');
     button('Done: all rounds').click();
-    await until(async () => (await storedActivity(storage)).segments.filter(s => s.status === 'unknown').length === 0, 'no unknown parts remain');
+    await until(async () => (await storedActivity(storage)).segments.filter(s => s.status === 'unknown').length === 0, 'no unknown segments remain');
     const saved = await storedActivity(storage);
     assert.deepEqual(saved.segments.map(s => s.status), ['completed', 'completed', 'completed', 'completed', 'completed', 'skipped'], 'all rounds done, skip untouched');
-    assert.match(document.querySelector('.stepper-position').textContent, /All 2 rounds resolved/);
+    assert.equal(saved.completed, true, 'v111: reaching the prescribed round count completes the activity');
+    await until(() => document.querySelector('[aria-label="Edit completed Garage circuit"]'), 'completed block shows');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -101,7 +102,7 @@ test('v109: circuit round Done undo via toast restores the round', async () => {
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Garage circuit');
-    button('Done: Round 1').click();
+    button('Done round').click();
     await until(() => document.querySelector('.stepper-position').textContent.includes('Round 2 of 2'), 'round 1 done');
     await until(() => button('Undo'), 'toast Undo appears');
     button('Undo').click();
@@ -110,7 +111,7 @@ test('v109: circuit round Done undo via toast restores the round', async () => {
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v109: circuit Show all lists rounds expandable to stations with tap-part expansion', async () => {
+test('v111: circuit stations are always visible with tap-station expansion, no Show-all', async () => {
   const dom = environment();
   const { defaultState, makeWorkout } = require('../app/domain/training-types.ts');
   const state = defaultState(), workout = makeWorkout('lb', 60, 'Round show-all QC');
@@ -118,16 +119,13 @@ test('v109: circuit Show all lists rounds expandable to stations with tap-part e
   const { root } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Garage circuit');
-    button('Show all · 0 of 6 parts done').click();
-    await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
-    const roundHeader = document.querySelector('[aria-label="Round 1 of 2: 0 of 3 parts done"]');
-    assert.ok(roundHeader, 'round unit header in show all');
-    roundHeader.click();
-    await until(() => document.querySelector('.activity-stepper-unit-stations'), 'round expands to stations');
-    assert.match(document.querySelector('.activity-stepper-unit-stations').textContent, /Push-ups x15/);
+    assert.ok(!button('Show all'), 'no Show-all hiding for circuit stations');
+    const units = document.querySelector('.activity-stepper-units');
+    assert.ok(units, 'station list renders by default');
+    assert.match(units.textContent, /Push-ups x15/, 'stations listed without expanding');
     // A station keeps tap-part expansion for actuals (duration/distance only).
     const station = [...document.querySelectorAll('.stepper-part-text')].find(b => b.textContent.includes('Push-ups x15'));
-    assert.ok(station, 'station part text');
+    assert.ok(station, 'station text');
     station.click();
     await until(() => document.querySelector('.activity-stepper-expanded'), 'station expands to actual fields');
     assert.match(document.querySelector('.activity-stepper-expanded').textContent, /Actual sec/);
@@ -167,6 +165,8 @@ test('v109: swim interval stepper — set card, labeled set Done, then ungrouped
     button('Done: Set 2').click();
     await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 3 of 3'), 'ungrouped interval becomes current');
     assert.ok(button('Done: Cool-down · 100 m'), 'ungrouped interval gets a labeled plan Done');
+    button('Show all · 3 sets').click();
+    await until(() => document.querySelector('.activity-stepper-list'), 'show all opens for complete-all');
     button('Done: all sets').click();
     await until(async () => (await storedActivity(storage)).segments.every(s => s.status === 'completed'), 'complete-all finishes the remaining interval as prescribed');
     const saved = await storedActivity(storage);
@@ -218,9 +218,9 @@ test('v109 regression: run WITH segments still renders the generic v108 stepper,
     await openActivity(dom, 'Run');
     assert.ok(document.querySelector('.activity-stepper'), 'generic stepper renders for run');
     assert.equal(document.querySelector('.grouped-activity-stepper'), null, 'run does not get the grouped stepper');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 3/);
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 3/);
     button('Done: Run 4 min').click();
-    await until(() => document.querySelector('.stepper-position').textContent.includes('Part 2 of 3'), 'generic stepper Done still advances');
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'part stored completed');
+    await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 2 of 3'), 'generic stepper Done still advances');
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'interval stored completed');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });

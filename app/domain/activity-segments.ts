@@ -44,14 +44,15 @@ export const segmentCounts = (segments: readonly ActivitySegment[]) => ({
   unknown: segments.filter(segment => segment.status === "unknown").length,
 });
 
-export function segmentCountLabel(segments: readonly ActivitySegment[]) {
+/** v111: the word is caller-chosen ("intervals", "rounds", "sets") so steppers never show "parts"; the default is "intervals" and no user-visible label uses "parts". */
+export function segmentCountLabel(segments: readonly ActivitySegment[], word = "intervals") {
   const { done, total } = segmentCounts(segments);
-  return `${done} of ${total} parts done`;
+  return `${done} of ${total} ${word} done`;
 }
 
-/** Plain-words plan for one part, label first when present. Never parses the label. */
+/** Plain-words plan for one segment, label first when present. Never parses the label. */
 export function segmentPlanText(segment: ActivitySegment): string {
-  const kindWord = segment.kind === "other" ? "Part" : segment.kind[0]!.toUpperCase() + segment.kind.slice(1);
+  const kindWord = segment.kind === "other" ? "Interval" : segment.kind[0]!.toUpperCase() + segment.kind.slice(1);
   const measures: string[] = [];
   if (segment.plannedDurationSec != null) measures.push(segment.plannedDurationSec < 60 ? `${formatMeasure(segment.plannedDurationSec)} sec` : `${formatMeasure(segment.plannedDurationSec / 60)} min`);
   if (segment.kind !== "rest" && segment.plannedDistanceM != null) measures.push(segment.plannedDistanceM >= 1000 ? `${formatMeasure(segment.plannedDistanceM / 1000)} km` : `${formatMeasure(segment.plannedDistanceM)} m`);
@@ -66,7 +67,7 @@ export function segmentLabelError(label: string): string | null {
   return null;
 }
 
-/** Compact import-preview lines in stored order: one line per ungrouped part, one collapsed line per repeat group at its first occurrence. */
+/** Compact import-preview lines in stored order: one line per ungrouped segment, one collapsed line per repeat group at its first occurrence. */
 export function previewSegmentLines(segments: readonly ActivitySegment[]): string[] {
   const lines: string[] = [];
   const emitted = new Set<string>();
@@ -86,13 +87,14 @@ export function previewSegmentLines(segments: readonly ActivitySegment[]): strin
 /** Complete-all is unknown resolution: typed actuals become Measured, the rest complete as prescribed. Skips untouched. */
 export const completeAllRemainingSegments = resolveUnknownSegments;
 
+/** v111: an iteration counts as done when nothing in it is unknown and at least one segment was done — a round with a skipped rest is still a finished round, while an all-skipped round is skipped, not done. This keeps the circuit rounds counter, the dots, and the group footers in agreement. */
 export function segmentGroupProgress(segments: readonly ActivitySegment[]) {
   const iterations = new Map<number, ActivitySegment[]>();
   segments.forEach(segment => {
     if (segment.iteration === undefined) return;
     iterations.set(segment.iteration, [...(iterations.get(segment.iteration) ?? []), segment]);
   });
-  const roundsDone = [...iterations.values()].filter(parts => parts.every(doneStatus)).length;
+  const roundsDone = [...iterations.values()].filter(parts => parts.length && parts.every(segment => segment.status !== "unknown") && parts.some(doneStatus)).length;
   return { roundsDone, roundsTotal: iterations.size, ...segmentCounts(segments) };
 }
 
@@ -114,7 +116,7 @@ export function completeSegmentGroup(segments: readonly ActivitySegment[], group
 
 export type SegmentUnit = { key: string; groupId: string | null; iteration: number | null; segments: ActivitySegment[] };
 
-/** Grouped-stepper units (v109): one REPEAT iteration = one unit (a circuit round / a swim set), in first-occurrence stored order. Ungrouped segments are single-part units. A groupId without an iteration is one unit for the whole group. */
+/** Grouped-stepper units (v109): one REPEAT iteration = one unit (a circuit round / a swim set), in first-occurrence stored order. Ungrouped segments are single-segment units. A groupId without an iteration is one unit for the whole group. */
 export function segmentUnits(segments: readonly ActivitySegment[]): SegmentUnit[] {
   const units: SegmentUnit[] = [];
   const byKey = new Map<string, SegmentUnit>();
@@ -128,7 +130,7 @@ export function segmentUnits(segments: readonly ActivitySegment[]): SegmentUnit[
   return units;
 }
 
-/** Complete unknown parts of ONE iteration of a group only (v109 round/set Done). Other iterations, other groups, and skips are untouched. Typed actuals become Measured, the rest complete as prescribed. */
+/** Complete unknown segments of ONE iteration of a group only (v109 round/set Done). Other iterations, other groups, and skips are untouched. Typed actuals become Measured, the rest complete as prescribed. */
 export function completeSegmentGroupIteration(segments: readonly ActivitySegment[], groupId: string, iteration: number | null): ActivitySegment[] {
   return segments.map(segment => {
     if (segment.groupId !== groupId || (segment.iteration ?? null) !== iteration || segment.status !== "unknown") return segment;
@@ -143,6 +145,26 @@ export function repeatPatternError(pattern: readonly ActivitySegment[]): string 
     return "Cannot repeat rows with entered results or confirmed states. Reset them to Not confirmed first.";
   }
   return null;
+}
+
+/** v111 one-tap repeat: append ONE more iteration of a group, cloned from its first iteration (the pattern), with fresh ids, no actuals, all unknown. The pattern itself is never touched, so unlike the old selection repeat there is nothing to guard and nothing to lose. Throws when the block would exceed 100 segments. */
+export function appendSegmentGroupIteration(segments: readonly ActivitySegment[], groupId: string): ActivitySegment[] {
+  const group = segments.filter(segment => segment.groupId === groupId);
+  if (!group.length) throw new Error("That group has no segments to repeat.");
+  const firstIteration = Math.min(...group.map(segment => segment.iteration ?? 1));
+  const pattern = group.filter(segment => (segment.iteration ?? 1) === firstIteration);
+  const nextIteration = Math.max(...group.map(segment => segment.iteration ?? 1)) + 1;
+  if (segments.length + pattern.length > 100) throw new Error("A repeated block can create at most 100 segments.");
+  return [...segments, ...pattern.map(segment => ({
+    id: uid("segment"), kind: segment.kind,
+    label: segment.label,
+    plannedDurationSec: segment.plannedDurationSec ?? null,
+    actualDurationSec: null,
+    plannedDistanceM: segment.plannedDistanceM ?? null,
+    actualDistanceM: null,
+    status: "unknown" as const,
+    groupId, iteration: nextIteration,
+  }))];
 }
 
 export function repeatedSegments(pattern: readonly ActivitySegment[], repetitions: number, groupId = uid("segment-group")): ActivitySegment[] {

@@ -56,30 +56,30 @@ function segmentedRun() {
   return { state, workout, run };
 }
 
-test('v108: stepper shows current part with dots and Part N of M, labeled Done advances it', async () => {
+test('v108: stepper shows current interval with dots and Interval N of M, labeled Done advances it', async () => {
   const dom = environment();
   const { state, workout } = segmentedRun();
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
     assert.ok(document.querySelector('.activity-stepper'), 'stepper renders');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 3/);
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 3/);
     assert.equal(document.querySelectorAll('.stepper-dot').length, 3, 'three dots');
     assert.ok(button('Done: Run 4 min'), 'labeled Done on current card');
     assert.equal(document.body.textContent.includes('Edit detail'), false, 'no Edit detail anywhere');
     button('Done: Run 4 min').click();
-    await until(() => document.querySelector('.stepper-position').textContent.includes('Part 2 of 3'), 'current advances to part 2');
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'part 1 stored completed');
+    await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 2 of 3'), 'current advances to interval 2');
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'interval 1 stored completed');
     const saved = await storedActivity(storage);
     assert.equal(saved.segments[0].actualDurationSec, null, 'as-prescribed keeps actuals null');
-    assert.equal(saved.completed, false, 'finishing a part does not complete the activity');
-    button('Show all · 1 of 3 parts done').click();
+    assert.equal(saved.completed, false, 'finishing an interval does not complete the activity');
+    button('Show all · 3 intervals').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
     assert.match(document.querySelector('.activity-stepper-list').textContent, /As prescribed/);
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v108: complete-all logs a 13-part run in 2 taps, then activity Done completes it', async () => {
+test('v108: complete-all logs a 13-interval run, then activity Done completes it', async () => {
   const dom = environment();
   const { defaultState, makeWorkout, makeCardio } = require('../app/domain/training-types.ts');
   const state = defaultState(), workout = makeWorkout('lb', 60, 'Complete-all QC');
@@ -94,10 +94,12 @@ test('v108: complete-all logs a 13-part run in 2 taps, then activity Done comple
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 13/);
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 13/);
+    button('Show all · 13 intervals').click();
+    await until(() => document.querySelector('.activity-stepper-list'), 'show all opens for complete-all');
     button('Complete all remaining as prescribed').click();
-    await until(async () => (await storedActivity(storage)).segments.every(s => s.status === 'completed'), 'all 13 parts completed by one tap');
-    assert.match(document.querySelector('.stepper-position').textContent, /All 13 parts resolved/);
+    await until(async () => (await storedActivity(storage)).segments.every(s => s.status === 'completed'), 'all 13 intervals completed by one tap');
+    assert.match(document.querySelector('.stepper-position').textContent, /All 13 intervals resolved/);
     button('Done: Run').click();
     await until(async () => (await storedActivity(storage)).completed === true, 'activity Done completes the activity (tap 2)');
     const saved = await storedActivity(storage);
@@ -105,21 +107,21 @@ test('v108: complete-all logs a 13-part run in 2 taps, then activity Done comple
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v108: Done undo restores the part via toast and via Undo confirmation', async () => {
+test('v108: Done undo restores the interval via toast and via Undo confirmation', async () => {
   const dom = environment();
   const { state, workout } = segmentedRun();
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
     button('Done: Run 4 min').click();
-    await until(() => document.querySelector('.stepper-position').textContent.includes('Part 2 of 3'), 'part 1 done');
+    await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 2 of 3'), 'interval 1 done');
     await until(() => button('Undo'), 'toast Undo appears');
     button('Undo').click();
-    await until(() => document.querySelector('.stepper-position').textContent.includes('Part 1 of 3'), 'toast Undo restores current part');
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'unknown', 'part 1 unknown again');
+    await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 1 of 3'), 'toast Undo restores current interval');
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'unknown', 'interval 1 unknown again');
     button('Done: Run 4 min').click();
-    await until(() => document.querySelector('.stepper-position').textContent.includes('Part 2 of 3'), 'part 1 done again');
-    button('Show all · 1 of 3 parts done').click();
+    await until(() => document.querySelector('.stepper-position').textContent.includes('Interval 2 of 3'), 'interval 1 done again');
+    button('Show all · 3 intervals').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens again');
     [...document.querySelectorAll('.stepper-part-text')][0].click();
     await until(() => button('Undo confirmation'), 'undo confirmation available');
@@ -128,7 +130,7 @@ test('v108: Done undo restores the part via toast and via Undo confirmation', as
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v108: Did-different path marks a part Measured and keeps typed actuals', async () => {
+test('v108: Did-different path marks an interval Measured and keeps typed actuals', async () => {
   const dom = environment();
   const { state, workout } = segmentedRun();
   const { root, storage } = await setup(dom, state, workout);
@@ -136,19 +138,19 @@ test('v108: Did-different path marks a part Measured and keeps typed actuals', a
     await openActivity(dom, 'Run');
     const currentText = [...document.querySelectorAll('.stepper-current-text')][0];
     currentText.click();
-    await until(() => [...document.querySelectorAll('label')].some(l => l.textContent.trim().startsWith('Actual sec')), 'expanded part shows actual fields');
+    await until(() => [...document.querySelectorAll('label')].some(l => l.textContent.trim().startsWith('Actual sec')), 'expanded interval shows actual fields');
     const actualInput = [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith('Actual sec')).querySelector('input');
     setValue(dom, actualInput, '250');
     await until(async () => (await storedActivity(storage)).segments[0].actualDurationSec === 250, 'typed actual stored');
     button('Mark actual').click();
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'modified', 'part is Measured');
-    button('Show all · 1 of 3 parts done').click();
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'modified', 'interval is Measured');
+    button('Show all · 3 intervals').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
     assert.match(document.querySelector('.activity-stepper').textContent, /Measured/);
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
-test('v108: 21-part session shows text position plus dots, Show-all parts are tappable out of order', async () => {
+test('v108: 21-interval session shows text position plus dots, Show-all intervals are tappable out of order', async () => {
   const dom = environment();
   const { defaultState, makeWorkout, makeCardio } = require('../app/domain/training-types.ts');
   const state = defaultState(), workout = makeWorkout('lb', 60, 'Long QC');
@@ -158,16 +160,16 @@ test('v108: 21-part session shows text position plus dots, Show-all parts are ta
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 21/);
-    assert.equal(document.querySelectorAll('.stepper-dot').length, 21, 'dots for all 21 parts');
-    button('Show all · 0 of 21 parts done').click();
-    await until(() => document.querySelectorAll('.stepper-part-text').length === 21, 'show all lists 21 compact parts');
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 21/);
+    assert.equal(document.querySelectorAll('.stepper-dot').length, 21, 'dots for all 21 intervals');
+    button('Show all · 21 intervals').click();
+    await until(() => document.querySelectorAll('.stepper-part-text').length === 21, 'show all lists 21 compact intervals');
     [...document.querySelectorAll('.stepper-part-text')][4].click();
-    await until(() => [...document.querySelectorAll('label')].some(l => l.textContent.trim().startsWith('Actual sec')), 'part 5 expands');
+    await until(() => [...document.querySelectorAll('label')].some(l => l.textContent.trim().startsWith('Actual sec')), 'interval 5 expands');
     const doneButtons = [...document.querySelectorAll('.stepper-done')];
     doneButtons[4].click();
-    await until(async () => (await storedActivity(storage)).segments[4].status === 'completed', 'part 5 done out of order');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 21/, 'current stays part 1');
+    await until(async () => (await storedActivity(storage)).segments[4].status === 'completed', 'interval 5 done out of order');
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 21/, 'current stays interval 1');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -182,18 +184,18 @@ test('v108: activity-completion matrix — final part, all skipped, and add-to-c
   try {
     await openActivity(dom, 'Run');
     button('Done: Run 4 min').click();
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'final part done');
-    assert.equal((await storedActivity(storage)).completed, false, 'final part done does not complete the activity');
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'completed', 'final interval done');
+    assert.equal((await storedActivity(storage)).completed, false, 'final interval done does not complete the activity');
     button('Done: Run').click();
     await until(async () => (await storedActivity(storage)).completed === true, 'activity action completes the activity');
     document.querySelector('[aria-label="Edit completed Run"]').click();
     await until(() => document.querySelector('.activity-card'), 'completed activity reopens for editing');
-    button('Show all · 1 of 1 parts done').click();
-    await until(() => button('Add part'), 'add part available in show all');
-    button('Add part').click();
+    button('Show all · 1 interval').click();
+    await until(() => button('Add interval'), 'add interval available in show all');
+    button('Add interval').click();
     await until(async () => (await storedActivity(storage)).completed === false, 'adding a part reopens the completed activity');
     await until(async () => (await storedActivity(storage)).segments.length === 2, 'new part added');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 2 of 2/, 'new part becomes current');
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 2 of 2/, 'new interval becomes current');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -203,16 +205,16 @@ test('v108: all-skipped activity is not complete', async () => {
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
-    button('Show all · 0 of 3 parts done').click();
+    button('Show all · 3 intervals').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
     [...document.querySelectorAll('.stepper-part-text')][0].click();
     await until(() => button('Skip'), 'skip available');
     button('Skip').click();
-    await until(async () => (await storedActivity(storage)).segments[0].status === 'skipped', 'part 1 skipped');
+    await until(async () => (await storedActivity(storage)).segments[0].status === 'skipped', 'interval 1 skipped');
     button('Complete all remaining as prescribed').click();
-    await until(async () => (await storedActivity(storage)).segments[1].status === 'completed', 'remaining parts complete');
+    await until(async () => (await storedActivity(storage)).segments[1].status === 'completed', 'remaining intervals complete');
     assert.equal((await storedActivity(storage)).segments[0].status, 'skipped', 'skip survives complete-all');
-    assert.equal((await storedActivity(storage)).completed, false, 'skipped parts never complete the activity by themselves');
+    assert.equal((await storedActivity(storage)).completed, false, 'skipped intervals never complete the activity by themselves');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -231,7 +233,7 @@ test('v108: post-session yoga card has visible notes and labeled Done and no ste
     const card = document.querySelector('.activity-card');
     assert.ok(card, 'yoga card opens');
     assert.equal(card.querySelector('.activity-stepper'), null, 'no stepper for segment-free yoga');
-    assert.equal(card.querySelector('button')?.textContent.includes('Add parts'), false, 'no Add parts for post-session types');
+    assert.equal(card.querySelector('button')?.textContent.includes('Add intervals'), false, 'no Add intervals for post-session types');
     const notes = [...card.querySelectorAll('label')].find(l => l.textContent.trim().startsWith('What I did'));
     assert.ok(notes, 'notes field visible on the card, not behind a disclosure');
     assert.ok(button('Done: Yoga 30 min'), 'labeled Done for post-session yoga');
@@ -239,7 +241,7 @@ test('v108: post-session yoga card has visible notes and labeled Done and no ste
     await until(async () => (await storedActivity(storage, 0)).completed === true, 'yoga completes');
     await openActivity(dom, 'BJJ class');
     assert.ok(document.querySelector('.activity-stepper'), 'segments-exist rule: grappling with segments shows the stepper');
-    assert.match(document.querySelector('.stepper-position').textContent, /Part 1 of 2/);
+    assert.match(document.querySelector('.stepper-position').textContent, /Interval 1 of 2/);
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
@@ -380,7 +382,7 @@ test('v108: label edit renders in cards and preview, pipe labels are rejected wi
   const { root, storage } = await setup(dom, state, workout);
   try {
     await openActivity(dom, 'Run');
-    button('Show all · 0 of 1 parts done').click();
+    button('Show all · 1 interval').click();
     await until(() => document.querySelector('.activity-stepper-list'), 'show all opens');
     [...document.querySelectorAll('.stepper-part-text')][0].click();
     await until(() => [...document.querySelectorAll('label')].some(l => l.textContent.trim().startsWith('Label')), 'label field appears');

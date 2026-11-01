@@ -68,7 +68,7 @@ test("v107: history badge restores As prescribed and Completed for fully resolve
     seg("a", "run", 240, { status: "completed" as const }),
     seg("b", "walk", 60, { status: "skipped" as const }),
   ]);
-  assert.equal(activityHistoryLabel({ ...withSkip, completed: true, completedAsPlanned: false }), "1 of 2 parts done");
+  assert.equal(activityHistoryLabel({ ...withSkip, completed: true, completedAsPlanned: false }), "1 of 2 intervals done");
 });
 
 test("v107: totals flags carry incompleteness instead of zeroing it", () => {
@@ -116,7 +116,7 @@ test("v107: coach export keeps detail fields, groups repeats, and hides rest dis
   assert.match(text, /Average HR: 150 bpm/);
   assert.match(text, /Elevation: 80 m/);
   assert.match(text, /Notes: Felt strong/);
-  assert.match(text, /Repeat group · 1 of 1 rounds done · 2 of 2 parts/);
+  assert.match(text, /Repeat group · 1 of 1 repeats done · 2 of 2 intervals/);
   const restLine = text.split("\n").find(line => line.includes("REST"));
   assert.ok(restLine && !restLine.includes("km"), `rest line must not show distance: ${restLine}`);
 });

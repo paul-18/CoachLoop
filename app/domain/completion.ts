@@ -174,7 +174,7 @@ export function workoutProgressCopy(workout: WorkoutSession): string {
   const piece = (done: number, total: number, singular: string, plural: string) => total ? `${done}/${total} ${total === 1 ? singular : plural}` : "";
   const partProgress = segmented.map(activity => {
     const counts = segmentCounts(activity.segments ?? []);
-    return `${activity.name} ${piece(counts.done, counts.total, "part", "parts")}`;
+    return `${activity.name} ${piece(counts.done, counts.total, "interval", "intervals")}`;
   });
   const counts = [piece(doneSets, sets.length, "set", "sets"), piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities"), ...partProgress].filter(Boolean);
   return counts.join(" · ");
@@ -211,7 +211,7 @@ export function activityHistoryLabel(activity: CardioEntry): string {
   if (activity.segments?.length) {
     const counts = segmentCounts(activity.segments);
     if (activity.completed && counts.unknown === 0 && counts.skipped === 0) return activity.completedAsPlanned ? "As prescribed" : "Completed";
-    return `${counts.done} of ${activity.segments.length} parts done`;
+    return `${counts.done} of ${activity.segments.length} intervals done`;
   }
   if (activity.completed) return activity.completedAsPlanned ? "As prescribed" : "Completed";
   if (hasCompletedActivityWork(activity)) return "Partly completed";

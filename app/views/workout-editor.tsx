@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { Activity, ArrowLeft, Check, ChevronDown, ChevronUp, CopyPlus, Dumbbell, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
+import { Activity, ArrowLeft, Check, ChevronDown, ChevronUp, CopyPlus, Dumbbell, Minus, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -36,7 +36,7 @@ import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from 
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
-import { completeActivity, completeSegmentGroup, completeSegmentGroupIteration, repeatedSegments, repeatPatternError, resolveUnknownSegments, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentLabelError, segmentMismatch, segmentPlanText, segmentUnits, type SegmentUnit } from "../domain/activity-segments";
+import { appendSegmentGroupIteration, completeActivity, completeSegmentGroup, completeSegmentGroupIteration, resolveUnknownSegments, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentLabelError, segmentMismatch, segmentPlanText, segmentUnits, type SegmentUnit } from "../domain/activity-segments";
 
 function compactSetSummary(sets: TrainingSet[]) {
   const groups: Array<{ load: string; reps: string[] }> = [];
@@ -515,15 +515,15 @@ function ExerciseEditor({
   );
 }
 
-/** v109 grouped stepper for circuit/swim WITH segments: one REPEAT iteration = one round (circuit) / one set (swim), in stored order; ungrouped segments are single-part units. The part machinery mirrors ActivityStepper (tap-part expansion, Add/Repeat, group footers, Undo toasts) so the v108 generic stepper is untouched. Circuit is prescription-and-completion only: no station-result fields exist, differences go in notes. */
-function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry; onChange: (segments: ActivitySegment[]) => void }) {
+/** v109 grouped stepper for circuit/swim WITH segments: one REPEAT iteration = one round (circuit) / one set (swim), in stored order; ungrouped segments are single-segment units. It mirrors ActivityStepper (tap-to-expand editing, Add/Repeat, group footers, Undo toasts). Circuit is prescription-and-completion only: no station-result fields exist, differences go in notes. */
+/** v109 grouped stepper for circuit/swim WITH segments: one REPEAT iteration = one round (circuit) / one set (swim), in stored order; ungrouped segments are single-segment units. v111: circuit stations are always visible (no Show-all hiding), one "Done round" action per current round, a rounds-done counter, unlimited rounds via "Add another round", and reaching the prescribed round count completes a circuit activity. Swim keeps its set-card flow; only its row spacing changed (v111). Circuit is prescription-and-completion only: no station-result fields exist, differences go in notes. */
+function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry; onChange: (segments: ActivitySegment[], opts?: { completed?: boolean }) => void }) {
   const isCircuit = activity.activityType === "circuit";
   const unitWord = isCircuit ? "Round" : "Set";
+  const unitWordPlural = isCircuit ? "rounds" : "sets";
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedUnits, setExpandedUnits] = useState<string[]>([]);
-  const [repeatCount, setRepeatCount] = useState("6");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [labelError, setLabelError] = useState<string | null>(null);
   const segments = activity.segments ?? [];
   const segmentsRef = useRef(segments);
@@ -534,52 +534,84 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
   const groups = [...new Set(segments.flatMap(segment => segment.groupId ? [segment.groupId] : []))];
   const unitNumber = (unit: SegmentUnit) => groupedUnits.indexOf(unit) + 1;
   const unitTitle = (unit: SegmentUnit) => unit.groupId ? `${unitWord} ${unitNumber(unit)} of ${groupedUnits.length}` : segmentPlanText(unit.segments[0]!);
-  const unitPosition = (unit: SegmentUnit, index: number) => unit.groupId ? unitTitle(unit) : isCircuit ? `Part ${index + 1} of ${units.length}` : `Interval ${index + 1} of ${units.length}`;
-  const resolvedWord = isCircuit ? "rounds" : groupedUnits.length === units.length ? "sets" : groupedUnits.length ? "units" : "intervals";
+  const unitPosition = (unit: SegmentUnit, index: number) => unit.groupId ? unitTitle(unit) : isCircuit ? segmentPlanText(unit.segments[0]!) : `Interval ${index + 1} of ${units.length}`;
+  const resolvedWord = isCircuit ? "rounds" : groupedUnits.length ? "sets" : "intervals";
   const currentUnitIndex = units.findIndex(unit => unit.segments.some(segment => segment.status === "unknown"));
   const currentUnit = currentUnitIndex >= 0 ? units[currentUnitIndex] : null;
-  const doneUnits = units.filter(unit => unit.segments.length && unit.segments.every(segment => segment.status === "completed" || segment.status === "modified")).length;
+  const doneUnits = units.filter(unit => {
+    const count = segmentCounts(unit.segments);
+    return count.total > 0 && count.unknown === 0 && count.done > 0;
+  }).length;
   const statusText = (segment: ActivitySegment) => segment.status === "unknown" ? "Not confirmed" : segment.status === "modified" ? "Measured" : segment.status === "skipped" ? "Skipped" : "As prescribed";
-  const update = (next: ActivitySegment[]) => onChange(next);
-  const updateOne = (id: string, change: Partial<ActivitySegment>) => update(segments.map(segment => segment.id === id ? { ...segment, ...change } : segment));
-  const restoreStatuses = (previous: ActivitySegment[]) => update(segmentsRef.current.map(segment => {
+  const unitStatusText = (unit: SegmentUnit) => {
+    const count = segmentCounts(unit.segments);
+    if (count.total && count.done === count.total) return "Done";
+    if (count.total && count.skipped === count.total) return "Skipped";
+    if (count.done > 0) return "In progress";
+    return "Not confirmed";
+  };
+  const update = (next: ActivitySegment[], opts?: { completed?: boolean }) => onChange(next, opts);
+  const restoredFrom = (previous: ActivitySegment[]) => segmentsRef.current.map(segment => {
     const before = previous.find(item => item.id === segment.id);
     return before ? { ...segment, status: before.status } : segment;
-  }));
+  });
+  const restoreStatuses = (previous: ActivitySegment[]) => update(restoredFrom(previous));
+  // Circuit only: a Done action that leaves nothing unknown completes the activity (v111). Its toast Undo restores the statuses AND reopens the activity.
+  const finishDone = (previous: ActivitySegment[], next: ActivitySegment[], message: string) => {
+    const completes = isCircuit && next.every(segment => segment.status !== "unknown");
+    if (completes) {
+      update(next, { completed: true });
+      toast(message, { action: { label: "Undo", onClick: () => update(restoredFrom(previous), { completed: false }) } });
+    } else {
+      update(next);
+      toast(message, { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+    }
+  };
   const doneOne = (segment: ActivitySegment) => {
     const previous = segments;
-    updateOne(segment.id, { status: segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" : "completed" });
-    toast(`Done: ${segmentPlanText(segment)}`, { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+    const next = segments.map(item => item.id === segment.id ? { ...item, status: item.actualDurationSec != null || item.actualDistanceM != null ? "modified" as const : "completed" as const } : item);
+    finishDone(previous, next, `Done: ${segmentPlanText(segment)}`);
   };
   const doneUnit = (unit: SegmentUnit) => {
     if (!unit.groupId) { doneOne(unit.segments[0]!); return; }
     const previous = segments;
-    update(completeSegmentGroupIteration(segments, unit.groupId, unit.iteration));
-    toast(`Done: ${unitTitle(unit)}`, { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+    const next = completeSegmentGroupIteration(segments, unit.groupId, unit.iteration);
+    finishDone(previous, next, `Done: ${unitTitle(unit)}`);
   };
-  const doneLabel = (unit: SegmentUnit) => unit.groupId ? `Done: ${unitWord} ${unitNumber(unit)}` : `Done: ${segmentPlanText(unit.segments[0]!)}`;
+  const doneLabel = (unit: SegmentUnit) => unit.groupId ? (isCircuit ? "Done round" : `Done: ${unitWord} ${unitNumber(unit)}`) : `Done: ${segmentPlanText(unit.segments[0]!)}`;
   const completeAll = () => {
     const previous = segments;
-    update(resolveUnknownSegments(segments));
-    toast(`All remaining ${resolvedWord} done as prescribed`, { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+    const next = resolveUnknownSegments(segments);
+    finishDone(previous, next, `All remaining ${resolvedWord} done as prescribed`);
   };
   const completeAllLabel = isCircuit ? "Done: all rounds" : groupedUnits.length ? "Done: all sets" : "Done: all intervals";
   const add = () => update([...segments, { id: uid("segment"), kind: "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
-  const repeat = () => {
+  const addLabel = isCircuit ? "Add station" : "Add set";
+  const repeatGroup = (groupId: string) => {
+    const previous = segments;
     try {
-      const pattern = segments.filter(segment => selectedIds.includes(segment.id));
-      const guard = repeatPatternError(pattern);
-      if (guard) { toast.error(guard); return; }
-      const copies = repeatedSegments(pattern, Number(repeatCount));
-      update([...segments.filter(segment => !selectedIds.includes(segment.id)), ...copies]); setSelectedIds([]);
+      const next = appendSegmentGroupIteration(segments, groupId);
+      update(next);
+      toast(`${unitWord} added`, { action: { label: "Undo", onClick: () => update(previous, { completed: activity.completed }) } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Repeat could not be added"); }
   };
-  const expandedPart = (segment: ActivitySegment, index: number) => <div className="activity-stepper-expanded">
+  const addAnotherRound = () => {
+    const groupId = groupedUnits[0]?.groupId;
+    if (!groupId) return;
+    const previous = segments;
+    try {
+      const next = appendSegmentGroupIteration(segments, groupId);
+      update(next);
+      toast("Round added", { action: { label: "Undo", onClick: () => update(previous, { completed: activity.completed }) } });
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Round could not be added"); }
+  };
+  const updateOne = (id: string, change: Partial<ActivitySegment>) => update(segments.map(segment => segment.id === id ? { ...segment, ...change } : segment));
+  const expandedPart = (segment: ActivitySegment, index: number, word: string) => <div className="activity-stepper-expanded">
     <div className="stepper-plan-fields">
-      <label className="field-label">Kind<NativeSelect aria-label={`Part ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
+      <label className="field-label">Kind<NativeSelect aria-label={`${word} ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
       <label className="field-label">Plan sec<DecimalInput min={0} max={86400} value={segment.plannedDurationSec ?? null} onValueChange={plannedDurationSec => updateOne(segment.id, { plannedDurationSec })} /></label>
       <label className="field-label">Plan m<DecimalInput min={0} max={1000000} value={segment.plannedDistanceM ?? null} onValueChange={plannedDistanceM => updateOne(segment.id, { plannedDistanceM })} /></label>
-      <label className="field-label">Label · optional<Input aria-label={`Part ${index + 1} label`} value={segment.label ?? ""} placeholder="Tempo, Freestyle…" onChange={event => {
+      <label className="field-label">Label · optional<Input aria-label={`${word} ${index + 1} label`} value={segment.label ?? ""} placeholder="Tempo, Freestyle…" onChange={event => {
         const value = event.target.value;
         const error = segmentLabelError(value);
         if (error) { setLabelError(error); return; }
@@ -597,30 +629,44 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
       <Button type="button" variant="outline" onClick={() => doneOne(segment)}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : segment.plannedDurationSec != null || segment.plannedDistanceM != null ? "Complete as prescribed" : "Mark complete"}</Button>
       <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "skipped" })}>Skip</Button>
       {segment.status !== "unknown" && <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "unknown" })}>Undo confirmation</Button>}
-      <Button type="button" variant="ghost" aria-label={`Remove part ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); setSelectedIds(currentSelected => currentSelected.filter(value => value !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`Part ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
+      <Button type="button" variant="ghost" aria-label={`Remove ${word.toLowerCase()} ${index + 1}`} onClick={() => { const removed = segment; const at = segments.indexOf(segment); update(segments.filter(item => item.id !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`${word} ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
     </div>
   </div>;
-  const partCard = (segment: ActivitySegment, index: number) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
-    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Part ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
+  const partCard = (segment: ActivitySegment, index: number, word: string) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
+    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`${word} ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
       <span className="stepper-part-index">{index + 1}</span>
       <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
       <span className="stepper-part-status">{statusText(segment)}</span>
     </button>
     {segment.status === "unknown" && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneOne(segment)}>Done: {segmentPlanText(segment)}</Button>}
-    {expandedId === segment.id && expandedPart(segment, index)}
+    {expandedId === segment.id && expandedPart(segment, index, word)}
   </div>;
   const unitDotClass = (unit: SegmentUnit) => {
     const count = segmentCounts(unit.segments);
     if (count.modified) return "is-measured";
     if (count.total && count.done === count.total) return "is-done";
     if (count.total && count.skipped === count.total) return "is-skipped";
+    if (count.total && count.unknown === 0 && count.done > 0) return "is-done";
     return "";
+  };
+  const groupFooter = (groupId: string) => {
+    const group = segments.filter(segment => segment.groupId === groupId);
+    const count = segmentCounts(group);
+    const progress = segmentGroupProgress(group);
+    const iterations = [...new Set(group.map(segment => segment.iteration ?? 1))].length;
+    const multiSegment = iterations > 0 && group.length / iterations > 1;
+    return <div className="activity-segment-group" key={groupId}>
+      <span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} {unitWordPlural} done{multiSegment ? ` · ${count.done} of ${count.total} intervals done` : ""}</span>
+      <Button type="button" variant="outline" disabled={!count.unknown} onClick={() => { const previous = segments; const next = completeSegmentGroup(segments, groupId); finishDone(previous, next, `Done: rest of these ${unitWordPlural}`); }}>Done: rest of these {unitWordPlural}</Button>
+      <Button type="button" variant="outline" onClick={() => repeatGroup(groupId)}>Repeat this {unitWord.toLowerCase()}</Button>
+    </div>;
   };
   return <section className="activity-stepper grouped-activity-stepper" aria-label={`${unitWord}s for ${activity.name}`}>
     <div className="stepper-progress" aria-label={`${unitWord} progress`}>
-      <span className="stepper-position">{currentUnit ? unitPosition(currentUnit, currentUnitIndex) : units.length ? `All ${units.length} ${resolvedWord} resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "No parts yet"}</span>
-      <span className="stepper-dots" role="img" aria-label={`${doneUnits} of ${units.length} ${resolvedWord} done`}>{units.map((unit, index) => <span key={unit.key} className={`stepper-dot ${unitDotClass(unit)} ${index === currentUnitIndex ? "is-current" : ""}`} title={`${unitTitle(unit)}: ${segmentCountLabel(unit.segments)}`} />)}</span>
+      <span className="stepper-position">{currentUnit ? unitPosition(currentUnit, currentUnitIndex) : units.length ? `All ${units.length} ${resolvedWord} resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "Nothing added yet"}</span>
+      <span className="stepper-dots" role="img" aria-label={`${doneUnits} of ${units.length} ${resolvedWord} done`}>{units.map((unit, index) => <span key={unit.key} className={`stepper-dot ${unitDotClass(unit)} ${index === currentUnitIndex ? "is-current" : ""}`} title={`${unitTitle(unit)}: ${unit.segments.map(segmentPlanText).join(" · ")}`} />)}</span>
     </div>
+    {isCircuit && <p className="stepper-rounds-count">{doneUnits} {doneUnits === 1 ? "round" : "rounds"} done</p>}
     {currentUnit && <div className="activity-stepper-current">
       {currentUnit.groupId ? <>
         <div className="stepper-current-text" aria-label={`Current ${unitTitle(currentUnit)}`}>
@@ -633,42 +679,49 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
           <span className="stepper-part-plan">{segmentPlanText(currentUnit.segments[0]!)}</span>
           {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
         </button>
-        {expandedId === currentUnit.segments[0]!.id && expandedPart(currentUnit.segments[0]!, segments.indexOf(currentUnit.segments[0]!))}
+        {expandedId === currentUnit.segments[0]!.id && expandedPart(currentUnit.segments[0]!, segments.indexOf(currentUnit.segments[0]!), isCircuit ? "Station" : "Interval")}
       </>}
       <Button type="button" className="stepper-done-current bg-[var(--lime)] text-[#11140d]" onClick={() => doneUnit(currentUnit)}>{doneLabel(currentUnit)}</Button>
     </div>}
-    <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>{completeAllLabel}</Button>
-    <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all parts" : `Show all · ${segmentCountLabel(segments)}`}</Button>
-    {showAll && <div className="activity-stepper-list">
+    {isCircuit && <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>{completeAllLabel}</Button>}
+    {isCircuit ? <div className="activity-stepper-units">
       {units.map((unit) => unit.groupId ? <div key={unit.key} className="activity-stepper-unit">
-        <button type="button" className="stepper-unit-text" aria-expanded={expandedUnits.includes(unit.key)} aria-label={`${unitTitle(unit)}: ${segmentCountLabel(unit.segments)}`} onClick={() => setExpandedUnits(current => current.includes(unit.key) ? current.filter(key => key !== unit.key) : [...current, unit.key])}>
-          <span className="stepper-part-plan">{unitTitle(unit)}</span>
-          <span className="stepper-part-status">{segmentCountLabel(unit.segments)}</span>
-        </button>
-        {segmentCounts(unit.segments).unknown > 0 && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneUnit(unit)}>{doneLabel(unit)}</Button>}
-        {expandedUnits.includes(unit.key) && <div className="activity-stepper-unit-stations">{unit.segments.map(segment => partCard(segment, segments.indexOf(segment)))}</div>}
-      </div> : <div key={unit.key}>
-        {!unit.segments[0]!.groupId && <label className="segment-repeat-select"><input type="checkbox" aria-label={`Include part ${segments.indexOf(unit.segments[0]!) + 1} in repeat pattern`} checked={selectedIds.includes(unit.segments[0]!.id)} onChange={event => setSelectedIds(currentSelected => event.target.checked ? [...currentSelected, unit.segments[0]!.id] : currentSelected.filter(id => id !== unit.segments[0]!.id))} />Pattern</label>}
-        {partCard(unit.segments[0]!, segments.indexOf(unit.segments[0]!))}
-      </div>)}
-      {groups.map(groupId => {
-        const group = segments.filter(segment => segment.groupId === groupId);
-        const count = segmentCounts(group);
-        const progress = segmentGroupProgress(group);
-        return <div className="activity-segment-group" key={groupId}><span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} rounds done · {count.done} of {count.total} parts</span><Button type="button" variant="outline" disabled={!count.unknown} onClick={() => { const previous = segments; update(completeSegmentGroup(segments, groupId)); toast("Unknown parts in this group done", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } }); }}>Complete unknown parts</Button></div>;
-      })}
-      <Button type="button" variant="outline" onClick={add}><Plus /> Add part</Button>
-      {segments.some(segment => !segment.groupId) && <div className="segment-repeat-controls"><label className="field-label">Repeat count (2–50)<Input type="number" min={2} max={50} step={1} value={repeatCount} onChange={event => setRepeatCount(event.target.value)} /></label><Button type="button" variant="outline" disabled={!selectedIds.length} onClick={repeat}>Repeat selected pattern xN</Button><span className="text-xs text-white/50">Select one or more ungrouped parts as the pattern.</span></div>}
-    </div>}
+        <div className="stepper-unit-head">
+          <span className="stepper-unit-title">{unitTitle(unit)}</span>
+          <span className="stepper-unit-status">{unitStatusText(unit)}</span>
+        </div>
+        <div className="activity-stepper-unit-stations">{unit.segments.map((segment, index) => partCard(segment, index, "Station"))}</div>
+      </div> : <div key={unit.key} className="activity-stepper-unit">{partCard(unit.segments[0]!, segments.indexOf(unit.segments[0]!), "Station")}</div>)}
+      {groups.map(groupFooter)}
+      {groupedUnits.length > 0 && <Button type="button" variant="outline" onClick={addAnotherRound}><Plus /> Add another round</Button>}
+      <Button type="button" variant="outline" onClick={add}><Plus /> Add station</Button>
+    </div> : <>
+      <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all" : units.length === 1 ? `Show all · 1 ${unitWord.toLowerCase()}` : `Show all · ${units.length} ${unitWordPlural}`}</Button>
+      {showAll && <div className="activity-stepper-list">
+        {units.map((unit) => unit.groupId ? <div key={unit.key} className="activity-stepper-unit">
+          <div className="stepper-unit-row">
+            <button type="button" className="stepper-unit-text" aria-expanded={expandedUnits.includes(unit.key)} aria-label={`${unitTitle(unit)}: ${unit.segments.map(segmentPlanText).join(" · ")}`} onClick={() => setExpandedUnits(current => current.includes(unit.key) ? current.filter(key => key !== unit.key) : [...current, unit.key])}>
+              <span className="stepper-unit-title">{unitTitle(unit)}</span>
+              <span className="stepper-unit-status">{unitStatusText(unit)}</span>
+            </button>
+            {segmentCounts(unit.segments).unknown > 0 && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneUnit(unit)}>{doneLabel(unit)}</Button>}
+          </div>
+          {expandedUnits.includes(unit.key) && <div className="activity-stepper-unit-stations">{unit.segments.map(segment => partCard(segment, segments.indexOf(segment), "Interval"))}</div>}
+        </div> : <div key={unit.key}>{partCard(unit.segments[0]!, segments.indexOf(unit.segments[0]!), "Interval")}</div>)}
+        {groups.map(groupFooter)}
+        <Button type="button" variant="outline" onClick={add}><Plus /> {addLabel}</Button>
+        <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>{completeAllLabel}</Button>
+      </div>}
+    </>}
   </section>;
 }
 
 function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChange: (segments: ActivitySegment[]) => void }) {
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [repeatCount, setRepeatCount] = useState("6");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [labelError, setLabelError] = useState<string | null>(null);
+  const [quickKind, setQuickKind] = useState<ActivitySegment["kind"]>(activity.activityType === "run" ? "run" : activity.activityType === "walk" ? "walk" : "other");
+  const [quickMin, setQuickMin] = useState("");
   const segments = activity.segments ?? [];
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
@@ -694,24 +747,31 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
   const completeAll = () => {
     const previous = segments;
     update(resolveUnknownSegments(segments));
-    toast("All remaining parts done as prescribed", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+    toast("All remaining intervals done as prescribed", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
   };
   const add = () => update([...segments, { id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : activity.activityType === "run" ? "run" : "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
-  const repeat = () => {
+  // v111 quick-add: one row, no form navigation, no per-interval save round-trip. Tapping Add appends the interval and leaves the row ready for the next one, so "5 min run, 5 min walk, 4 min run" is three quick taps plus typing.
+  const quickMinutes = Number(quickMin);
+  const quickValid = quickMin.trim() !== "" && Number.isFinite(quickMinutes) && quickMinutes > 0 && quickMinutes <= 1440;
+  const quickAdd = () => {
+    if (!quickValid) return;
+    update([...segments, { id: uid("segment"), kind: quickKind, plannedDurationSec: Math.round(quickMinutes * 60), actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
+    setQuickMin("");
+  };
+  const repeatGroup = (groupId: string) => {
+    const previous = segments;
     try {
-      const pattern = segments.filter(segment => selectedIds.includes(segment.id));
-      const guard = repeatPatternError(pattern);
-      if (guard) { toast.error(guard); return; }
-      const copies = repeatedSegments(pattern, Number(repeatCount));
-      update([...segments.filter(segment => !selectedIds.includes(segment.id)), ...copies]); setSelectedIds([]);
+      const next = appendSegmentGroupIteration(segments, groupId);
+      update(next);
+      toast("Repeat added", { action: { label: "Undo", onClick: () => update(previous) } });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Repeat could not be added"); }
   };
   const expandedPart = (segment: ActivitySegment, index: number) => <div className="activity-stepper-expanded">
     <div className="stepper-plan-fields">
-      <label className="field-label">Kind<NativeSelect aria-label={`Part ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
+      <label className="field-label">Kind<NativeSelect aria-label={`Interval ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
       <label className="field-label">Plan sec<DecimalInput min={0} max={86400} value={segment.plannedDurationSec ?? null} onValueChange={plannedDurationSec => updateOne(segment.id, { plannedDurationSec })} /></label>
       <label className="field-label">Plan m<DecimalInput min={0} max={1000000} value={segment.plannedDistanceM ?? null} onValueChange={plannedDistanceM => updateOne(segment.id, { plannedDistanceM })} /></label>
-      <label className="field-label">Label · optional<Input aria-label={`Part ${index + 1} label`} value={segment.label ?? ""} placeholder="Tempo, Freestyle…" onChange={event => {
+      <label className="field-label">Label · optional<Input aria-label={`Interval ${index + 1} label`} value={segment.label ?? ""} placeholder="Tempo, Freestyle…" onChange={event => {
         const value = event.target.value;
         const error = segmentLabelError(value);
         if (error) { setLabelError(error); return; }
@@ -729,11 +789,11 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
       <Button type="button" variant="outline" onClick={() => doneOne(segment)}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : segment.plannedDurationSec != null || segment.plannedDistanceM != null ? "Complete as prescribed" : "Mark complete"}</Button>
       <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "skipped" })}>Skip</Button>
       {segment.status !== "unknown" && <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "unknown" })}>Undo confirmation</Button>}
-      <Button type="button" variant="ghost" aria-label={`Remove part ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); setSelectedIds(currentSelected => currentSelected.filter(value => value !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`Part ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
+      <Button type="button" variant="ghost" aria-label={`Remove interval ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`Interval ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
     </div>
   </div>;
   const partCard = (segment: ActivitySegment, index: number) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
-    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Part ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
+    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Interval ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
       <span className="stepper-part-index">{index + 1}</span>
       <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
       <span className="stepper-part-status">{statusText(segment)}</span>
@@ -741,34 +801,45 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
     {segment.status === "unknown" && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneOne(segment)}>Done: {segmentPlanText(segment)}</Button>}
     {expandedId === segment.id && expandedPart(segment, index)}
   </div>;
-  return <section className="activity-stepper" aria-label={`Parts for ${activity.name}`}>
-    <div className="stepper-progress" aria-label="Part progress">
-      <span className="stepper-position">{current ? `Part ${currentIndex + 1} of ${segments.length}` : segments.length ? `All ${segments.length} parts resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "No parts yet"}</span>
-      <span className="stepper-dots" role="img" aria-label={`${counts.done} of ${segments.length} parts done`}>{segments.map((segment, index) => <span key={segment.id} className={`stepper-dot ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""} ${index === currentIndex ? "is-current" : ""}`} title={`Part ${index + 1}: ${statusText(segment)}`} />)}</span>
+  return <section className="activity-stepper" aria-label={`Intervals for ${activity.name}`}>
+    <div className="stepper-progress" aria-label="Interval progress">
+      <span className="stepper-position">{current ? `Interval ${currentIndex + 1} of ${segments.length}` : segments.length ? `All ${segments.length} intervals resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "Nothing added yet"}</span>
+      <span className="stepper-dots" role="img" aria-label={`${counts.done} of ${segments.length} intervals done`}>{segments.map((segment, index) => <span key={segment.id} className={`stepper-dot ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""} ${index === currentIndex ? "is-current" : ""}`} title={`Interval ${index + 1}: ${statusText(segment)}`} />)}</span>
     </div>
     {current && <div className="activity-stepper-current">
-      <button type="button" className="stepper-current-text" aria-expanded={expandedId === current.id} aria-label={`Current part ${currentIndex + 1}: ${segmentPlanText(current)}`} onClick={() => setExpandedId(value => value === current.id ? null : current.id)}>
+      <button type="button" className="stepper-current-text" aria-expanded={expandedId === current.id} aria-label={`Current interval ${currentIndex + 1}: ${segmentPlanText(current)}`} onClick={() => setExpandedId(value => value === current.id ? null : current.id)}>
         <span className="stepper-part-plan">{segmentPlanText(current)}</span>
         {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
       </button>
       <Button type="button" className="stepper-done-current bg-[var(--lime)] text-[#11140d]" onClick={() => doneOne(current)}>Done: {segmentPlanText(current)}</Button>
       {expandedId === current.id && expandedPart(current, currentIndex)}
     </div>}
-    <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>Complete all remaining as prescribed</Button>
-    <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all parts" : `Show all · ${segmentCountLabel(segments)}`}</Button>
+    <div className="stepper-quick-add">
+      <div className="stepper-quick-chips" role="group" aria-label="Quick-add kind">
+        {(["run", "walk", "rest", "other"] as const).map(kind => <button key={kind} type="button" aria-pressed={quickKind === kind} onClick={() => setQuickKind(kind)}>{kind === "other" ? "Other" : kind[0]!.toUpperCase() + kind.slice(1)}</button>)}
+      </div>
+      <div className="stepper-quick-row">
+        <label className="field-label">Minutes<Input inputMode="decimal" aria-label="Quick-add minutes" value={quickMin} placeholder="5" className="mt-1 h-11 border-white/8 bg-black/20" onChange={event => setQuickMin(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); quickAdd(); } }} /></label>
+        <Button type="button" disabled={!quickValid} onClick={quickAdd}>Add</Button>
+      </div>
+    </div>
+    <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all" : segments.length === 1 ? "Show all · 1 interval" : `Show all · ${segments.length} intervals`}</Button>
     {showAll && <div className="activity-stepper-list">
-      {segments.map((segment, index) => <div key={segment.id}>
-        {!segment.groupId && <label className="segment-repeat-select"><input type="checkbox" aria-label={`Include part ${index + 1} in repeat pattern`} checked={selectedIds.includes(segment.id)} onChange={event => setSelectedIds(currentSelected => event.target.checked ? [...currentSelected, segment.id] : currentSelected.filter(id => id !== segment.id))} />Pattern</label>}
-        {partCard(segment, index)}
-      </div>)}
+      {segments.map((segment, index) => <div key={segment.id}>{partCard(segment, index)}</div>)}
       {groups.map(groupId => {
         const group = segments.filter(segment => segment.groupId === groupId);
         const count = segmentCounts(group);
         const progress = segmentGroupProgress(group);
-        return <div className="activity-segment-group" key={groupId}><span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} rounds done · {count.done} of {count.total} parts</span><Button type="button" variant="outline" disabled={!count.unknown} onClick={() => { const previous = segments; update(completeSegmentGroup(segments, groupId)); toast("Unknown parts in this group done", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } }); }}>Complete unknown parts</Button></div>;
+        const iterations = [...new Set(group.map(segment => segment.iteration ?? 1))].length;
+        const multiSegment = iterations > 0 && group.length / iterations > 1;
+        return <div className="activity-segment-group" key={groupId}>
+          <span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} repeats done{multiSegment ? ` · ${count.done} of ${count.total} intervals done` : ""}</span>
+          <Button type="button" variant="outline" disabled={!count.unknown} onClick={() => { const previous = segments; update(completeSegmentGroup(segments, groupId)); toast("Done: rest of these intervals", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } }); }}>Done: rest of these intervals</Button>
+          <Button type="button" variant="outline" onClick={() => repeatGroup(groupId)}>Repeat this interval</Button>
+        </div>;
       })}
-      <Button type="button" variant="outline" onClick={add}><Plus /> Add part</Button>
-      {segments.some(segment => !segment.groupId) && <div className="segment-repeat-controls"><label className="field-label">Repeat count (2–50)<Input type="number" min={2} max={50} step={1} value={repeatCount} onChange={event => setRepeatCount(event.target.value)} /></label><Button type="button" variant="outline" disabled={!selectedIds.length} onClick={repeat}>Repeat selected pattern xN</Button><span className="text-xs text-white/50">Select one or more ungrouped parts as the pattern.</span></div>}
+      <Button type="button" variant="outline" onClick={add}><Plus /> Add interval</Button>
+      <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>Complete all remaining as prescribed</Button>
     </div>}
   </section>;
 }
@@ -800,6 +871,8 @@ function CardioEditor({
 }) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
+  // v111: "Add intervals" opens the stepper instead of inserting a blank interval, so quick-add chaining starts from an empty list.
+  const [intervalsOpen, setIntervalsOpen] = useState(false);
   const [expandedEffortId, setExpandedEffortId] = useState<string | null>(null);
   const style = activityLoggingStyle(activity);
   const efforts = activity.efforts ?? [];
@@ -812,15 +885,18 @@ function CardioEditor({
   const mobilityText = activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` — ${move.prescription}` : ""}`).join("\n");
   const [mobilityDraft, setMobilityDraft] = useState(mobilityText);
   useEffect(() => setMobilityDraft(mobilityText), [activity.id, mobilityText]);
+  // v111: updates read the latest activity, not the render closure — toast Undos (rounds counter, stepper add/repeat) must not clobber edits made after the tap.
+  const activityRef = useRef(activity);
+  activityRef.current = activity;
   const update = (changes: Partial<CardioEntry>, changesActual = false) => onChange({
-    ...activity,
+    ...activityRef.current,
     ...changes,
-    completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : activity.completedAsPlanned,
+    completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : activityRef.current.completedAsPlanned,
     updatedAt: new Date().toISOString(),
   });
   const postSessionNoSegments = ["yoga", "grappling", "soccer", "water_polo"].includes(activity.activityType) && !activity.segments?.length;
   const mobilitySessionCard = activity.activityType === "mobility" && style === "routine";
-  const canAddParts = ["run", "walk", "hike", "ruck", "bike", "row", "other"].includes(activity.activityType) && style !== "efforts";
+  const canAddIntervals = ["run", "walk", "hike", "ruck", "bike", "row", "other"].includes(activity.activityType) && style !== "efforts";
   const activityDoneLabel = activity.completed ? "Activity complete"
     : activity.segments?.length ? `Done: ${activity.name}`
     : `Done: ${activity.name}${activity.plannedDurationMin !== null ? ` ${formatMeasure(activity.plannedDurationMin)} min` : ""}${activity.plannedDistanceKm !== null ? ` ${formatMeasure(activity.plannedDistanceKm)} km` : ""}`;
@@ -868,26 +944,37 @@ function CardioEditor({
           {activity.activityType === "ruck" && style === "single" && <label className="field-label">Pack load <span className="text-white/60">{activity.ruckLoadUnit}</span><DecimalInput min={0} max={1000} value={activity.ruckLoad} onValueChange={(ruckLoad) => update({ ruckLoad }, true)} placeholder="—" className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
         </div>}
         {unusualActivityWarning(activity) && <p role="status" className="activity-warning">{unusualActivityWarning(activity)}</p>}
-        {activity.segments?.length ? (activity.activityType === "circuit" || activity.activityType === "swim" ? <GroupedActivityStepper activity={activity} onChange={segments => {
+        {activity.segments?.length ? (activity.activityType === "circuit" || activity.activityType === "swim" ? <GroupedActivityStepper activity={activity} onChange={(segments, opts) => {
           const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
-          update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+          if (opts && opts.completed !== undefined) {
+            // v111 circuit: a Done action that resolves every round completes the activity; its toast Undo reopens it.
+            if (opts.completed) {
+              const done = completeActivity({ ...activity, segments });
+              update({ segments: done.segments, completed: true, completedAsPlanned: done.completedAsPlanned }, true);
+            } else update({ segments, completed: false, completedAsPlanned: false }, true);
+          } else update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
         }} /> : <ActivityStepper activity={activity} onChange={segments => {
           const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
           update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
-        }} />) : postSessionNoSegments ? null : canAddParts ? <Button type="button" variant="outline" onClick={() => update({ segments: [{ id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : activity.activityType === "run" ? "run" : "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }], ...(activity.completed ? { completed: false } : {}) }, true)}><Plus /> Add parts</Button> : null}
+        }} />) : postSessionNoSegments ? null : canAddIntervals ? (intervalsOpen ? <ActivityStepper activity={activity} onChange={segments => {
+          const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
+          update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+        }} /> : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> Add intervals</Button>) : null}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
             const changeEffort = (changes: Partial<typeof effort>) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, ...changes } : item), completed: false }, true);
             const planText = [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ") || "Effort";
+            // v111: the check never glues onto the plan text. Leading slot holds the number (or a check when done), the plan is its own element, and the action slot is a plain "Done" state in both states — same slot, same size, no layout shift. Tapping Done on a completed effort undoes it.
             return <div key={effort.id} className={`activity-effort ${effort.completed ? "is-done" : ""}`}>
-              <span className="activity-effort-number">{index + 1}</span>
+              <span className="activity-effort-state" aria-hidden>{effort.completed ? <Check /> : index + 1}</span>
+              <span className="activity-effort-plan-text">{planText}</span>
               <div className="activity-effort-actions">
                 <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${planText}`} onClick={() => {
                   const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
                   update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
                   if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
                   if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
-                }}>{effort.completed ? <><Check /> Done: {planText}</> : `Done: ${planText}`}</Button>
+                }}>Done</Button>
                 <Button type="button" variant="ghost" onClick={() => setExpandedEffortId(value => value === effort.id ? null : effort.id)} aria-expanded={expandedEffortId === effort.id}>Did different</Button>
               </div>
               {expandedEffortId === effort.id && <div className="activity-effort-actuals">
@@ -901,7 +988,14 @@ function CardioEditor({
           <div className="activity-effort-actions"><Button type="button" variant="ghost" onClick={() => update({ efforts: [...efforts, makeActivityEffort()], completed: false })}><Plus /> Add effort</Button><span>{efforts.filter((item) => item.completed).length}/{efforts.length} done</span></div>
           {efforts.length > 0 && <details className="activity-effort-plan"><summary>Edit prescription</summary><div>{efforts.map((effort, index) => <div key={effort.id} className="activity-effort-plan-row"><span>{index + 1}</span><label className="field-label">Metres<DecimalInput min={0} value={effort.plannedDistanceM} onValueChange={(plannedDistanceM) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDistanceM } : item) })} /></label><label className="field-label">Load<DecimalInput min={0} value={effort.plannedLoad} onValueChange={(plannedLoad) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedLoad } : item) })} /></label><label className="field-label">Seconds<DecimalInput min={0} value={effort.plannedDurationSec} onValueChange={(plannedDurationSec) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDurationSec } : item) })} /></label><Button type="button" variant="ghost" aria-label={`Remove effort ${index + 1}`} onClick={() => update({ efforts: efforts.filter((item) => item.id !== effort.id), completed: false })}><X /></Button></div>)}</div></details>}
         </div>}
-        {style === "routine" && activity.activityType !== "mobility" && <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
+        {style === "routine" && activity.activityType !== "mobility" && <>
+          {activity.activityType === "circuit" && <div className="routine-rounds">
+            <span className="routine-rounds-count">{activity.roundsDone ?? 0} {(activity.roundsDone ?? 0) === 1 ? "round" : "rounds"} done</span>
+            <Button type="button" variant="outline" onClick={() => { const before = activity.roundsDone ?? 0; update({ roundsDone: before + 1 }, true); toast("Round done", { action: { label: "Undo", onClick: () => update({ roundsDone: before }, true) } }); }}>Done round</Button>
+            <Button type="button" variant="ghost" size="icon" aria-label="Remove one round" disabled={(activity.roundsDone ?? 0) === 0} onClick={() => update({ roundsDone: (activity.roundsDone ?? 0) - 1 }, true)}><Minus /></Button>
+          </div>}
+          <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>
+        </>}
         {postSessionNoSegments && style !== "routine" && <label className="field-label block">What I did<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : "Flow, class, poses…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
         <details className="activity-details"><summary>{activity.activityType === "mobility" ? "Activity options" : "More details"}{activity.intensity ? ` · ${activity.intensity}` : ""}</summary>
           <div className="activity-option-grid"><label className="field-label">Effort / 10 · optional<Input inputMode="decimal" value={activity.effort} placeholder="—" onChange={(event) => update({ effort: event.target.value }, true)} /></label>

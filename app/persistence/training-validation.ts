@@ -50,7 +50,7 @@ const activitySchema = z.object({
   externalSourceId: z.string().optional(),
   activityType: z.enum(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"]),
   loggingStyle: z.enum(["single", "routine", "efforts"]).optional(),
-  efforts: z.array(effortSchema).optional(), segments: z.array(activitySegmentSchema).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
+  efforts: z.array(effortSchema).optional(), segments: z.array(activitySegmentSchema).optional(), roundsDone: z.number().int().min(0).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
   plannedDurationMin: nullableNumber, actualDurationMin: nullableNumber,
   plannedDistanceKm: nullableNumber, actualDistanceKm: nullableNumber,
   ruckLoad: loadNumber, ruckLoadUnit: unit, averageHr: nullableNumber,
