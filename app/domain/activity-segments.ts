@@ -112,6 +112,31 @@ export function completeSegmentGroup(segments: readonly ActivitySegment[], group
   });
 }
 
+export type SegmentUnit = { key: string; groupId: string | null; iteration: number | null; segments: ActivitySegment[] };
+
+/** Grouped-stepper units (v109): one REPEAT iteration = one unit (a circuit round / a swim set), in first-occurrence stored order. Ungrouped segments are single-part units. A groupId without an iteration is one unit for the whole group. */
+export function segmentUnits(segments: readonly ActivitySegment[]): SegmentUnit[] {
+  const units: SegmentUnit[] = [];
+  const byKey = new Map<string, SegmentUnit>();
+  for (const segment of segments) {
+    if (!segment.groupId) { units.push({ key: `part:${segment.id}`, groupId: null, iteration: null, segments: [segment] }); continue; }
+    const key = `group:${segment.groupId}:${segment.iteration ?? ""}`;
+    let unit = byKey.get(key);
+    if (!unit) { unit = { key, groupId: segment.groupId, iteration: segment.iteration ?? null, segments: [] }; byKey.set(key, unit); units.push(unit); }
+    unit.segments.push(segment);
+  }
+  return units;
+}
+
+/** Complete unknown parts of ONE iteration of a group only (v109 round/set Done). Other iterations, other groups, and skips are untouched. Typed actuals become Measured, the rest complete as prescribed. */
+export function completeSegmentGroupIteration(segments: readonly ActivitySegment[], groupId: string, iteration: number | null): ActivitySegment[] {
+  return segments.map(segment => {
+    if (segment.groupId !== groupId || (segment.iteration ?? null) !== iteration || segment.status !== "unknown") return segment;
+    const status = segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" as const : "completed" as const;
+    return { ...segment, status };
+  });
+}
+
 /** Repeating a pattern replaces the pattern rows with fresh copies, so a pattern row that already carries entered actuals or a confirmed state would lose that data. Refuse instead of destroying it. */
 export function repeatPatternError(pattern: readonly ActivitySegment[]): string | null {
   if (pattern.some(segment => segment.status !== "unknown" || segment.actualDurationSec != null || segment.actualDistanceM != null)) {

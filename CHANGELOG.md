@@ -2,6 +2,15 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v109 — built, not submitted
+
+- Grouped steppers (spec v2 §7) reusing the v108 stepper engine: circuit activities WITH segments render a round stepper (one REPEAT iteration = one round; "Round N of M" + compact station list; "Done: Round N" completes only that round's unknown parts; "Done: all rounds" on the stepper), and swim activities WITH segments render an interval stepper (one iteration = one set; set cards list intervals compactly as label + distance + time; ungrouped segments are individual interval cards; "Done: Set N" / "Done: <plan>" / complete-all, same Undo/toast patterns). Show all lists units expandable to stations, with tap-part expansion for duration/distance actuals; group footers, Add part, and Repeat pattern keep working in Show all.
+- View selection: only circuit/swim WITH segments get the grouped stepper; all other types keep the generic v108 stepper exactly as-is; circuit/swim WITHOUT segments keep their current routine/summary views, with no "Add parts" button added for circuit/swim.
+- Circuit is prescription-and-completion only: actual station reps/load are NOT stored (no station-result model); differences go in notes. AMRAP is unsupported (no fixed rounds) and stays summary + notes; segment-free AMRAP activities are untouched by construction.
+- v108 rules unchanged: unit completion touches unknown parts only; skips never auto-complete; as-prescribed stays labeled as prescribed; activity completion stays independent of parts completion.
+- Deliberate non-changes: no mobility pose cards (Paul's decision pending), no v110 (no FITLOG v3 parser, no AI prompt changes, no v1/v2 parser edits), no stored-field changes, evidenceVersion stays 2, no new stored fields, no strength-logging or totals/labels changes.
+- See [v109 update notes](docs/releases/V109-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul submits when he approves.
+
 ## v108 — phone layout fixes (follow-up build, same version stamp)
 
 - Stepper layout rules added (v108 shipped the stepper classes with no CSS, so phones fell back to browser defaults): current-part card with plan on its own line and intensity on its own quiet line, visible progress dots, Show-all rows that don't collide, 44px Done buttons kept.
@@ -14,7 +23,7 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 ## v108 — interaction foundation
 
 - Interaction foundation (spec v2 §3): the segment table is replaced by a stepper — current card + "Part N of M" text + progress dots + Show all compact cards, labeled "Done: <plan>" actions, tap-part expansion for one part at a time, "Complete all remaining as prescribed" on the stepper, and Undo for every Done tap. "Edit detail" is deleted; Add part and Repeat pattern live in the Show-all footer.
-- Post-session cards for yoga, grappling, soccer, and water polo (duration + visible notes + labeled Done) when no segments exist; any activity WITH segments always shows the stepper. Mobility is a session card (moves read-only + duration + visible notes + labeled Done); pose cards are deferred to v109.
+- Post-session cards for yoga, grappling, soccer, and water polo (duration + visible notes + labeled Done) when no segments exist; any activity WITH segments always shows the stepper. Mobility is a session card (moves read-only + duration + visible notes + labeled Done); pose cards pending Paul's decision.
 - Slim effort rows for force: plan as text + labeled check + "Did different" behind a tap; prescription stays behind "Edit prescription".
 - Import preview lists parts compactly (one line per part, one collapsed line per repeat group, labels shown) instead of a single segment count.
 - Move up/down for exercises and activities, operating on blockOrder (never the arrays), disabled at the ends, with "Moved up"/"Moved down" toasts.
