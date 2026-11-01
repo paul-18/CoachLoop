@@ -39,6 +39,8 @@
 html { min-width: 280px; background: #10120f; color-scheme: dark; }
 body { margin: 0; min-height: 100dvh; background: radial-gradient(circle at 75% -10%, rgba(var(--theme-accent-rgb),.06), transparent 31rem), #10120f; color: var(--foreground); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; font-size: 16px; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
 button, input, textarea, select { font: inherit; } button { touch-action: manipulation; } ::selection { background: rgba(var(--theme-accent-rgb),.28); color: #fff; }
+.workout-header, .exercise-card, .activity-card, .mobile-nav { -webkit-touch-callout: none; user-select: none; }
+.activity-card input, .activity-card textarea, .exercise-card input, .exercise-card textarea { -webkit-touch-callout: default; user-select: text; }
 
 .desktop-rail { position: fixed; inset: 0 auto 0 0; z-index: 20; display: none; width: 242px; flex-direction: column; border-right: 1px solid rgba(255,255,255,.065); background: rgba(16,18,15,.88); padding: 28px 22px 24px; backdrop-filter: blur(22px); }
 .rail-brand { min-height: 46px; flex: 0 0 auto; }
@@ -901,7 +903,7 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-dot.is-measured { background:#8ed1e8; }
 .stepper-dot.is-skipped { background:transparent; border:1px solid rgba(255,255,255,.35); }
 .stepper-dot.is-current { outline:2px solid rgba(255,255,255,.65); outline-offset:1px; }
-.activity-stepper-current { display:grid; gap:10px; min-width:0; padding:12px; border:1px solid #ffffff1a; border-radius:12px; background:#00000028; }
+.activity-stepper-current { display:grid; gap:10px; min-width:0; padding:12px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(0,0,0,.28); }
 .stepper-current-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; min-width:0; min-height:44px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
 .stepper-part-intensity { font-size:.8rem; line-height:1.4; color:rgba(255,255,255,.6); }
 .activity-stepper-list { display:grid; gap:10px; min-width:0; }
@@ -920,7 +922,7 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-round-actions { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
 .stepper-round-actions button { flex:1 1 140px; min-height:44px; }
 .stepper-unit-stations { display:grid; gap:6px; width:100%; min-width:0; margin-top:6px; }
-.stepper-unit-station-row { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:6px 10px; border:1px solid rgba(255,255,255,.075); border-radius:10px; background:rgba(0,0,0,.26); }
+.stepper-unit-station-row { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:6px 10px; border:none; border-radius:10px; background:rgba(255,255,255,.04); }
 .stepper-unit-station-name { flex:1 1 auto; min-width:0; font-weight:700; font-size:.85rem; line-height:1.4; overflow-wrap:anywhere; }
 .activity-stepper-units { display:grid; gap:10px; min-width:0; }
 /* v111 swim spacing: a set row is its own padded block; title, status, and Done
@@ -972,10 +974,10 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 /* Apply to installed portrait sessions without relying solely on a launch-time
    env() value; browser tabs and landscape keep their reported safe insets. */
 @media (display-mode: standalone) and (orientation: portrait) {
-  :root { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); --workout-header-clearance: 8px; }
+  :root { --app-safe-top: max(env(safe-area-inset-top, 0px), 59px); --workout-header-clearance: 8px; }
 }
 @media (orientation: portrait) {
-  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 56px); --workout-header-clearance: 8px; }
+  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 59px); --workout-header-clearance: 8px; }
 }
 @media (max-width: 1099px) {
   .app-main { padding-left:env(safe-area-inset-left, 0px); padding-right:env(safe-area-inset-right, 0px); }
@@ -1026,7 +1028,7 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
 .amrap-plan { display: grid; gap: 6px; padding: 10px; border: 1px solid rgba(255,255,255,.085); border-radius: 12px; background: rgba(0,0,0,.24); }
 .amrap-plan-head { font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--lime); }
 .amrap-plan ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.amrap-plan li { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(0,0,0,.25); font-weight: 650; overflow-wrap: anywhere; }
+.amrap-plan li { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: none; border-radius: 10px; background: rgba(255,255,255,.04); font-weight: 650; overflow-wrap: anywhere; }
 .amrap-plan li span { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: .75rem; }
 .routine-rounds, .stepper-rounds-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
 .routine-rounds-count, .stepper-rounds-count { flex: 1; margin: 0; text-align: center; font-weight: 800; }

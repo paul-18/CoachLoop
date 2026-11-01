@@ -690,7 +690,7 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
     {currentUnit && <div className="activity-stepper-current">
       {currentUnit.groupId ? <>
         <div className="stepper-current-text" aria-label={`Current ${unitTitle(currentUnit)}`}>
-          <span className="stepper-part-plan">{unitTitle(currentUnit)}</span>
+          <span className="stepper-part-plan sr-only">{unitTitle(currentUnit)}</span>
           {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
           <div className="stepper-unit-stations">{currentUnit.segments.map((segment, index) => <div key={segment.id} className="stepper-unit-station-row"><span className="stepper-part-index">{index + 1}</span><span className="stepper-unit-station-name">{segmentPlanText(segment)}</span><span className="stepper-part-status">{statusText(segment)}</span></div>)}</div>
         </div>
@@ -921,7 +921,7 @@ function CardioEditor({
   const distanceUnit = activity.activityType === "swim" || activity.activityType === "row" ? "m" : "km";
   const distanceValue = (value: number | null) => value === null ? null : displayedDistance(value, distanceUnit);
   const readDistance = (value: number | null) => value === null ? null : distanceUnit === "m" ? value / 1000 : value;
-  const showDistance = style === "single" && activity.activityType !== "mobility";
+  const showDistance = (style === "single" || Boolean(activity.segments?.length)) && !["mobility", "circuit", "force", "yoga", "soccer", "grappling"].includes(activity.activityType);
   const showPerformanceDetails = ["run", "ruck", "hike", "walk", "bike", "swim", "row"].includes(activity.activityType);
   const mobilityText = activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` — ${move.prescription}` : ""}`).join("\n");
   const [mobilityDraft, setMobilityDraft] = useState(mobilityText);
@@ -1468,7 +1468,7 @@ export function WorkoutEditor({
         <div className="flex items-center justify-between gap-3 pt-3">
           {onDiscard && <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="text-red-200 hover:bg-red-400/10 hover:text-red-100"><Trash2 /> Discard</Button>
+              <Button variant="ghost" className="min-h-11 min-w-11 text-red-200 hover:bg-red-400/10 hover:text-red-100"><Trash2 /> Discard</Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>Discard this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/60">The active session will be removed. This cannot be undone after you leave the page.</AlertDialogDescription></AlertDialogHeader>

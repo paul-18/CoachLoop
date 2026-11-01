@@ -2,6 +2,14 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v114 — published
+
+- iPhone 17 PWA & Dynamic Island: updated safe-area top fallback from 56px to 59px for iPhone 14 Pro/15/16 Pro/17 Dynamic Island dimension; added `-webkit-touch-callout: none` and `user-select: none` across workout cards and navigation to prevent accidental gym selection.
+- Touch ergonomics: updated Discard button to 44px min touch target meeting Apple HIG requirements.
+- Visual hierarchy: replaced nested borders on station rows and AMRAP items with subtle surface luminance shifts; eliminated duplicate inner round title on circuits.
+- Distance on interval runs: interval-based runs/bikes/swims now show the Distance input beside Minutes to easily record total distance at session finish.
+- See [v114 update notes](docs/releases/V114-UPDATE-NOTES.md).
+
 ## v113 — published
 
 - Import preview (`previewSegmentRows`): repeat groups now render a `Repeat Nx` heading followed by each interval or station on its own separate dark card row.
