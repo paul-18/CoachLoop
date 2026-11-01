@@ -10,7 +10,7 @@ import { repeatWorkoutDraft, replanWorkoutDraft } from "../app/domain/workout-co
 import { blankStartState, undoBlankStart } from "../app/views/starter-plan";
 import { exampleFitlog, exampleFitlogV2, parseFitlog } from "../app/interchange/fitlog";
 import { serializeBackup } from "../app/persistence/backup-tools";
-import { parseBackupReview as parseBackupReviewV105 } from "../../v105-gate/app/persistence/backup-tools";
+import { parseBackupReview as parseBackupReviewV105 } from "./fixtures/v105-settings-gate";
 import { validateSyncedState } from "../app/persistence/training-validation";
 import { workoutToText } from "../app/interchange/coach-export";
 import { trainingCsvRows } from "../app/interchange/training-csv";
