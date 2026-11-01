@@ -220,6 +220,8 @@ Use FITLOG version 2 only when prescribing planned activity segments. Existing W
 
 Every CARDIO or MOBILITY block must contain exactly one MODE line. Use MODE|summary when the activity has no SEGMENT lines. Use MODE|segments when it has one or more SEGMENT lines. These modes must match the contents. Summary DURATION and DISTANCE may accompany segments; if they disagree, the app shows both and does not overwrite either.
 
+Yoga is always post-session: use MODE|summary with DURATION and NOTES, never SEGMENT lines.
+
 Segment form: SEGMENT|kind|duration|distance. Kind is run, walk, rest or other. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. Counts on REPEAT stay bare positive integers.
 
 Repeat blocks cannot nest, but you may use more than one in sequence: REPEAT|N ... ENDREPEAT, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. The app expands each repeated segment with a shared group ID and iteration number. Use ASCII x for interval notation in prose. Every imported segment starts unknown; a prescription is never a completed result.
@@ -689,6 +691,7 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
   workout.importFingerprint = fitlogFingerprint(cleaned);
   if (workout.cardio.length !== specs.length) throw new Error("FITLOG version 2 activity modes do not match its CARDIO and MOBILITY blocks.");
   workout.cardio = workout.cardio.map((activity, index) => specs[index]?.mode === "segments" ? { ...activity, segments: specs[index].segments } : activity);
+  if (workout.cardio.some(activity => activity.activityType === "yoga" && (activity.segments?.length ?? 0) > 0)) throw new Error("Yoga is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines.");
   if (workout.cardio.reduce((sum, activity) => sum + (activity.segments?.length ?? 0), 0) > expansionLimit) throw new Error(`Expanded workouts are limited to ${expansionLimit} segments.`);
   validateSyncedState({ ...defaultState(), workouts: [workout] });
   return workout;

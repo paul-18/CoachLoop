@@ -730,14 +730,15 @@ function CardioEditor({
             const planText = [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ") || "Effort";
             return <div key={effort.id} className={`activity-effort ${effort.completed ? "is-done" : ""}`}>
               <span className="activity-effort-number">{index + 1}</span>
-              <span className="activity-effort-plan">{planText}{effort.completed ? " · Done" : ""}</span>
-              <Button type="button" variant="ghost" onClick={() => setExpandedEffortId(value => value === effort.id ? null : effort.id)} aria-expanded={expandedEffortId === effort.id}>Did different</Button>
-              <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${planText}`} onClick={() => {
-                const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
-                update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
-                if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
-                if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
-              }}>{effort.completed ? <><Check /> Done</> : `Done: ${planText}`}</Button>
+              <div className="activity-effort-actions">
+                <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${planText}`} onClick={() => {
+                  const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
+                  update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
+                  if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
+                  if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
+                }}>{effort.completed ? <><Check /> Done: {planText}</> : `Done: ${planText}`}</Button>
+                <Button type="button" variant="ghost" onClick={() => setExpandedEffortId(value => value === effort.id ? null : effort.id)} aria-expanded={expandedEffortId === effort.id}>Did different</Button>
+              </div>
               {expandedEffortId === effort.id && <div className="activity-effort-actuals">
                 <label className="field-label">Metres<DecimalInput min={0} max={1000000} value={effort.actualDistanceM} onValueChange={(actualDistanceM) => changeEffort({ actualDistanceM })} placeholder={effort.plannedDistanceM?.toString() ?? "—"} /></label>
                 <label className="field-label">Load <span className="text-white/60">{activity.effortLoadUnit ?? "lb"}</span><DecimalInput min={0} max={5000} value={effort.actualLoad} onValueChange={(actualLoad) => changeEffort({ actualLoad })} placeholder={effort.plannedLoad?.toString() ?? "—"} /></label>

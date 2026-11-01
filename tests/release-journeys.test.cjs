@@ -109,6 +109,14 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     button('Merge backup').click();
     await until(async () => (await storage.loadTrainingState()).workouts.length === 41, 'acknowledged restore applies');
     await until(() => button('Download full backup'), 'UI returns after acknowledged restore');
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v108.2' }));
+    await until(() => document.querySelector('[role="dialog"]'), 'dotted newer backup opens review');
+    assert.ok(document.querySelector('[role="dialog"]').textContent.includes('This backup was written by Coach Loop v108.2, newer than this release (v108). Some newer details may not appear here.'));
+    const dottedAcknowledgment = document.querySelector('[role="dialog"] [role="checkbox"]');
+    assert.ok(dottedAcknowledgment, 'dotted newer backup has an accessible acknowledgment control');
+    dottedAcknowledgment.click();
+    button('Cancel').click(); await until(() => !document.querySelector('[role="dialog"]'), 'dotted preview cancels');
+    assert.equal((await storage.loadTrainingState()).workouts.length, 41);
     const text = serializeBackup(backup);
     await upload(text);
     await until(() => button('Merge backup'), 'valid backup has review');
@@ -125,6 +133,7 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     await until(() => button('Download full backup') && !document.querySelector('[role="dialog"]'), 'duplicate merge completes');
     assert.equal((await storage.loadTrainingState()).workouts.length, 41, 'duplicate backup does not duplicate workouts');
     await upload(text);
+    await until(() => document.querySelector('select[aria-label="Restore method"]'), 'restore method select appears');
     const method = document.querySelector('select[aria-label="Restore method"]');
     method.value = 'replace'; method.dispatchEvent(new Event('change', { bubbles: true }));
     await until(() => button('Complete restore'), 'complete restore selected');
@@ -143,6 +152,7 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     assert.deepEqual(exported.bodyweightEntries, backup.bodyweightEntries); assert.equal(exported.workouts.length, 1);
     await upload(JSON.stringify({ ...backup, writtenByRelease: 'v109', goals: ['Future priority'] }));
     await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review for replace');
+    await until(() => document.querySelector('select[aria-label="Restore method"]'), 'restore method select appears for replace');
     const replaceMethod = document.querySelector('select[aria-label="Restore method"]');
     replaceMethod.value = 'replace'; replaceMethod.dispatchEvent(new Event('change', { bubbles: true }));
     await until(() => button('Complete restore'), 'complete restore selected for newer backup');

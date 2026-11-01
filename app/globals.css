@@ -541,12 +541,18 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .activity-instructions summary::-webkit-details-marker { display: none; }
 .activity-instructions p { margin-top: 8px; color: rgba(255,255,255,.62); }
 .activity-efforts { min-width: 0; display: grid; gap: 8px; }
-.activity-effort, .activity-effort-plan-row { display: grid; grid-template-columns: 24px repeat(3,minmax(0,1fr)) 44px; align-items: end; gap: 5px; min-width: 0; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
+.activity-effort-plan-row { display: grid; grid-template-columns: 24px repeat(3,minmax(0,1fr)) 44px; align-items: end; gap: 5px; min-width: 0; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
 .activity-effort.is-done { border-color: rgba(var(--theme-accent-rgb),.25); background: rgba(var(--theme-accent-rgb),.055); }
-.activity-effort-number, .activity-effort-plan-row > span { padding-bottom: 13px; text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
+/* v108 UI fixes: a display row is number + actions, not number + 3 inputs + check,
+   so it gets its own two-column layout. The plan lives only in the Done button. */
+.activity-effort { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 8px; align-items: center; min-width: 0; padding: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
+.activity-effort-number { text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
+.activity-effort-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.activity-effort-actuals { grid-column: 1 / -1; display: grid; gap: 8px; min-width: 0; }
+.activity-effort-plan-row > span { padding-bottom: 13px; text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
 .activity-effort .field-label, .activity-effort-plan-row .field-label { min-width: 0; font-size: .65rem; line-height: 1.2; white-space: nowrap; }
 .activity-effort input, .activity-effort-plan-row input { height: 44px; margin-top: 4px; padding-inline: 5px; text-align: center; font-size: 1rem; }
-.activity-effort-check { width: 44px; height: 44px; min-width: 44px !important; padding: 0; border-color: rgba(255,255,255,.56); }
+.activity-effort-check { flex: 1 1 180px; min-height: 44px; min-width: 0; padding-inline: 12px; border-color: rgba(255,255,255,.56); }
 .activity-effort.is-done .activity-effort-check { background: var(--lime); color: #11140d; }
 .activity-effort-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(255,255,255,.52); font-size: .8rem; }
 .activity-effort-plan { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px; color: rgba(255,255,255,.58); font-size: .8rem; }
@@ -559,8 +565,7 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .history-efforts span { color: rgba(255,255,255,.48); }.history-efforts strong { font-weight: 750; text-align: right; }
 @media (max-width: 380px) {
   .activity-basics { grid-template-columns: minmax(0,1fr); }
-  .activity-effort, .activity-effort-plan-row { grid-template-columns: 18px repeat(3,minmax(0,1fr)) 40px; gap: 3px; padding-inline: 4px; }
-  .activity-effort-check { width: 40px; min-width: 40px !important; }
+  .activity-effort-plan-row { grid-template-columns: 18px repeat(3,minmax(0,1fr)) 40px; gap: 3px; padding-inline: 4px; }
 }
 
 .exercise-title-line { display: flex; min-width: 0; align-items: center; gap: 8px; }
@@ -876,6 +881,37 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .segment-status { align-self:center; color:#b5b9ad; font-size:.72rem; }
 .segment-row-actions { display:flex; grid-column:1/-1; flex-wrap:wrap; gap:6px; }
 .activity-segment-group,.segment-repeat-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:8px 0; }
+
+/* v108 UI fixes: the stepper shipped without layout rules, so its rows rendered
+   as unstyled inline content (plan and intensity glued together, invisible dots,
+   colliding Show-all rows). These rules give every stepper row a real layout. */
+.activity-stepper { display:grid; gap:10px; min-width:0; }
+.stepper-progress { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+.stepper-position { font-weight:800; }
+.stepper-dots { display:flex; flex-wrap:wrap; gap:4px; }
+.stepper-dot { width:10px; height:10px; flex-shrink:0; border-radius:50%; background:rgba(255,255,255,.18); }
+.stepper-dot.is-done { background:var(--lime); }
+.stepper-dot.is-measured { background:#8ed1e8; }
+.stepper-dot.is-skipped { background:transparent; border:1px solid rgba(255,255,255,.35); }
+.stepper-dot.is-current { outline:2px solid rgba(255,255,255,.65); outline-offset:1px; }
+.activity-stepper-current { display:grid; gap:10px; min-width:0; padding:12px; border:1px solid #ffffff1a; border-radius:12px; background:#00000021; }
+.stepper-current-text { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.stepper-part-intensity { font-size:.8rem; line-height:1.4; color:rgba(255,255,255,.6); }
+.activity-stepper-list { display:grid; gap:10px; min-width:0; }
+.activity-stepper-part { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.activity-stepper-part.is-done { border-color:rgba(var(--theme-accent-rgb),.25); }
+.activity-stepper-part.is-measured { border-color:rgba(142,209,232,.35); }
+.activity-stepper-part.is-skipped { opacity:.75; }
+.stepper-part-text { display:flex; align-items:baseline; gap:8px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.stepper-part-index { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; border-radius:50%; background:rgba(255,255,255,.1); font-size:.75rem; font-weight:800; }
+.stepper-part-plan { flex:1 1 auto; min-width:0; font-weight:700; line-height:1.45; text-wrap:pretty; }
+.stepper-part-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
+.stepper-done { min-height:44px; }
+.activity-stepper-expanded { display:grid; gap:10px; min-width:0; }
+.stepper-plan-fields { display:grid; gap:8px; min-width:0; }
+.stepper-actual-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; }
+.stepper-plan-fields .field-label, .stepper-actual-fields .field-label { min-width:0; }
+.import-preview-lines li { text-wrap:pretty; }
 @media(max-width:640px) { .activity-segment-row { grid-template-columns:repeat(2,minmax(0,1fr)); } .segment-repeat-select { grid-column:1/-1; } .segment-status { grid-column:1/-1; } .segment-row-actions { grid-column:1/-1; } }
 .activity-segment-row input, .activity-segment-row select, .activity-segment-row button { min-height:44px; }
 .activity-segment-row .field-label input, .activity-segment-row .field-label select { min-width:0; }

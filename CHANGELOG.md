@@ -2,7 +2,16 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v108 — built, not submitted
+## v108 — phone layout fixes (follow-up build, same version stamp)
+
+- Stepper layout rules added (v108 shipped the stepper classes with no CSS, so phones fell back to browser defaults): current-part card with plan on its own line and intensity on its own quiet line, visible progress dots, Show-all rows that don't collide, 44px Done buttons kept.
+- Import preview: Category control full-width under the activity name, same position for every block, no truncation.
+- Effort rows: plan shown once per row; completing an effort keeps the same button in the same place with the checkmark added in place.
+- FITLOG v2 parser now rejects yoga blocks with SEGMENT lines ("Yoga is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines."); summary yoga unaffected; already-stored segmented yoga still renders rather than hiding data. Grappling, soccer, water polo unchanged.
+- Backup "newer release" comparison now understands dotted versions (v108.1, v108.2), so the warning fires correctly across patch releases.
+- See [v108 follow-up update notes](docs/releases/V108-FOLLOWUP-UPDATE-NOTES.md). Built from live main `8bfcdbb`.
+
+## v108 — interaction foundation
 
 - Interaction foundation (spec v2 §3): the segment table is replaced by a stepper — current card + "Part N of M" text + progress dots + Show all compact cards, labeled "Done: <plan>" actions, tap-part expansion for one part at a time, "Complete all remaining as prescribed" on the stepper, and Undo for every Done tap. "Edit detail" is deleted; Add part and Repeat pattern live in the Show-all footer.
 - Post-session cards for yoga, grappling, soccer, and water polo (duration + visible notes + labeled Done) when no segments exist; any activity WITH segments always shows the stepper. Mobility is a session card (moves read-only + duration + visible notes + labeled Done); pose cards are deferred to v109.
@@ -12,7 +21,7 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 - Optional ActivitySegment.label end-to-end (model, tap-part edit, cards, preview, coach export, History) with |/newline rejection in the UI. No FITLOG v3 parser in v108: labels come from UI edits only; v1/v2 parsers untouched.
 - Activity completion stays independent of parts completion: final part done does not complete the activity, all-skipped is not complete, adding a part to a completed activity reopens it. As-prescribed values stay labeled as prescribed, never presented as measured; modified-without-actual contributes nothing for the missing measure.
 - Compat: old backups import unchanged; v108 labeled backups import in v105 verbatim (its activity schema is passthrough and its loader spreads whole activities — labels preserved opaquely, not stripped; v105 has no segment UI). Release bumped to v108; release-gate tests updated for the new stamp.
-- See [v108 update notes](docs/releases/V108-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul submits when he approves.
+- See [v108 update notes](docs/releases/V108-UPDATE-NOTES.md). Published from main at `8bfcdbb` (release `6e64f64` + e2e fix); Pages run #63 passed and deployed.
 
 ## v107 — published
 

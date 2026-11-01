@@ -45,10 +45,10 @@ export function parseBackupReview(text: string): { state: TrainingState; notices
   } catch (error) { throw new Error(`Backup contains invalid data: ${error instanceof Error ? error.message.slice(0, 220) : "check its records"}`); }
 }
 function releaseNumber(value: string | null): number | null {
-  const match = value?.trim().match(/^v(\d+)$/i);
+  const match = value?.trim().match(/^v(\d+(?:\.\d+)*)$/i);
   if (!match) return null;
   const number = Number(match[1]);
-  return Number.isSafeInteger(number) ? number : null;
+  return Number.isFinite(number) ? number : null;
 }
 /** Deliberate recovery uses new IDs so existing tombstones still protect stale merges. */
 export function recoverDeleted(current: TrainingState, backup: TrainingState): TrainingState {

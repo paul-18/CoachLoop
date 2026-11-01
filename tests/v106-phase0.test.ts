@@ -55,6 +55,8 @@ test("newer backup warning uses numeric release order and exact blocking copy", 
   const future = { ...state, writtenByRelease: "v109" };
   const review = parseBackupReview(JSON.stringify(future));
   assert.equal(review.newerReleaseWarning, "This backup was written by Coach Loop v109, newer than this release (v108). Some newer details may not appear here.");
+  const dotted = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v108.2" }));
+  assert.equal(dotted.newerReleaseWarning, "This backup was written by Coach Loop v108.2, newer than this release (v108). Some newer details may not appear here.");
   const lower = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v99" }));
   assert.equal(lower.newerReleaseWarning, null, "release numbers compare numerically");
   assert.equal(parseBackupReview(JSON.stringify(state)).newerReleaseWarning, null, "an unknown release does not warn");

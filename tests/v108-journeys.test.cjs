@@ -292,7 +292,9 @@ test('v108: slim force rows show plan text, hide inputs until Did different, and
     await until(() => [...efforts.querySelectorAll('.activity-effort-actuals label')].some(l => l.textContent.trim().startsWith('Metres')), 'Did different reveals inputs for that effort only');
     assert.equal([...efforts.querySelectorAll('.activity-effort-actuals label')].filter(l => l.textContent.trim().startsWith('Metres')).length, 1, 'only one effort expanded');
     for (let i = 0; i < 6; i++) {
-      const done = [...efforts.querySelectorAll('button')].find(b => b.textContent.trim() === 'Done: 20 m · 60 sec · 90 lb');
+      // Completed efforts keep their plan text (with a checkmark), so the next
+      // uncompleted effort is found by its Complete aria-label, not by text.
+      const done = [...efforts.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.startsWith('Complete effort'));
       assert.ok(done, `effort ${i + 1} labeled Done`);
       done.click();
       await until(async () => (await storedActivity(storage)).efforts.filter(e => e.completed).length === i + 1, `effort ${i + 1} stored complete`);

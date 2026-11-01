@@ -114,3 +114,12 @@ test("repeated segment IDs and grouped iterations survive strict state validatio
   assert.equal(new Set(restored.workouts[0].cardio[0].segments?.map(segment => segment.id)).size, 12);
   assert.equal(new Set(restored.workouts[0].cardio[0].segments?.map(segment => segment.iteration)).size, 6);
 });
+
+test("FITLOG v2 rejects segmented yoga but still imports summary yoga and segmented grappling", () => {
+  assert.throws(() => parseFitlog(`[FITLOG:2]\nWORKOUT|Test|2026-01-15\nCARDIO|Yoga flow\nTYPE|yoga\nMODE|segments\nSEGMENT|other|5 min|\nSEGMENT|rest|1 min|\n[/FITLOG]`, "lb", {}), /Yoga is recorded after the session: use MODE\|summary with DURATION and NOTES, not SEGMENT lines\./);
+  const summaryYoga = parseFitlog(`[FITLOG:2]\nWORKOUT|Test|2026-01-15\nCARDIO|Yoga after Down Dog\nTYPE|yoga\nMODE|summary\nDURATION|30\nNOTES|Down Dog, restorative flow.\n[/FITLOG]`, "lb", {});
+  assert.equal(summaryYoga.cardio[0].activityType, "yoga");
+  assert.equal(summaryYoga.cardio[0].segments?.length ?? 0, 0);
+  const grappling = parseFitlog(`[FITLOG:2]\nWORKOUT|Test|2026-01-15\nCARDIO|BJJ class\nTYPE|grappling\nMODE|segments\nSEGMENT|other|5 min|\nSEGMENT|other|5 min|\n[/FITLOG]`, "lb", {});
+  assert.equal(grappling.cardio[0].segments?.length, 2);
+});
