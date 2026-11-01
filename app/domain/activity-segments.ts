@@ -60,11 +60,27 @@ export function segmentGroupProgress(segments: readonly ActivitySegment[]) {
 }
 
 export function resolveUnknownSegments(segments: readonly ActivitySegment[]): ActivitySegment[] {
-  return segments.map(segment => segment.status === "unknown" ? { ...segment, status: "completed" } : segment);
+  return segments.map(segment => {
+    if (segment.status !== "unknown") return segment;
+    const status = segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" as const : "completed" as const;
+    return { ...segment, status };
+  });
 }
 
 export function completeSegmentGroup(segments: readonly ActivitySegment[], groupId: string): ActivitySegment[] {
-  return segments.map(segment => segment.groupId === groupId && segment.status === "unknown" ? { ...segment, status: "completed" } : segment);
+  return segments.map(segment => {
+    if (segment.groupId !== groupId || segment.status !== "unknown") return segment;
+    const status = segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" as const : "completed" as const;
+    return { ...segment, status };
+  });
+}
+
+/** Repeating a pattern replaces the pattern rows with fresh copies, so a pattern row that already carries entered actuals or a confirmed state would lose that data. Refuse instead of destroying it. */
+export function repeatPatternError(pattern: readonly ActivitySegment[]): string | null {
+  if (pattern.some(segment => segment.status !== "unknown" || segment.actualDurationSec != null || segment.actualDistanceM != null)) {
+    return "Cannot repeat rows with entered results or confirmed states. Reset them to Not confirmed first.";
+  }
+  return null;
 }
 
 export function repeatedSegments(pattern: readonly ActivitySegment[], repetitions: number, groupId = uid("segment-group")): ActivitySegment[] {

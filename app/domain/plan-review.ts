@@ -1,4 +1,5 @@
 import { formatLoad, performedDistance, performedDuration, performedReps, performedWeight, formatMeasure } from "./training-metrics";
+import { segmentMeasure } from "./activity-segments";
 import { localDate, type WorkoutSession } from "./training-types";
 import { validMeasurementDate } from "./training-workflow";
 
@@ -32,13 +33,19 @@ export function planDifferences(workout: WorkoutSession): string[] {
     if (!activity.completed || activity.skipped) continue;
     const planned: string[] = [];
     const actual: string[] = [];
-    if (activity.plannedDurationMin !== null && performedDuration(activity) !== activity.plannedDurationMin) {
-      planned.push(`${activity.plannedDurationMin} min`);
-      actual.push(performedDuration(activity) === null ? "— min" : `${formatMeasure(performedDuration(activity)!)} min`);
+    const segmentPlannedDurationMin = activity.segments?.length ? (() => { const total = activity.segments.reduce((sum, segment) => sum + (segment.plannedDurationSec ?? 0), 0); return total > 0 ? total / 60 : null; })() : null;
+    const segmentPlannedDistanceKm = activity.segments?.length ? (() => { const total = activity.segments.reduce((sum, segment) => sum + (segment.plannedDistanceM ?? 0), 0); return total > 0 ? total / 1000 : null; })() : null;
+    const plannedDurationMin = activity.plannedDurationMin ?? segmentPlannedDurationMin;
+    const plannedDistanceKm = activity.plannedDistanceKm ?? segmentPlannedDistanceKm;
+    const durationIncomplete = activity.segments?.length ? (() => { const measure = segmentMeasure(activity, "duration"); return measure !== null && measure.done > 0 && !measure.fullyRecorded; })() : false;
+    const distanceIncomplete = activity.segments?.length ? (() => { const measure = segmentMeasure(activity, "distance"); return measure !== null && measure.done > 0 && !measure.fullyRecorded; })() : false;
+    if (plannedDurationMin !== null && performedDuration(activity) !== plannedDurationMin) {
+      planned.push(`${plannedDurationMin} min`);
+      actual.push(performedDuration(activity) === null ? (durationIncomplete ? "Not fully recorded" : "— min") : `${formatMeasure(performedDuration(activity)!)} min`);
     }
-    if (activity.plannedDistanceKm !== null && (performedDistance(activity) === null || Math.abs(performedDistance(activity)! - activity.plannedDistanceKm) > 0.0001)) {
-      planned.push(`${activity.plannedDistanceKm} km`);
-      actual.push(performedDistance(activity) === null ? "— km" : `${formatMeasure(performedDistance(activity)!)} km`);
+    if (plannedDistanceKm !== null && (performedDistance(activity) === null || Math.abs(performedDistance(activity)! - plannedDistanceKm) > 0.0001)) {
+      planned.push(`${plannedDistanceKm} km`);
+      actual.push(performedDistance(activity) === null ? (distanceIncomplete ? "Not fully recorded" : "— km") : `${formatMeasure(performedDistance(activity)!)} km`);
     }
     if (planned.length) changes.push(`${activity.name}: ${planned.join(" · ")} → ${actual.join(" · ")}`);
   }

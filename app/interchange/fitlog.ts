@@ -222,7 +222,7 @@ Every CARDIO or MOBILITY block must contain exactly one MODE line. Use MODE|summ
 
 Segment form: SEGMENT|kind|duration|distance. Kind is run, walk, rest or other. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. Counts on REPEAT stay bare positive integers.
 
-Use one non-nested repeat block: REPEAT|N ... ENDREPEAT, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. The app expands each repeated segment with a shared group ID and iteration number. Use ASCII x for interval notation in prose. Every imported segment starts unknown; a prescription is never a completed result.
+Repeat blocks cannot nest, but you may use more than one in sequence: REPEAT|N ... ENDREPEAT, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. The app expands each repeated segment with a shared group ID and iteration number. Use ASCII x for interval notation in prose. Every imported segment starts unknown; a prescription is never a completed result.
 
 For mixed run/walk, include an explicit TYPE line, normally TYPE|run. Example: 6 x (4 min run + 1 min walk) + 10 min run = 40 minutes and 13 planned segments, all unknown:
 [FITLOG:2]
@@ -282,16 +282,30 @@ SET|10|${raise}|RPE 6
 REST|60
 NOTES|Light dumbbells, per hand. Change the load.
 MOBILITY|Easy mobility
-MOVE|Hip flexor stretch|30 sec/side
-MOVE|Doorway chest stretch|30 sec/side
+MOVE|Hip flexor stretch|2 x 30 sec
+MOVE|Doorway chest stretch|2 x 30 sec
 NOTES|Comfortable range only.
+[/FITLOG]`;
+}
+
+export function exampleFitlogV2() {
+  return `[FITLOG:2]
+WORKOUT|Run/walk intervals|2026-01-15
+CARDIO|Run/walk session
+TYPE|run
+MODE|segments
+REPEAT|6
+SEGMENT|run|4 min|
+SEGMENT|walk|1 min|
+ENDREPEAT
+SEGMENT|run|10 min|
 [/FITLOG]`;
 }
 
 export const parseFitlog = (source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession => {
   if (source.length > 250_000) throw new Error("This workout text is too large. Paste one workout at a time.");
-  const versions = [...normalizedFitlogText(source).matchAll(/\[FITLOG:([^\]]+)\]/gi)].map(match => match[1]);
-  if (versions.includes("2")) return parseFitlogV2(source, defaultUnit, aliases);
+  const firstVersion = normalizedFitlogText(source).match(/\[FITLOG:([^\]]+)\]/i)?.[1];
+  if (firstVersion === "2") return parseFitlogV2(source, defaultUnit, aliases);
   return parseFitlogV1(source, defaultUnit, aliases);
 };
 
@@ -570,7 +584,7 @@ function parseSegmentDuration(value: string, line: number): number | null {
   const text = value.trim();
   if (!text) return null;
   const clock = /^(\d+):([0-5]\d)$/.exec(text);
-  if (clock) return Number(clock[1]) * 60 + Number(clock[2]);
+  if (clock) { const seconds = Number(clock[1]) * 60 + Number(clock[2]); if (seconds > 86400) throw new Error(`Line ${line}: SEGMENT duration must be between 0 and 24 hours.`); return seconds; }
   const amount = /^(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds?|min|mins|minutes?)$/i.exec(text);
   if (!amount) throw new Error(`Line ${line}: SEGMENT duration requires seconds, minutes or M:SS (for example 30 sec or 4:30); bare numbers are not accepted.`);
   const number = Number(amount[1]);
@@ -589,7 +603,7 @@ function parseSegmentDistance(value: string, line: number): number | null {
   return distance;
 }
 
-type FitlogV2Activity = { mode: "summary" | "segments" | null; modeLine: number; explicitType: boolean; segments: ActivitySegment[] };
+type FitlogV2Activity = { mode: "summary" | "segments" | null; modeLine: number; line: number; explicitType: boolean; segments: ActivitySegment[] };
 type RepeatPattern = { count: number; line: number; pattern: ActivitySegment[] };
 
 function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession {
@@ -611,12 +625,14 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
     if (!line.text) continue;
     const fields = line.text.split("|").map(field => field.trim());
     const command = fields[0]?.toUpperCase();
-    if (repeat && command !== "SEGMENT" && command !== "ENDREPEAT") throw new Error(`Line ${line.number}: REPEAT may contain only SEGMENT lines before ENDREPEAT.`);
+    if (repeat && command !== "SEGMENT" && command !== "ENDREPEAT" && command !== "REPEAT") throw new Error(`Line ${line.number}: REPEAT may contain only SEGMENT lines before ENDREPEAT.`);
     if (command === "WORKOUT" || command === "EXERCISE") current = null;
     if (command === "CARDIO" || command === "MOBILITY") {
-      current = { mode: null, modeLine: line.number, explicitType: false, segments: [] };
+      current = { mode: null, modeLine: line.number, line: line.number, explicitType: false, segments: [] };
       specs.push(current);
     } else if (command === "TYPE" && current) {
+      const type = (fields[1] ?? "").toLowerCase().replace(/[ -]/g, "_");
+      if (!["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"].includes(type)) throw new Error(`Line ${line.number}: TYPE: choose a supported activity such as run, water_polo, circuit, or ruck`);
       current.explicitType = true;
     } else if (command === "MODE") {
       if (!current) throw new Error(`Line ${line.number}: MODE must follow a CARDIO or MOBILITY line.`);
@@ -637,10 +653,10 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
       };
       if (repeat) repeat.pattern.push(segment);
       else current.segments.push(segment);
-      if (specs.reduce((sum, spec) => sum + spec.segments.length, 0) + (repeat?.pattern.length ?? 0) > expansionLimit) throw new Error(`Line ${line.number}: expanded workouts are limited to ${expansionLimit} segments.`);
+      if (specs.reduce((sum, spec) => sum + spec.segments.length, 0) + (repeat ? repeat.pattern.length * repeat.count : 0) > expansionLimit) throw new Error(`Line ${line.number}: expanded workouts are limited to ${expansionLimit} segments.`);
     } else if (command === "REPEAT") {
-      if (!current || current.mode !== "segments") throw new Error(`Line ${line.number}: REPEAT requires an activity with MODE|segments.`);
       if (repeat) throw new Error(`Line ${line.number}: repeat blocks cannot be nested.`);
+      if (!current || current.mode === "summary") throw new Error(`Line ${line.number}: REPEAT requires an activity with MODE|segments.`);
       if (fields.length !== 2 || !/^\d+$/.test(fields[1] ?? "")) throw new Error(`Line ${line.number}: REPEAT count must be a bare whole number from 2 to 50.`);
       const count = Number(fields[1]);
       if (count < 2 || count > 50) throw new Error(`Line ${line.number}: REPEAT count must be from 2 to 50.`);
@@ -662,14 +678,15 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
     if (spec.mode === "summary" && spec.segments.length) throw new Error(`Line ${spec.modeLine}: MODE|summary cannot contain SEGMENT lines.`);
     if (spec.mode === "segments" && !spec.segments.length) throw new Error(`Line ${spec.modeLine}: MODE|segments requires at least one SEGMENT line.`);
     const kinds = new Set(spec.segments.map(segment => segment.kind));
-    if (kinds.has("run") && kinds.has("walk") && !spec.explicitType) throw new Error(`Line ${spec.modeLine}: mixed run/walk sessions require an explicit TYPE line, normally TYPE|run.`);
+    if (kinds.has("run") && kinds.has("walk") && !spec.explicitType) throw new Error(`Line ${spec.line}: mixed run/walk sessions require an explicit TYPE line, normally TYPE|run.`);
   }
 
   const bodyStart = block.index! + "[FITLOG:2]".length;
   const bodyEnd = bodyStart + block[1].length;
-  const v1Body = rawLines.map(line => /^(?:MODE|SEGMENT|REPEAT|ENDREPEAT)\|?/i.test(line.text) ? "" : line.raw).join("\n");
+  const v1Body = rawLines.map(line => /^(?:(?:MODE|SEGMENT|REPEAT)\||ENDREPEAT$)/i.test(line.text) ? "" : line.raw).join("\n");
   const v1Source = `${cleaned.slice(0, bodyStart).replace(/\[FITLOG:2\]/i, "[FITLOG:1]")}${v1Body}${cleaned.slice(bodyEnd)}`;
   const workout = parseFitlogV1(v1Source, defaultUnit, aliases);
+  workout.importFingerprint = fitlogFingerprint(cleaned);
   if (workout.cardio.length !== specs.length) throw new Error("FITLOG version 2 activity modes do not match its CARDIO and MOBILITY blocks.");
   workout.cardio = workout.cardio.map((activity, index) => specs[index]?.mode === "segments" ? { ...activity, segments: specs[index].segments } : activity);
   if (workout.cardio.reduce((sum, activity) => sum + (activity.segments?.length ?? 0), 0) > expansionLimit) throw new Error(`Expanded workouts are limited to ${expansionLimit} segments.`);

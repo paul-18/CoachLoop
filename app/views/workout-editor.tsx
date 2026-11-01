@@ -36,7 +36,7 @@ import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from 
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
-import { canCompleteAsPrescribed, completeActivity, completeSegmentGroup, repeatedSegments, segmentCountLabel, segmentCounts, segmentGroupProgress } from "../domain/activity-segments";
+import { canCompleteAsPrescribed, completeActivity, completeSegmentGroup, repeatedSegments, repeatPatternError, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentMismatch } from "../domain/activity-segments";
 
 function compactSetSummary(sets: TrainingSet[]) {
   const groups: Array<{ load: string; reps: string[] }> = [];
@@ -512,13 +512,18 @@ function ActivitySegmentEditor({ activity, onChange, initiallyOpen = false }: { 
   const [repeatCount, setRepeatCount] = useState("6");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const segments = activity.segments ?? [];
+  const segmentsRef = useRef(segments);
+  segmentsRef.current = segments;
   const groups = [...new Set(segments.flatMap(segment => segment.groupId ? [segment.groupId] : []))];
   const update = (next: ActivitySegment[]) => onChange(next);
   const updateOne = (id: string, change: Partial<ActivitySegment>) => update(segments.map(segment => segment.id === id ? { ...segment, ...change } : segment));
-  const add = () => update([...segments, { id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : "run", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
+  const add = () => update([...segments, { id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : activity.activityType === "run" ? "run" : "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
   const repeat = () => {
     try {
-      const copies = repeatedSegments(segments.filter(segment => selectedIds.includes(segment.id)), Number(repeatCount));
+      const pattern = segments.filter(segment => selectedIds.includes(segment.id));
+      const guard = repeatPatternError(pattern);
+      if (guard) { toast.error(guard); return; }
+      const copies = repeatedSegments(pattern, Number(repeatCount));
       update([...segments.filter(segment => !selectedIds.includes(segment.id)), ...copies]); setSelectedIds([]);
     } catch (error) { toast.error(error instanceof Error ? error.message : "Repeat could not be added"); }
   };
@@ -535,10 +540,10 @@ function ActivitySegmentEditor({ activity, onChange, initiallyOpen = false }: { 
         <label className="field-label">Actual m<DecimalInput min={0} max={1000000} value={segment.actualDistanceM ?? null} onValueChange={actualDistanceM => updateOne(segment.id, { actualDistanceM, status: "unknown" })} /></label>
         <span className="segment-status">{segment.status === "unknown" ? "Not confirmed" : segment.status === "modified" ? "Measured" : segment.status === "skipped" ? "Skipped" : "As prescribed"}</span>
         <div className="segment-row-actions">
-          <Button type="button" variant="outline" onClick={() => updateOne(segment.id, { status: segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" : "completed" })}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : "Complete as prescribed"}</Button>
+          <Button type="button" variant="outline" onClick={() => updateOne(segment.id, { status: segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" : "completed" })}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : segment.plannedDurationSec != null || segment.plannedDistanceM != null ? "Complete as prescribed" : "Mark complete"}</Button>
           <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "skipped" })}>Skip</Button>
           {segment.status !== "unknown" && <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "unknown" })}>Undo confirmation</Button>}
-          <Button type="button" variant="ghost" aria-label={`Remove segment ${index + 1}`} onClick={() => { update(segments.filter(item => item.id !== segment.id)); setSelectedIds(current => current.filter(value => value !== segment.id)); }}><Trash2 /></Button>
+          <Button type="button" variant="ghost" aria-label={`Remove segment ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); setSelectedIds(current => current.filter(value => value !== segment.id)); toast(`Segment ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const current = segmentsRef.current; const next = [...current]; next.splice(Math.min(at, current.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
         </div>
       </div>)}
       {groups.map(groupId => {
@@ -633,7 +638,7 @@ function CardioEditor({
           {activity.activityType === "ruck" && style === "single" && <label className="field-label">Pack load <span className="text-white/60">{activity.ruckLoadUnit}</span><DecimalInput min={0} max={1000} value={activity.ruckLoad} onValueChange={(ruckLoad) => update({ ruckLoad }, true)} placeholder="—" className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
         </div>}
         {unusualActivityWarning(activity) && <p role="status" className="activity-warning">{unusualActivityWarning(activity)}</p>}
-        <ActivitySegmentEditor activity={activity} onChange={segments => update({ segments }, true)} initiallyOpen={initiallyOpen} />
+        {style !== "efforts" && <ActivitySegmentEditor activity={activity} onChange={segments => update({ segments }, true)} initiallyOpen={initiallyOpen} />}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
             const changeEffort = (changes: Partial<typeof effort>) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, ...changes } : item), completed: false }, true);
@@ -1045,6 +1050,7 @@ export function WorkoutEditor({
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
               {unusual && <p role="status" className="activity-warning">{unusual}</p>}
+              {reviewWorkout.cardio.flatMap(activity => { const mismatch = segmentMismatch(activity); return mismatch ? [{ activity, mismatch }] : []; }).map(({ activity, mismatch }) => <p key={activity.id} role="note" className="activity-warning">{activity.name}: {mismatch.message}</p>)}
               <div className="finish-review">
                 {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
                 <WorkoutVolume workout={reviewWorkout} unit={state.settings.defaultUnit} />

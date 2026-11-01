@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { displayedDistance } from "../app/domain/completion";
 import { strengthRecords } from "../app/domain/training-metrics";
-import { defaultState, makeSet, makeWorkout, QUICK_LOG_OPTIONS } from "../app/domain/training-types";
+import { defaultState, makeSet, makeWorkout, QUICK_LOG_OPTIONS, DEFAULT_QUICK_LOG_ACTIVITIES } from "../app/domain/training-types";
 import { storedStateBoundary } from "../app/persistence/training-validation";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -42,7 +42,7 @@ test("a new log only offers run, bike, circuit and yoga", () => {
     assert.doesNotMatch(markup, />Ruck</);
   }
   assert.ok(QUICK_LOG_OPTIONS.some(option => option.type === "swim"));
-  assert.ok(defaultState().settings.quickLogActivities?.includes("water_polo"));
+  assert.ok((defaultState().settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES).includes("water_polo"));
 });
 
 test("the example bike stays closed until it is logged", () => {

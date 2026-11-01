@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { buildCoachPrompt } from "../interchange/coach-export";
 
 import { type SyncStatus } from "../persistence/cloud-sync";
-import { exampleFitlog, parseFitlog } from "../interchange/fitlog";
+import { exampleFitlog, exampleFitlogV2, parseFitlog } from "../interchange/fitlog";
 
 import { formatLoad, formatMeasure } from "../domain/training-metrics";
 import { pendingRetests } from "../domain/benchmarks";
@@ -137,7 +137,7 @@ export function ImportWorkoutDialog({
             Bring a workout in
           </DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Paste your AI’s reply. FITLOG is the block between [FITLOG:1] and [/FITLOG]. Only that block is read, and it is listed before anything is saved.
+            Paste your AI’s reply. FITLOG is the block between [FITLOG:1] or [FITLOG:2] and [/FITLOG]. Version 2 adds planned activity segments (MODE, SEGMENT, REPEAT). Only that block is read, and it is listed before anything is saved.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,6 +185,25 @@ export function ImportWorkoutDialog({
                   Load a safe example
                 </button>
                 <p className="mt-1 text-sm leading-6 text-white/60">Puts that plan in the box and lists it for review. Change it if it does not fit you. It is not saved until you start or save it.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = exampleFitlogV2();
+                    keepPreview.current = true;
+                    onTextChange(sample);
+                    setWarningsReviewed(false);
+                    try {
+                      setPreview(parseFitlog(sample, state.settings.defaultUnit, state.exerciseAliases));
+                      setError("");
+                    } catch (cause) {
+                      setPreview(null);
+                      setError(cause instanceof Error ? cause.message : "This workout could not be read.");
+                    }
+                  }}
+                  className="mt-3 min-h-11 text-left text-sm font-semibold text-[var(--lime)]"
+                >
+                  Load a segments example
+                </button>
               </div>
             </>
           ) : (
@@ -244,6 +263,7 @@ export function ImportWorkoutDialog({
                     {block.activity.ruckLoad !== null ? ` · Pack load ${block.activity.ruckLoad} ${block.activity.ruckLoadUnit}` : ""}
                     {(block.activity.effortRestSec ?? 0) > 0 ? ` · Effort rest ${block.activity.effortRestSec}s` : ""}
                   </p>
+                  {block.activity.segments?.length ? <p className="mt-1 text-sm text-white/60">{block.activity.segments.length} planned segments{(() => { const total = block.activity.segments.reduce((sum, segment) => sum + (segment.plannedDurationSec ?? 0), 0); return total > 0 ? ` · ${formatMeasure(total / 60)} min planned` : ""; })()}</p> : null}
                   {block.activity.intervals && <RunPlan text={block.activity.intervals} />}
                   {!!block.activity.efforts?.length && <ol className="mt-3 space-y-2 text-sm text-white/75">{block.activity.efforts.map((e, index) => <li key={e.id}>{index + 1}. {[e.plannedDistanceM !== null ? `${e.plannedDistanceM} m` : "", e.plannedDurationSec !== null ? `${e.plannedDurationSec} sec` : "", e.plannedLoad !== null ? `${e.plannedLoad} ${block.activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ")}</li>)}</ol>}
                   {block.activity.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{block.activity.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}

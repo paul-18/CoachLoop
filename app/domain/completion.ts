@@ -208,7 +208,11 @@ export function exerciseSetProgress(sets: Array<{ completed: boolean; skipped?: 
 /** History badge. An explicit skip stays Skipped; a missing flag stays unfinished, not skipped. */
 export function activityHistoryLabel(activity: CardioEntry): string {
   if (activity.skipped) return "Skipped";
-  if (activity.segments?.length) return `${segmentCounts(activity.segments).done} of ${activity.segments.length} parts done`;
+  if (activity.segments?.length) {
+    const counts = segmentCounts(activity.segments);
+    if (activity.completed && counts.unknown === 0 && counts.skipped === 0) return activity.completedAsPlanned ? "As prescribed" : "Completed";
+    return `${counts.done} of ${activity.segments.length} parts done`;
+  }
   if (activity.completed) return activity.completedAsPlanned ? "As prescribed" : "Completed";
   if (hasCompletedActivityWork(activity)) return "Partly completed";
   return "Not completed";
@@ -262,7 +266,7 @@ export function markTypedActivitiesComplete(workout: WorkoutSession, ids: readon
       if (!chosen.has(activity.id) || activity.skipped) return activity;
       if (activity.segments?.length) {
         const segments = activity.segments.map(segment => segment.status === "unknown" && segmentHasTypedActual(segment) ? { ...segment, status: "modified" as const } : segment);
-        return { ...activity, segments, completed: true, completedAsPlanned: false };
+        return { ...activity, segments, completed: segments.every(segment => segment.status !== "unknown"), completedAsPlanned: false };
       }
       if (activity.efforts?.length) {
         const efforts = activity.efforts.map((effort) => !effort.completed && effortHasTypedActual(effort) ? { ...effort, completed: true } : effort);

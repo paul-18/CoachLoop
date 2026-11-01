@@ -71,7 +71,7 @@ export function undoBlankStart(state: TrainingState): TrainingState {
   if (!blankStartReversible(state)) return state;
   const settings = { ...state.settings };
   delete settings.welcomeChoice;
-  if (settings.quickLogActivities?.join() === STARTER_QUICK_LOG_ACTIVITIES.join()) settings.quickLogActivities = [...DEFAULT_QUICK_LOG_ACTIVITIES];
+  if (settings.quickLogActivities?.join() === STARTER_QUICK_LOG_ACTIVITIES.join()) delete settings.quickLogActivities;
   return { ...state, settings, settingsUpdatedAt: new Date().toISOString() };
 }
 

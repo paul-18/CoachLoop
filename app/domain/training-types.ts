@@ -439,7 +439,6 @@ export const defaultState = (): TrainingState => ({
   scheduleContext: { events: [], phases: [] },
   settings: {
     bodyDiagram: "male",
-    quickLogActivities: [...DEFAULT_QUICK_LOG_ACTIVITIES],
     defaultUnit: "lb",
     defaultRestSec: 120,
     barWeightLb: 45,

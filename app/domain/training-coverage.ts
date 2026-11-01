@@ -129,12 +129,14 @@ export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, d
       if (!hasCompletedActivityWork(item)) return;
       const totals = item.activityType === "run" ? result.runs : item.activityType === "water_polo" ? result.waterPolo : item.activityType === "ruck" ? result.rucks : item.activityType === "circuit" ? result.circuits : null;
       if (!totals) return;
-      const runningDuration = item.activityType === "run" && item.segments?.length ? segmentMeasure(item, "duration", "run") : null;
-      const runningDistance = item.activityType === "run" && item.segments?.length ? segmentMeasure(item, "distance", "run") : null;
+      const segmentDuration = item.segments?.length ? segmentMeasure(item, "duration", item.activityType === "run" ? "run" : undefined) : null;
+      const segmentDistance = item.segments?.length ? segmentMeasure(item, "distance", item.activityType === "run" ? "run" : undefined) : null;
+      const runningDuration = item.activityType === "run" ? segmentDuration : null;
+      const runningDistance = item.activityType === "run" ? segmentDistance : null;
       const minutes = runningDuration ? runningDuration.value === null ? 0 : runningDuration.value / 60 : performedDuration(item) ?? 0;
       const distance = runningDistance ? runningDistance.value === null ? 0 : runningDistance.value / 1000 : performedDistance(item) ?? 0;
-      if (runningDuration && runningDuration.done && !runningDuration.fullyRecorded) totals.minutesIncomplete = true;
-      if (runningDistance && runningDistance.done && !runningDistance.fullyRecorded) totals.distanceIncomplete = true;
+      if (segmentDuration && segmentDuration.done && !segmentDuration.fullyRecorded) totals.minutesIncomplete = true;
+      if (segmentDistance && segmentDistance.done && !segmentDistance.fullyRecorded) totals.distanceIncomplete = true;
       totals.sessions += 1;
       totals.minutes += minutes;
       totals.distanceKm += distance;

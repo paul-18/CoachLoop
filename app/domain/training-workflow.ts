@@ -1,4 +1,5 @@
 import { makeExercise, makeSet, type WorkoutSession, type TrainingState, type TrainingSet, type Unit } from './training-types';
+import { segmentMeasure } from "./activity-segments";
 import { hasCompletedActivityWork } from "./completion";
 import { exerciseIdentity, performedDistance, performedDuration, convertWeight } from './training-metrics';
 
@@ -49,7 +50,13 @@ export function activityRows(state:TrainingState, type?:string, from='', to='999
     .sort((a,b)=>b.workout.date.localeCompare(a.workout.date));
 }
 export function activityTotals(rows:ReturnType<typeof activityRows>) {
-  return rows.reduce((sum, {activity:a}) => ({minutes:sum.minutes+(performedDuration(a)??0),distance:sum.distance+(performedDistance(a)??0),
-    ascent:sum.ascent+(a.elevationM??0),ruckKgKm:sum.ruckKgKm+(a.activityType==='ruck' && a.ruckLoad!==null ? convertWeight(a.ruckLoad,a.ruckLoadUnit,'kg')*(performedDistance(a)??0):0)}),{minutes:0,distance:0,ascent:0,ruckKgKm:0});
+  return rows.reduce((sum, {activity:a}) => {
+    const duration = a.segments?.length ? segmentMeasure(a, "duration") : null;
+    const distance = a.segments?.length ? segmentMeasure(a, "distance") : null;
+    return {minutes:sum.minutes+(performedDuration(a)??0),distance:sum.distance+(performedDistance(a)??0),
+      ascent:sum.ascent+(a.elevationM??0),ruckKgKm:sum.ruckKgKm+(a.activityType==='ruck' && a.ruckLoad!==null ? convertWeight(a.ruckLoad,a.ruckLoadUnit,'kg')*(performedDistance(a)??0):0),
+      minutesIncomplete: sum.minutesIncomplete || (duration !== null && duration.done > 0 && !duration.fullyRecorded),
+      distanceIncomplete: sum.distanceIncomplete || (distance !== null && distance.done > 0 && !distance.fullyRecorded)};
+  },{minutes:0,distance:0,ascent:0,ruckKgKm:0,minutesIncomplete:false,distanceIncomplete:false});
 }
 export const validMeasurementDate = (date:string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date+'T12:00:00Z')) && new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date;

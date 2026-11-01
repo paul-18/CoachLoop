@@ -5,14 +5,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { defaultState, makeWorkout } from "../app/domain/training-types";
 import { FirstSteps } from "../app/views/first-steps";
 import { addSamplePlan, blankStartReversible, blankStartState, exampleSetupState, undoBlankStart } from "../app/views/starter-plan";
-import { DEFAULT_QUICK_LOG_ACTIVITIES, STARTER_QUICK_LOG_ACTIVITIES } from "../app/domain/training-types";
+import { STARTER_QUICK_LOG_ACTIVITIES } from "../app/domain/training-types";
 
 test("a blank start can be undone before anything is added", () => {
   const blank = blankStartState(defaultState());
   assert.equal(blankStartReversible(blank), true);
   const back = undoBlankStart(blank);
   assert.equal(back.settings.welcomeChoice, undefined);
-  assert.deepEqual(back.settings.quickLogActivities, [...DEFAULT_QUICK_LOG_ACTIVITIES]);
+  assert.equal(back.settings.quickLogActivities, undefined);
   assert.equal(renderToStaticMarkup(createElement(FirstSteps, { state: back, view: "today", onStarter: () => {}, onBlank: () => {} })), renderToStaticMarkup(createElement(FirstSteps, { state: defaultState(), view: "today", onStarter: () => {}, onBlank: () => {} })));
   const used = blankStartState(defaultState());
   used.workouts = [makeWorkout("lb", 20)];

@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BodyCoverageMap } from "../app/views/body-coverage-map";
 import { QuickLogButtons } from "../app/views/quick-log-buttons";
-import { defaultState, localDate, makeCardio, makeWorkout } from "../app/domain/training-types";
+import { defaultState, localDate, makeCardio, makeWorkout, DEFAULT_QUICK_LOG_ACTIVITIES } from "../app/domain/training-types";
 import { parseFitlog } from "../app/interchange/fitlog";
 import { completedActivityValues } from "../app/domain/completion";
 import { activityLoggingStyle } from "../app/domain/activity-logging";
@@ -49,7 +49,7 @@ test("diagram and ordered shortcut choices survive backup restore, while old bac
   delete saved.settings.bodyDiagram; delete saved.settings.quickLogActivities;
   const legacy = prepareLoadedState(saved);
   assert.equal(legacy.settings.bodyDiagram, "male");
-  assert.ok(legacy.settings.quickLogActivities?.includes("water_polo"));
+  assert.ok((legacy.settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES).includes("water_polo"));
   assert.throws(() => prepareLoadedState({ ...state, settings: { ...state.settings, quickLogActivities: ["unsupported"] } }));
   assert.throws(() => prepareLoadedState({ ...state, settings: { ...state.settings, quickLogActivities: ["run", "run"] } }));
 });

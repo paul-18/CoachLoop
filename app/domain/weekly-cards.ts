@@ -24,9 +24,11 @@ export function weeklyCards(state: TrainingState) {
     const distance = special?.distanceKm ?? totals.distance;
     const dates = special?.dates ?? [...new Set(rows.map(row => row.workout.date))];
     const distanceTypes: WeeklyCard[] = ["run", "ruck", "swim", "bike", "row", "walk", "hike"];
-    const value = id === "run" && breakdown.runs.distanceIncomplete ? "Not fully recorded" : distanceTypes.includes(id) ? `${Number(distance.toFixed(2))} km` : id === "circuit" || id === "force" ? `${sessions}` : `${Math.round(minutes)} min`;
+    const flagDistance = special ? special.distanceIncomplete : totals.distanceIncomplete;
+    const flagMinutes = special ? special.minutesIncomplete : totals.minutesIncomplete;
+    const value = flagDistance && distanceTypes.includes(id) ? "Not fully recorded" : distanceTypes.includes(id) ? `${Number(distance.toFixed(2))} km` : id === "circuit" || id === "force" ? `${sessions}` : `${Math.round(minutes)} min`;
     const load = id === "ruck" && breakdown.rucks.loadDistance ? ` · ${Math.round(breakdown.rucks.loadDistance)} ${state.settings.defaultUnit}·km` : "";
-    const duration = id === "run" && breakdown.runs.minutesIncomplete ? " · running time not fully recorded" : distanceTypes.includes(id) || id === "circuit" || id === "force" ? ` · ${Math.round(minutes)} min` : "";
+    const duration = flagMinutes ? (id === "run" ? " · running time not fully recorded" : " · time not fully recorded") : distanceTypes.includes(id) || id === "circuit" || id === "force" ? ` · ${Math.round(minutes)} min` : "";
     const detail = `${sessions} session${sessions === 1 ? "" : "s"}${duration}${load}`;
     return { id, title, value, detail, dates, empty: sessions === 0 };
   });

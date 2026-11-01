@@ -13,6 +13,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 import { type CardioEntry, type ExerciseBlock, type WorkoutSession } from "../domain/training-types";
 
 import { performedDuration, performedDistance, hasCompletedActivityWork, unconfirmedActualActivities, formatMeasure, activityHistoryLabel, effortHasTypedActual } from "../domain/completion";
+import { segmentMeasure } from "../domain/activity-segments";
 import { normalizedBlockOrder } from "../domain/block-order";
 export type MainView = "today" | "history" | "coach" | "progress" | "settings";
 
@@ -158,10 +159,12 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
     pieces.push(`${usedExercises.length} exercise${usedExercises.length === 1 ? "" : "s"}`);
   }
   if (sets) pieces.push(`${sets} completed set${sets === 1 ? "" : "s"}`);
-  if (duration) pieces.push(`${duration.toFixed(duration % 1 ? 1 : 0)} cardio min`);
-  if (distance) pieces.push(`${distance.toFixed(distance % 1 ? 2 : 0)} km`);
+  const durationIncomplete = activities.some(activity => { const measure = activity.segments?.length ? segmentMeasure(activity, "duration") : null; return measure !== null && measure.done > 0 && !measure.fullyRecorded; });
+  const distanceIncomplete = activities.some(activity => { const measure = activity.segments?.length ? segmentMeasure(activity, "distance") : null; return measure !== null && measure.done > 0 && !measure.fullyRecorded; });
+  if (duration) pieces.push(`${duration.toFixed(duration % 1 ? 1 : 0)} cardio min${durationIncomplete ? " · not fully recorded" : ""}`);
+  if (distance) pieces.push(`${distance.toFixed(distance % 1 ? 2 : 0)} km${distanceIncomplete ? " · not fully recorded" : ""}`);
   if (activities.length && !duration && !distance) {
-    pieces.push(`${activities.length} activit${activities.length === 1 ? "y" : "ies"}`);
+    pieces.push(`${activities.length} activit${activities.length === 1 ? "y" : "ies"}${durationIncomplete || distanceIncomplete ? " · not fully recorded" : ""}`);
   }
   const pending = unconfirmedActualActivities(workout);
   if (pending.length) {

@@ -1,5 +1,5 @@
 import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, hasTrainingEvidence } from "../domain/completion";
-import { formatSegmentMeasure, hasSegmentPrescription, segmentCountLabel, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
+import { formatSegmentMeasure, hasSegmentPrescription, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 import { hyroxExport } from "../domain/hyrox";
 import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER, FITLOG_V2_INSTRUCTIONS } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
@@ -103,15 +103,38 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
         lines.push(`- Walking only: ${formatSegmentMeasure(segmentMeasure(activity, "duration", "walk"), "duration")} · ${formatSegmentMeasure(segmentMeasure(activity, "distance", "walk"), "distance")}`);
         if (activity.effort) lines.push(`- RPE: ${activity.effort}/10`);
       }
-      for (const segment of activity.segments) {
+      const segmentLine = (segment: NonNullable<typeof activity.segments>[number]) => {
         const values = segment.status === "completed"
-          ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
-          : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""]
+          ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.kind !== "rest" && segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
+          : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.kind !== "rest" && segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""]
             : [];
-        lines.push(`- ${segment.kind.toUpperCase()} · ${segment.status.toUpperCase()}${values.filter(Boolean).length ? ` · ${values.filter(Boolean).join(" · ")}` : ""}`);
+        return `- ${segment.kind.toUpperCase()} · ${segment.status.toUpperCase()}${values.filter(Boolean).length ? ` · ${values.filter(Boolean).join(" · ")}` : ""}`;
+      };
+      const segmentGroups = new Map<string, NonNullable<typeof activity.segments>>();
+      for (const segment of activity.segments) {
+        const key = segment.groupId ?? segment.id;
+        segmentGroups.set(key, [...(segmentGroups.get(key) ?? []), segment]);
+      }
+      for (const parts of segmentGroups.values()) {
+        if (parts[0]?.groupId) {
+          const progress = segmentGroupProgress(parts);
+          lines.push(`- Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} rounds done · ${progress.done} of ${progress.total} parts`);
+        }
+        for (const segment of parts) lines.push(segmentLine(segment));
       }
       const mismatch = segmentMismatch(activity);
       if (mismatch) lines.push(`- Warning: ${mismatch.message}`);
+      if (activityDone) {
+        if (activity.intensity) lines.push(`- Target intensity (not reported effort): ${activity.intensity}`);
+        if (activity.pace) lines.push(`- Pace: ${activity.pace}`);
+        if (activity.averageHr !== null) lines.push(`- Average HR: ${activity.averageHr} bpm`);
+        if (activity.elevationM !== null) lines.push(`- Elevation: ${activity.elevationM} m`);
+        if (activity.activityType === "ruck" && activity.ruckLoad !== null) lines.push(`- Ruck load: ${activity.ruckLoad} ${activity.ruckLoadUnit}`);
+        if (activity.mobilityMoves?.length) lines.push(`- Movements: ${activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` ${move.prescription}` : ""}`).join("; ")}`);
+        if (activity.intervals) lines.push(`- Intervals: ${activity.intervals}`);
+        if (activity.activityType !== "run" && activity.effort) lines.push(`- RPE: ${activity.effort}/10`);
+        if (activity.notes) lines.push(`- Notes: ${activity.notes}`);
+      }
     }
     if (activity.completed && activity.efforts?.length) lines.push(`- Efforts: ${activity.efforts.map((effort) => effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "done" : "not completed").join("; ")}`);
     if (!activity.completed && !activity.segments?.length && activity.efforts?.length) {
