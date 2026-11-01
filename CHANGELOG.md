@@ -2,12 +2,13 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v105 — prepared candidate
+## v105 — published
 
 - Finish review edits now stay on the candidate workout, and choosing to mark typed activity results complete does not alter the draft until Save. Cancelling the review discards that candidate cleanly.
 - The unfinished-work detail list now uses the same open-activity rule as its count. A DOM regression covers cancel/retry, session effort and notes retention, and a 10 km / 19 min warning requiring explicit confirmation.
 - Saved-workout toast and Progress empty-state wording now match the action and control labels.
 - Release records document the v104 upload recovery and the v104 second-review data-loss finding and correction.
+- Published from `main` at `b8f169139f09e412872f65e70126197382c2c9ac`; GitHub Pages workflow run #56 passed and deployed.
 
 ## v104 — published
 

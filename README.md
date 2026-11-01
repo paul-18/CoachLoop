@@ -311,9 +311,9 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-The latest published release is **v104** (`main` commit `6fb1537a0c9e575b09c2b07b08937afe52d510d1`). Its release gate passed and it is live on GitHub Pages. See [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 QC](docs/releases/V104-QC.md).
+The latest published release is **v105** (`main` commit `b8f169139f09e412872f65e70126197382c2c9ac`). Its release gate passed and it is live on GitHub Pages. See [v105 notes](docs/releases/V105-UPDATE-NOTES.md) and [v105 QC](docs/releases/V105-QC.md). The previous [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 QC](docs/releases/V104-QC.md) remain in the archive.
 
-The prepared **v105 candidate** fixes note and effort retention in the second finish review, keeps completion changes provisional until Save, aligns unfinished-activity count and detail, and updates two UI messages. See [v105 notes](docs/releases/V105-UPDATE-NOTES.md) and [v105 QC](docs/releases/V105-QC.md).
+v105 fixes note and effort retention in the second finish review, keeps completion changes provisional until Save, aligns unfinished-activity count and detail, and updates two UI messages.
 
 v102 warns before saving an impossible distance and duration, aligns History counts with the workout header, and shows a skipped activity as Skipped. The first saved-workout note also appears on History. First-run choices are Explore a sample log, Preview one workout, and Set up my log. Not now dismisses the coaching prompt without marking the profile done. See [v102 notes](docs/releases/V102-UPDATE-NOTES.md) and [v102 checks](docs/releases/V102-QC.md).
 
