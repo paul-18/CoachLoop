@@ -28,7 +28,7 @@ test("WebKit iPhone viewport keeps the bottom tabs usable through repeated navig
 
   await page.getByRole("button", { name: "Start blank", exact: true }).click();
   await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Add parts" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add intervals" })).toBeVisible();
 
   expect(pageErrors).toEqual([]);
 });
