@@ -19,7 +19,7 @@ test("new FITLOG prescriptions and rejected format versions cannot rewrite saved
   const next = parseFitlog(original.replace("185 lb", "225 lb").replace("2026-10-01", "2026-10-02"), "lb", {});
   assert.equal(next.exercises[0].sets[0].plannedWeight, 225);
   assert.equal(JSON.stringify(state), serialized);
-  assert.throws(() => parseFitlog(original.replace("FITLOG:1", "FITLOG:3"), "lb", {}), /version 1/);
+  assert.throws(() => parseFitlog(original.replace("FITLOG:1", "FITLOG:9"), "lb", {}), /version 1/);
   const loaded = prepareLoadedState(JSON.parse(serialized));
   const restored = mergeRestoredState(defaultState(), loaded);
   for (const snapshot of [loaded, restored]) {

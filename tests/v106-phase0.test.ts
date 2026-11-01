@@ -10,7 +10,7 @@ import { workoutProgressCopy } from "../app/domain/completion";
 import { finishWorkoutState } from "../app/domain/workout-transitions";
 import { DEFAULT_COACH_PROFILE, workoutToText } from "../app/interchange/coach-export";
 import { exportCompletedHistory } from "../app/interchange/history-export";
-import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "../app/interchange/fitlog";
+import { FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER } from "../app/interchange/fitlog";
 import { trainingCsvRows } from "../app/interchange/training-csv";
 import { defaultState, makeCardio, makeWorkout, type ActivityEffort, type MobilityMove } from "../app/domain/training-types";
 import { HistoryView } from "../app/views/history-view";
@@ -19,7 +19,7 @@ import { prepareLoadedState } from "../app/persistence/migrations";
 import { validateSyncedState } from "../app/persistence/training-validation";
 
 test("release is v107; nested move and effort data survives current validation", () => {
-  assert.equal(APP_RELEASE, "v109");
+  assert.equal(APP_RELEASE, "v110");
   const state = defaultState();
   const workout = makeWorkout("lb", 90);
   const run = makeCardio("run");
@@ -46,17 +46,17 @@ test("v105 stamp-free backup imports unchanged; v107 backup stamps and round-tri
 
   const currentState = prepareLoadedState(original);
   const exported = serializeBackup(currentState);
-  assert.equal(JSON.parse(exported).writtenByRelease, "v109");
+  assert.equal(JSON.parse(exported).writtenByRelease, "v110");
   assert.deepEqual(parseBackupReview(exported).state, currentState);
 });
 
 test("newer backup warning uses numeric release order and exact blocking copy", () => {
   const state = defaultState();
-  const future = { ...state, writtenByRelease: "v110" };
+  const future = { ...state, writtenByRelease: "v111" };
   const review = parseBackupReview(JSON.stringify(future));
-  assert.equal(review.newerReleaseWarning, "This backup was written by Coach Loop v110, newer than this release (v109). Some newer details may not appear here.");
-  const dotted = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v109.2" }));
-  assert.equal(dotted.newerReleaseWarning, "This backup was written by Coach Loop v109.2, newer than this release (v109). Some newer details may not appear here.");
+  assert.equal(review.newerReleaseWarning, "This backup was written by Coach Loop v111, newer than this release (v110). Some newer details may not appear here.");
+  const dotted = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v110.2" }));
+  assert.equal(dotted.newerReleaseWarning, "This backup was written by Coach Loop v110.2, newer than this release (v110). Some newer details may not appear here.");
   const lower = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v99" }));
   assert.equal(lower.newerReleaseWarning, null, "release numbers compare numerically");
   assert.equal(parseBackupReview(JSON.stringify(state)).newerReleaseWarning, null, "an unknown release does not warn");
@@ -97,12 +97,12 @@ test("legacy skipped plus completed cardio contributes no training or export evi
 });
 
 test("AI guidance uses the single v1 interval and mobility formats", () => {
-  for (const guidance of [FITLOG_INSTRUCTIONS, FITLOG_REMINDER, DEFAULT_COACH_PROFILE]) {
+  for (const guidance of [FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER, DEFAULT_COACH_PROFILE]) {
     assert.match(guidance, /mixed run\/walk[\s\S]*TYPE\|run/i);
     assert.match(guidance, /6 x \(3 min run \/ 1 min walk\)/);
     assert.match(guidance, /MOVE\|name\|prescription/);
     assert.match(guidance, /N x \.\.\.\/side or N x \.\.\. sec/);
   }
-  assert.doesNotMatch(FITLOG_INSTRUCTIONS, /INTERVALS\|[^\n]*×/);
-  assert.doesNotMatch(FITLOG_REMINDER, /INTERVALS\|[^\n]*×/);
+  assert.doesNotMatch(FITLOG_V3_INSTRUCTIONS, /INTERVALS\|[^\n]*×/);
+  assert.doesNotMatch(FITLOG_V3_REMINDER, /INTERVALS\|[^\n]*×/);
 });

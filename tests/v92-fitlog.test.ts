@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER, parseFitlog } from "../app/interchange/fitlog";
+import { FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER, parseFitlog } from "../app/interchange/fitlog";
 import { buildCoachPrompt } from "../app/interchange/coach-export";
 import { defaultState, type CoachOptions } from "../app/domain/training-types";
 
@@ -50,7 +50,7 @@ test("both brief modes and copied format carry output and unilateral rules; emph
     assert.match(prompt, /positive whole number or increasing range/);
     assert.match(prompt, /Enter actual reps per side when logging/);
   }
-  for (const instructions of [FITLOG_INSTRUCTIONS, FITLOG_REMINDER]) assert.match(instructions, /entire corrected multiline block/);
+  for (const instructions of [FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER]) assert.match(instructions, /entire corrected multiline block/);
   assert.doesNotMatch(buildCoachPrompt(state, { ...options, emphasis: "  " }, "2026-10-05"), /ATHLETE NOTE/);
   assert.equal(JSON.stringify(state), before);
 });

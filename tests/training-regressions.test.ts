@@ -9,7 +9,7 @@ import { coverageForLastDays, targetForCoverage, activityBreakdownForLastDays, e
 import { coverageColor } from "../app/body-coverage-map";
 import { exportCompletedHistory } from "../app/history-export";
 import { buildCoachPrompt, buildQuickTrainingExtract, DEFAULT_COACH_PROFILE } from "../app/coach-export";
-import { FITLOG_INSTRUCTIONS } from "../app/fitlog";
+import { FITLOG_V3_INSTRUCTIONS } from "../app/fitlog";
 import { csvCell, neutralizeCsvCell } from "../app/csv-export";
 import { activityRows } from "../app/training-workflow";
 
@@ -91,7 +91,7 @@ test("quick chat copies include only completed sessions in the chosen local date
   const twoDays = buildQuickTrainingExtract(state, "two-days", "2026-09-27");
   assert.match(twoDays, /Yesterday lift[\s\S]*Clean reps[\s\S]*Today lift/);
   assert.doesNotMatch(twoDays, /Unfinished plan|GOALS|FITLOG/);
-  assert.match(FITLOG_INSTRUCTIONS, /\[FITLOG:1\]/);
+  assert.match(FITLOG_V3_INSTRUCTIONS, /\[FITLOG:3\]/);
 });
 
 test("completing gray prescriptions commits reps/load, including effort-only edits", () => {

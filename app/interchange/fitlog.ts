@@ -29,7 +29,7 @@ const exerciseKey = (name: string) => name
 
 /** Stable enough to warn about an exact accidental re-paste; it is not a security hash. */
 export const fitlogFingerprint = (source: string) => {
-  const match = normalizedFitlogText(source).match(/\[FITLOG:[12]\]([\s\S]*?)\[\/FITLOG\]/i);
+  const match = normalizedFitlogText(source).match(/\[FITLOG:[123]\]([\s\S]*?)\[\/FITLOG\]/i);
   const value = (match?.[0] ?? source).replace(/\s+/g, " ").trim().toLowerCase();
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -142,9 +142,9 @@ export const FITLOG_OUTPUT_RULES = [
   "Before responding, check that every line has exactly one command and its permitted fields. On a correction, return the entire corrected multiline block, not a claim that it was fixed.",
 ].join("\n");
 
-export const FITLOG_INSTRUCTIONS = `${FITLOG_OUTPUT_RULES}
+export const FITLOG_V3_INSTRUCTIONS = `${FITLOG_OUTPUT_RULES.replaceAll("FITLOG:1", "FITLOG:3")}
 
-Keep FITLOG version 1, field names and pipe separators. Blocks appear in performance order.
+Use FITLOG version 3 for every workout. Blocks appear in performance order. Version 3 keeps every version 1 field meaning and adds labeled activity segments.
 
 Common rules:
 - These are prescriptions, never completed results. Do not invent unspecified loads, distances, times, HR or elevation.
@@ -154,6 +154,20 @@ Common rules:
 - Give short technique cues in NOTES directly under their exercise/activity. They remain separate from the athlete's notes. Workout-level NOTES are not supported.
 - Keep warm-ups minimal and clearly lighter than working sets; mark them WARMUP. General warm-up can be handled independently.
 
+Don't-miss-fields checklist — check every block against this list before responding:
+- Every EXERCISE needs a name and at least one SET line. Every SET needs reps (a positive whole number or increasing range, numeric only), a load (explicit total, each, or added; Bodyweight; or blank if unspecified), and an RPE or RIR target or a blank effort column. Use one REST line per exercise; it applies to the whole block, not one set. Never prescribe conflicting REST values within a block; describe exceptions in NOTES.
+- The SET reps column must contain ONLY a positive whole number or increasing range, such as 10 or 8-10. Never include "each side", "/side", seconds, units or other text in that column. Invalid example (do not output): SET|10 each side|10 lb total|RPE 7.
+- For unilateral work, use numeric reps per side and put the side instruction in NOTES:
+EXERCISE|Pallof Press
+SET|10|10 lb total|RPE 7
+REST|45
+NOTES|Perform 10 reps per side. Enter actual reps per side when logging.
+Do not double 10 reps per side into 20. The app does not store a per-side multiplier; volume calculations use the entered numeric reps without automatically doubling them. For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. Assisted lifting loads are not yet supported; do not encode assistance as added load.
+- Every CARDIO or MOBILITY block needs exactly one MODE line and an explicit TYPE line. TYPE accepts run, swim, water_polo, bike, row, walk, hike, ruck, mobility, circuit, force, soccer, grappling, yoga or other. For mixed run/walk sessions, include an explicit TYPE line, normally TYPE|run.
+- Every CARDIO block needs a DURATION (minutes), a DISTANCE (kilometres, including swim/row), or SEGMENT lines. Rucking can add RUCKLOAD|45 lb. Optional coaching targets: HR|145, ELEVATION|100, PACE|5:30/km, INTENSITY|description. DURATION and DISTANCE describe the whole session including recovery and warm-up/cool-down; never use one repeat's distance as the whole-run distance.
+- Every MOBILITY block needs at least one MOVE line: MOVE|name|prescription, with prescriptions as N x .../side or N x ... sec, for example MOVE|Adductor rock-back|2 x 8/side or MOVE|Hip flexor stretch|2 x 30 sec. Do not bury a whole routine in one paragraph.
+- MODE|summary means the activity has no SEGMENT lines. MODE|segments means it has one or more SEGMENT lines. The mode must match the contents. Summary DURATION and DISTANCE may accompany segments; if they disagree, the app shows both and does not overwrite either.
+
 1. Strength — one SET line per prescribed set:
 EXERCISE|Barbell Bench Press
 SET|5|135 lb total||WARMUP
@@ -162,82 +176,71 @@ SET|6-8|185 lb total|RIR 2
 REST|180
 NOTES|Keep the descent controlled.
 
-SET|reps or rep range|load|RPE or RIR target|optional WARMUP
-The SET reps column must contain ONLY a positive whole number or increasing range, such as 10 or 8-10. Never include "each side", "/side", seconds, units or other text in that column. Invalid example (do not output): SET|10 each side|10 lb total|RPE 7.
-For unilateral work, use numeric reps per side and put the side instruction in NOTES:
-EXERCISE|Pallof Press
-SET|10|10 lb total|RPE 7
-REST|45
-NOTES|Perform 10 reps per side. Enter actual reps per side when logging.
-Do not double 10 reps per side into 20. The app does not store a per-side multiplier; volume calculations use the entered numeric reps without automatically doubling them.
-For a range, the athlete enters their actual reps when completing the set; the app does not guess. Effort examples: RPE 7-8 or RIR 2. Use one REST line per exercise or repeated-effort activity: it applies to the whole block, not one set/effort. Never prescribe conflicting REST values within a block; describe exceptions in NOTES. REST accepts seconds, 2 min or 1:30. Use structured mobility for timed stretches/holds. Assisted lifting loads are not yet supported; do not encode assistance as added load.
+2. Segmented activities — one SEGMENT line per planned part:
+SEGMENT|kind|duration|distance|label
+Kind is run, walk, rest or other. For bike, row, hike, and other non-run activities, use kind other — there is no bike or row kind. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. The label is optional free text that names the part (Tempo, Freestyle, Push-ups x15); it must not contain | or newlines. The 4-field form without a label still parses; a 6th field is an error.
+REPEAT|N ... ENDREPEAT repeats a pattern N times, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. Repeat blocks cannot nest, but you may use more than one in sequence. One iteration is one round (circuit), one interval set (swim), or one pattern repetition (run). The app expands each repeated segment with a shared group ID and iteration number. Every imported segment starts unknown; a prescription is never a completed result.
+For segmented runs, use MODE|segments with REPEAT. For SUMMARY-mode runs, use one INTERVALS line instead: INTERVALS|6 x (3 min run / 1 min walk), using this single stage format and ASCII x.
 
-2. Continuous cardio:
-CARDIO|Easy run
-TYPE|run
-DURATION|30
-INTENSITY|Easy conversational effort
+3. Circuits — prescribe rounds, not paragraphs:
+[FITLOG:3]
+WORKOUT|Garage circuit|2026-02-01
+CARDIO|Garage circuit
+TYPE|circuit
+MODE|segments
+DURATION|20
+REPEAT|4
+SEGMENT|other|||Push-ups x15
+SEGMENT|other|||Goblet squat x12
+SEGMENT|rest|20 sec||
+ENDREPEAT
+[/FITLOG]
+Use kind rest for rests. Leave the duration blank for rep stations; never invent a duration for them. Session time goes in summary DURATION. Station results (actual reps/load per station) are not stored; differences from the prescription go in NOTES. AMRAP has no fixed rounds: for AMRAP, use MODE|summary with DURATION and NOTES describing the movements (for example, "AMRAP: as many rounds as possible of burpees x10, kettlebell swings x15"), never REPEAT with an invented round count.
 
-TYPE accepts run, swim, water_polo, bike, row, walk, hike, ruck, mobility, circuit, force, soccer, grappling, yoga or other. DURATION is minutes; DISTANCE is kilometres, including swim/row. Both are optional targets. Rucking can add RUCKLOAD|45 lb. Optional coaching targets: HR|145, ELEVATION|100, PACE|5:30/km. Water polo, soccer, grappling, yoga and circuits usually need minutes and brief NOTES only.
-For any mixed run/walk session, include an explicit TYPE line (normally TYPE|run) so the session has a clear headline type.
+4. Swim — prescribe sets the same way:
+CARDIO|Swim sets
+TYPE|swim
+MODE|segments
+REPEAT|4
+SEGMENT|other||50 m|Freestyle
+SEGMENT|other|30 sec||
+ENDREPEAT
+Distances in m. Label each set so the swimmer knows the stroke.
 
-3. Interval run — keep stages in one INTERVALS line, using this format:
-CARDIO|Run intervals
-TYPE|run
-INTERVALS|6 x (3 min run / 1 min walk)
-NOTES|Stay controlled on the first repeats.
+5. Post-session activities — never segments:
+Yoga, grappling, soccer, and water polo are always post-session: use MODE|summary with DURATION and NOTES, never SEGMENT lines. NOTES are recommended, not required. Mobility uses MOVE lines only, never SEGMENT lines.
 
-DURATION and DISTANCE, when provided, describe the whole session including recovery and warm-up/cool-down. Never use one repeat's distance as the whole-run distance.
-
-4. Repeated drags, carries, sled work or sprints:
+6. Repeated drags, carries, sled work or sprints:
 CARDIO|Sandbag drag practice
 TYPE|force
 EFFORT|20 m|90 lb|10 sec
 EFFORT|20 m|90 lb|10 sec
 REST|120
+EFFORT|distance m|load lb or kg|target seconds. One line per effort; leave unused columns blank. Use one load unit throughout the activity. One REST line per activity.
+Only include fields relevant to the requested workout. Wrap the chosen workout in one FITLOG block, not all of these examples.`;
 
-EFFORT|distance m|load lb or kg|target seconds. One line per effort; leave unused columns blank. Use one load unit throughout the activity. Ordinary cardio and interval runs use their own forms above.
-
-5. Mobility:
-MOBILITY|Hip mobility
-DURATION|8
-MOVE|Adductor rock-back|2 x 8/side
-MOVE|Hip flexor stretch|2 x 30 sec
-NOTES|Use a comfortable range.
-
-Use exactly MOVE|name|prescription for each movement. Write prescriptions as N x .../side or N x ... sec, for example MOVE|Adductor rock-back|2 x 8/side or MOVE|Hip flexor stretch|2 x 30 sec. Do not bury a whole routine in one paragraph. Only include fields relevant to the requested workout. Wrap the chosen workout in one FITLOG block, not all of these examples.`;
-
-export const FITLOG_REMINDER = `${FITLOG_OUTPUT_RULES}
-Keep v1 fields and separators. Blocks appear in performance order. The examples below describe separate lines, not a semicolon-separated paragraph.
-Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; one REST|seconds per exercise (whole-block target, not per-set rest; exceptions in NOTES). Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. Rep ranges require actual reps during logging. Assistance loads are not supported.
+export const FITLOG_V3_REMINDER = `${FITLOG_OUTPUT_RULES.replaceAll("FITLOG:1", "FITLOG:3")}
+Keep version 3 fields and separators. Blocks appear in performance order. The examples below describe separate lines, not a semicolon-separated paragraph.
+Strength: EXERCISE|consistent exact name; one SET|whole reps or range|explicit load|RPE 7-8 or RIR 2|optional WARMUP per set; one REST|seconds per exercise (whole-block target, not per-set rest; exceptions in NOTES). Loads: 185 lb total, 40 lb each, 25 lb added, Bodyweight, or blank if unspecified. Minimal lighter warm-ups. The athlete enters actual reps during logging.
 SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). Never write "10 each side", "10/side", seconds or other text in the reps column. For unilateral work, use SET|10|10 lb total|RPE 7 and NOTES|Perform 10 reps per side. Enter actual reps per side when logging. Do not double the numeric target; the app does not automatically double per-side reps in volume calculations.
-Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Mixed run/walk requires an explicit TYPE line, normally TYPE|run. Runs: INTERVALS|6 x (3 min run / 1 min walk), using this single stage format and ASCII x. Whole-session totals only. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOVE|name|prescription using N x .../side or N x ... sec.
+Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; exactly one MODE|summary or MODE|segments per activity; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Mixed run/walk requires an explicit TYPE line, normally TYPE|run. Summary runs: INTERVALS|6 x (3 min run / 1 min walk), using this single stage format and ASCII x. Segmented runs: MODE|segments with REPEAT. Segments: SEGMENT|kind|duration|distance|optional label, kind run/walk/rest/other, duration blank or with unit/clock, distance blank or with m/km, label never | or newlines; the 4-field form still parses. REPEAT|N ... ENDREPEAT, N from 2 to 50, no nesting, at most 100 expanded segments; one iteration is one round, set, or pattern repetition. Circuits: REPEAT rounds with labeled stations, kind rest for rests, blank duration for rep stations, session time in DURATION. AMRAP has no fixed rounds: MODE|summary with DURATION and NOTES, never REPEAT with an invented round count. Swim: REPEAT sets, distances in m. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOVE|name|prescription using N x .../side or N x ... sec, never SEGMENT lines. Yoga, grappling, soccer, and water polo are post-session only: MODE|summary with DURATION and NOTES, never SEGMENT lines.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 
-export const FITLOG_V2_INSTRUCTIONS = `${FITLOG_OUTPUT_RULES.replaceAll("FITLOG:1", "FITLOG:2")}
-
-Use FITLOG version 2 only when prescribing planned activity segments. Existing WORKOUT, EXERCISE, SET, REST, CARDIO, TYPE, DURATION, DISTANCE, NOTES and other version 1 fields keep their version 1 meanings. Do not include circuit commands.
-
-Every CARDIO or MOBILITY block must contain exactly one MODE line. Use MODE|summary when the activity has no SEGMENT lines. Use MODE|segments when it has one or more SEGMENT lines. These modes must match the contents. Summary DURATION and DISTANCE may accompany segments; if they disagree, the app shows both and does not overwrite either.
-
-Yoga is always post-session: use MODE|summary with DURATION and NOTES, never SEGMENT lines.
-
-Segment form: SEGMENT|kind|duration|distance. Kind is run, walk, rest or other. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. Counts on REPEAT stay bare positive integers.
-
-Repeat blocks cannot nest, but you may use more than one in sequence: REPEAT|N ... ENDREPEAT, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. The app expands each repeated segment with a shared group ID and iteration number. Use ASCII x for interval notation in prose. Every imported segment starts unknown; a prescription is never a completed result.
-
-For mixed run/walk, include an explicit TYPE line, normally TYPE|run. Example: 6 x (4 min run + 1 min walk) + 10 min run = 40 minutes and 13 planned segments, all unknown:
-[FITLOG:2]
+export function exampleFitlogV3() {
+  return `[FITLOG:3]
 WORKOUT|Run/walk intervals|2026-01-15
 CARDIO|Run/walk session
 TYPE|run
 MODE|segments
+INTENSITY|Easy conversational effort
+DURATION|40
 REPEAT|6
-SEGMENT|run|4 min|
-SEGMENT|walk|1 min|
+SEGMENT|run|4 min||Tempo
+SEGMENT|walk|1 min||
 ENDREPEAT
-SEGMENT|run|10 min|
+SEGMENT|run|10 min|2 km|Cool-down
 [/FITLOG]`;
+}
 
 export const FITLOG_EXAMPLE_SNIPPET = `[FITLOG:1]
 WORKOUT|Bench practice|2026-01-15
@@ -308,6 +311,7 @@ export const parseFitlog = (source: string, defaultUnit: Unit, aliases: Record<s
   if (source.length > 250_000) throw new Error("This workout text is too large. Paste one workout at a time.");
   const firstVersion = normalizedFitlogText(source).match(/\[FITLOG:([^\]]+)\]/i)?.[1];
   if (firstVersion === "2") return parseFitlogV2(source, defaultUnit, aliases);
+  if (firstVersion === "3") return parseFitlogV3(source, defaultUnit, aliases);
   return parseFitlogV1(source, defaultUnit, aliases);
 };
 
@@ -608,15 +612,17 @@ function parseSegmentDistance(value: string, line: number): number | null {
 type FitlogV2Activity = { mode: "summary" | "segments" | null; modeLine: number; line: number; explicitType: boolean; segments: ActivitySegment[] };
 type RepeatPattern = { count: number; line: number; pattern: ActivitySegment[] };
 
-function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession {
+/** Shared segmented parser: v3 extends v2 (labels + post-session rejections), it does not copy it. */
+function parseFitlogSegmented(source: string, defaultUnit: Unit, aliases: Record<string, string>, version: 2 | 3): WorkoutSession {
   const cleaned = normalizedFitlogText(source);
   const versions = [...cleaned.matchAll(/\[FITLOG:([^\]]+)\]/gi)].map(match => match[1]);
-  const blocks = [...cleaned.matchAll(/\[FITLOG:2\]([\s\S]*?)\[\/FITLOG\]/gi)];
-  if (versions.length !== 1 || versions[0] !== "2" || blocks.length !== 1) throw new Error("Paste exactly one complete FITLOG version 2 workout at a time.");
-  const openingCount = cleaned.match(/\[FITLOG:2\]/gi)?.length ?? 0;
-  if (openingCount !== 1) throw new Error("Paste exactly one complete FITLOG version 2 workout at a time.");
+  const envelope = new RegExp(`\\[FITLOG:${version}\\]([\\s\\S]*?)\\[\\/FITLOG\\]`, "gi");
+  const blocks = [...cleaned.matchAll(envelope)];
+  if (versions.length !== 1 || versions[0] !== String(version) || blocks.length !== 1) throw new Error(`Paste exactly one complete FITLOG version ${version} workout at a time.`);
+  const openingCount = cleaned.match(new RegExp(`\\[FITLOG:${version}\\]`, "gi"))?.length ?? 0;
+  if (openingCount !== 1) throw new Error(`Paste exactly one complete FITLOG version ${version} workout at a time.`);
   const block = blocks[0];
-  const firstLine = cleaned.slice(0, block.index! + "[FITLOG:2]".length).split(/\r?\n/).length;
+  const firstLine = cleaned.slice(0, block.index! + `[FITLOG:${version}]`.length).split(/\r?\n/).length;
   const rawLines = block[1].split(/\r?\n/).map((text, index) => ({ raw: text, text: text.trim(), number: firstLine + index }));
   const specs: FitlogV2Activity[] = [];
   let current: FitlogV2Activity | null = null;
@@ -644,14 +650,17 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
       current.modeLine = line.number;
     } else if (command === "SEGMENT") {
       if (!current) throw new Error(`Line ${line.number}: SEGMENT must appear inside an activity block.`);
-      if (fields.length !== 4) throw new Error(`Line ${line.number}: SEGMENT expects kind|duration|distance; keep blank fields and separators.`);
+      if (version === 2 && fields.length !== 4) throw new Error(`Line ${line.number}: SEGMENT expects kind|duration|distance; keep blank fields and separators.`);
+      if (version === 3 && (fields.length < 4 || fields.length > 5)) throw new Error(`Line ${line.number}: SEGMENT expects kind|duration|distance|optional label; labels cannot contain | or newlines. Keep blank fields and separators.`);
       const kind = fields[1]?.toLowerCase();
       if (!(["run", "walk", "rest", "other"] as const).includes(kind as ActivitySegment["kind"])) throw new Error(`Line ${line.number}: SEGMENT kind must be run, walk, rest or other.`);
+      const label = version === 3 ? (fields[4]?.trim() || undefined) : undefined;
       const segment: ActivitySegment = {
         id: uid("segment"), kind: kind as ActivitySegment["kind"],
         plannedDurationSec: parseSegmentDuration(fields[2] ?? "", line.number), actualDurationSec: null,
         plannedDistanceM: parseSegmentDistance(fields[3] ?? "", line.number), actualDistanceM: null,
         status: "unknown",
+        ...(label ? { label } : {}),
       };
       if (repeat) repeat.pattern.push(segment);
       else current.segments.push(segment);
@@ -676,23 +685,37 @@ function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string
   }
   if (repeat) throw new Error(`Line ${repeat.line}: REPEAT is missing ENDREPEAT.`);
   for (const spec of specs) {
-    if (spec.mode === null) throw new Error(`Line ${spec.modeLine}: every activity in FITLOG version 2 needs MODE|summary or MODE|segments.`);
+    if (spec.mode === null) throw new Error(`Line ${spec.modeLine}: every activity in FITLOG version ${version} needs MODE|summary or MODE|segments.`);
     if (spec.mode === "summary" && spec.segments.length) throw new Error(`Line ${spec.modeLine}: MODE|summary cannot contain SEGMENT lines.`);
     if (spec.mode === "segments" && !spec.segments.length) throw new Error(`Line ${spec.modeLine}: MODE|segments requires at least one SEGMENT line.`);
     const kinds = new Set(spec.segments.map(segment => segment.kind));
     if (kinds.has("run") && kinds.has("walk") && !spec.explicitType) throw new Error(`Line ${spec.line}: mixed run/walk sessions require an explicit TYPE line, normally TYPE|run.`);
   }
 
-  const bodyStart = block.index! + "[FITLOG:2]".length;
+  const bodyStart = block.index! + `[FITLOG:${version}]`.length;
   const bodyEnd = bodyStart + block[1].length;
   const v1Body = rawLines.map(line => /^(?:(?:MODE|SEGMENT|REPEAT)\||ENDREPEAT$)/i.test(line.text) ? "" : line.raw).join("\n");
-  const v1Source = `${cleaned.slice(0, bodyStart).replace(/\[FITLOG:2\]/i, "[FITLOG:1]")}${v1Body}${cleaned.slice(bodyEnd)}`;
+  const v1Source = `${cleaned.slice(0, bodyStart).replace(new RegExp(`\\[FITLOG:${version}\\]`, "i"), "[FITLOG:1]")}${v1Body}${cleaned.slice(bodyEnd)}`;
   const workout = parseFitlogV1(v1Source, defaultUnit, aliases);
   workout.importFingerprint = fitlogFingerprint(cleaned);
-  if (workout.cardio.length !== specs.length) throw new Error("FITLOG version 2 activity modes do not match its CARDIO and MOBILITY blocks.");
+  if (workout.cardio.length !== specs.length) throw new Error(`FITLOG version ${version} activity modes do not match its CARDIO and MOBILITY blocks.`);
   workout.cardio = workout.cardio.map((activity, index) => specs[index]?.mode === "segments" ? { ...activity, segments: specs[index].segments } : activity);
   if (workout.cardio.some(activity => activity.activityType === "yoga" && (activity.segments?.length ?? 0) > 0)) throw new Error("Yoga is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines.");
+  if (version === 3) {
+    for (const [type, display] of [["grappling", "Grappling"], ["soccer", "Soccer"], ["water_polo", "Water polo"]] as const) {
+      if (workout.cardio.some(activity => activity.activityType === type && (activity.segments?.length ?? 0) > 0)) throw new Error(`${display} is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines.`);
+    }
+    if (workout.cardio.some(activity => activity.activityType === "mobility" && (activity.segments?.length ?? 0) > 0)) throw new Error("Mobility uses MOVE lines, not SEGMENT lines: use MOVE|name|prescription with MODE|summary.");
+  }
   if (workout.cardio.reduce((sum, activity) => sum + (activity.segments?.length ?? 0), 0) > expansionLimit) throw new Error(`Expanded workouts are limited to ${expansionLimit} segments.`);
   validateSyncedState({ ...defaultState(), workouts: [workout] });
   return workout;
+}
+
+function parseFitlogV2(source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession {
+  return parseFitlogSegmented(source, defaultUnit, aliases, 2);
+}
+
+function parseFitlogV3(source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession {
+  return parseFitlogSegmented(source, defaultUnit, aliases, 3);
 }

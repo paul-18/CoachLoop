@@ -138,7 +138,7 @@ export function ImportWorkoutDialog({
             Bring a workout in
           </DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Paste your AI’s reply. FITLOG is the block between [FITLOG:1] or [FITLOG:2] and [/FITLOG]. Version 2 adds planned activity segments (MODE, SEGMENT, REPEAT). Only that block is read, and it is listed before anything is saved.
+            Paste your AI’s reply. FITLOG is the block between [FITLOG:3] and [/FITLOG]. Version 3 is the current format: segments use MODE, SEGMENT, REPEAT, and optional labels. Versions 1 and 2 still import. Only that block is read, and it is listed before anything is saved.
           </DialogDescription>
         </DialogHeader>
 

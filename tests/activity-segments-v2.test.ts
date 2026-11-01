@@ -18,7 +18,7 @@ test("FITLOG v2 expands the golden repeat pattern as unknown segments", () => {
   assert.equal(activity.segments?.filter(segment => segment.groupId).length, 12);
   assert.equal(new Set(activity.segments?.filter(segment => segment.groupId).map(segment => segment.groupId)).size, 1);
   assert.equal(new Set(activity.segments?.filter(segment => segment.groupId).map(segment => segment.iteration)).size, 6);
-  assert.throws(() => parseFitlog(`[FITLOG:3]\nWORKOUT|Legacy|2026-01-15\nCARDIO|Run\nDURATION|4\n[/FITLOG]`, "lb", {}), /version 1/);
+  assert.throws(() => parseFitlog(`[FITLOG:4]\nWORKOUT|Legacy|2026-01-15\nCARDIO|Run\nDURATION|4\n[/FITLOG]`, "lb", {}), /version 1/);
 });
 
 test("FITLOG v2 rejects ambiguous units, mode mismatches, nested repeats and mixed type omissions", () => {

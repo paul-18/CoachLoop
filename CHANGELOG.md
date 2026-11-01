@@ -2,6 +2,15 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v110 — built, not submitted
+
+- FITLOG v3 parser (spec v2 §8): new `[FITLOG:3]` envelope extending the v2 parser (shared segmented implementation, not a copy). SEGMENT gains an optional label field (`SEGMENT|kind|duration|distance|label`) stored in the existing v108 `ActivitySegment.label` — no new stored field, no evidenceVersion change. The 4-field form still parses in v3; a 6th field errors; labels cannot contain `|` or newlines.
+- Post-session rule extended in v3: SEGMENT lines rejected in yoga, grappling, soccer, and water_polo (exact post-session message pattern from the v108 follow-up) and in mobility (MOVE lines only). Rejection is checked after segment re-attachment, so REPEAT-built segments are caught. UI segments-exist rule unchanged (already-stored segmented activities still render). Under v2, only yoga is rejected, as before — old v2 blocks import exactly as before.
+- AI prompt unification: `buildCoachPrompt` defaults to v3 in both modes (full v3 instructions for new briefs, condensed v3 reminder for continuing briefs); the duplicated v1+v2 OUTPUT FORMAT sections are gone — exactly one OUTPUT FORMAT section, and it is v3. V3 instructions carry a per-block don't-miss-fields checklist, INTERVALS scoped to summary-mode runs, circuit rounds with labeled stations, swim sets in m, and the post-session/mobility rules.
+- Coach view: single "Copy v3 format" button replaces the v1/v2 buttons, plus a "Copy new profile paragraph" button for the updated `DEFAULT_COACH_PROFILE` format paragraph (INTERVALS scoped, circuit/swim/post-session rules); the app never rewrites a stored profile. Import dialog text names v3 and notes v1/v2 still import.
+- Deliberate non-changes: no mobility pose cards (decision still open), no segment reorder, no circuit station results, no FORCE result rows, no v108/v109 stepper changes, no strength or totals changes, no new infrastructure.
+- See [v110 update notes](docs/releases/V110-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul submits when he approves.
+
 ## v109 — built, not submitted
 
 - Grouped steppers (spec v2 §7) reusing the v108 stepper engine: circuit activities WITH segments render a round stepper (one REPEAT iteration = one round; "Round N of M" + compact station list; "Done: Round N" completes only that round's unknown parts; "Done: all rounds" on the stepper), and swim activities WITH segments render an interval stepper (one iteration = one set; set cards list intervals compactly as label + distance + time; ungrouped segments are individual interval cards; "Done: Set N" / "Done: <plan>" / complete-all, same Undo/toast patterns). Show all lists units expandable to stations, with tap-part expansion for duration/distance actuals; group footers, Add part, and Repeat pattern keep working in Show all.

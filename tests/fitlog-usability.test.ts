@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseFitlog, exampleFitlog, FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "../app/interchange/fitlog";
+import { parseFitlog, exampleFitlog, FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER } from "../app/interchange/fitlog";
 import { completedSetValues } from "../app/domain/completion";
 import { makeSet } from "../app/domain/training-types";
 
@@ -45,8 +45,8 @@ test("unsupported fields and misplaced workout notes are visible instead of sile
   assert.equal(workout.importWarnings?.length, 2);
   assert.match(workout.importWarnings![0], /workout-level NOTES are not supported/);
   assert.match(workout.importWarnings![1], /Line 6: unsupported field TEMPO was ignored/);
-  for (const instructions of [FITLOG_INSTRUCTIONS, FITLOG_REMINDER]) {
-    assert.match(instructions, /FITLOG:1/);
+  for (const instructions of [FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER]) {
+    assert.match(instructions, /FITLOG:3/);
     assert.match(instructions, /actual reps/);
     assert.match(instructions, /total/);
     assert.match(instructions, /each/);

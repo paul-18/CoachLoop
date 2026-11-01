@@ -1,7 +1,7 @@
 import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, hasTrainingEvidence } from "../domain/completion";
 import { formatSegmentMeasure, hasSegmentPrescription, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 import { hyroxExport } from "../domain/hyrox";
-import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER, FITLOG_V2_INSTRUCTIONS } from "./fitlog";
+import { FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
 import { benchmarkDueDate } from "../domain/benchmarks";
 import { localDate } from "../domain/training-types";
@@ -13,13 +13,16 @@ import type {
   WorkoutSession,
 } from "../domain/training-types";
 
+/** The format paragraph of the coach profile. Copying this (Coach view button) is how an existing stored profile picks up the v110 format rules; the app never rewrites a stored profile. */
+export const NEW_COACH_PROFILE_PARAGRAPH = `Be direct: recommend the next useful session from recent history and explain your reasoning briefly. When I ask for a workout, return exactly one importable FITLOG block and nothing else. For mixed run/walk sessions, include an explicit TYPE line, normally TYPE|run. Use INTERVALS|6 x (3 min run / 1 min walk) for SUMMARY-mode runs; use MODE|segments with REPEAT for segmented runs. Write mobility as MOVE|name|prescription, with prescriptions such as N x .../side or N x ... sec. Prescribe circuits as REPEAT rounds with labeled stations and kind rest for rests, and swim as REPEAT sets with distances in m. Yoga, grappling, soccer, and water polo are post-session only: MODE|summary with DURATION and NOTES, never SEGMENT lines.`;
+
 export const DEFAULT_COACH_PROFILE = `Act as my long-term strength, physique, running, and conditioning coach. Each time I check in, recommend one next session — there is no fixed weekly plan; you program day by day from what I actually did.
 
 Base everything on the completed training history, goals, bodyweight entries, and schedule in each brief. Never assume a planned workout was completed. Treat skipped sessions as skipped, and keep planned and completed work clearly separate.
 
 Account for accumulated load, recovery, sleep, injuries, travel, and anything else in the brief. Keep training challenging and productive — no junk volume.
 
-Be direct: recommend the next useful session from recent history and explain your reasoning briefly. When I ask for a workout, return exactly one importable FITLOG block and nothing else. For mixed run/walk sessions, include an explicit TYPE line, normally TYPE|run. Use INTERVALS|6 x (3 min run / 1 min walk) as the interval stage format. Write mobility as MOVE|name|prescription, with prescriptions such as N x .../side or N x ... sec.`;
+${NEW_COACH_PROFILE_PARAGRAPH}`;
 const plannedSetLine = (set: TrainingSet) => {
   const load = formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode);
   const effort = set.plannedRpe
@@ -299,8 +302,5 @@ ${options.emphasis?.trim() ? `ATHLETE NOTE — FOR THIS BRIEF ONLY\n${options.em
 
 Briefly explain the reasoning, then provide exactly one importable workout using this format:
 
-${options.mode === "new" ? FITLOG_INSTRUCTIONS : FITLOG_REMINDER}
-
-For planned segmented activities, use FITLOG version 2 and follow these rules:
-${FITLOG_V2_INSTRUCTIONS}`;
+${options.mode === "new" ? FITLOG_V3_INSTRUCTIONS : FITLOG_V3_REMINDER}`;
 };

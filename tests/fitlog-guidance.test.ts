@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER, parseFitlog } from "../app/interchange/fitlog";
+import { FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER, parseFitlog } from "../app/interchange/fitlog";
 import { buildCoachPrompt } from "../app/interchange/coach-export";
 import { defaultState } from "../app/domain/training-types";
 
@@ -20,7 +20,7 @@ test("both coaching brief modes carry numeric-only and per-side guidance without
   const state = defaultState(), before = structuredClone(state);
   for (const mode of ["new", "continue"] as const) {
     const prompt = buildCoachPrompt(state, { mode, days: 7, energy: "", sleep: "", soreness: "", timeAvailable: "", equipment: "", restrictions: "", schedule: "", request: "" });
-    assert.ok(prompt.includes(mode === "new" ? FITLOG_INSTRUCTIONS : FITLOG_REMINDER));
+    assert.ok(prompt.includes(mode === "new" ? FITLOG_V3_INSTRUCTIONS : FITLOG_V3_REMINDER));
     assert.match(prompt, /positive whole number or increasing range/);
     assert.match(prompt, /10 reps per side/);
     assert.match(prompt, /SET\|10\|10 lb total\|RPE 7/);
