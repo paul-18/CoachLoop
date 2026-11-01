@@ -1,6 +1,6 @@
 # Coach Loop v107 update notes
 
-**Status:** release candidate. v107 fixes the findings from the v106 analysis. No new features, no schema changes, no renames or deletions. This record will be updated with the published commit and deployment status after the release gate passes and the push to `main` completes.
+**Status:** published. v107 fixes the findings from the v106 analysis. No new features, no schema changes, no renames or deletions. Published from `main` at `d20e6bb7c28e96d395541dbdf2cc3f649e68ee1b` (v107 release `c4511c5` plus a CI test-import fix); GitHub Pages workflow run #60 passed and deployed. The live build's release digest matches the local production build exactly.
 
 ## What changed
 

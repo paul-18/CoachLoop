@@ -2,12 +2,12 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v107 — release candidate
+## v107 — published
 
 - Fixes the v106 analysis findings: Repeat no longer destroys pattern-row data; group taps mark typed actuals as Measured; mark-typed-complete leaves segmented activities unfinished while unknown parts remain; "Not fully recorded" reaches weekly cards, Progress/Review text, summaries, and CSV; coach export keeps detail fields for segmented sessions and groups repeat lines; History badge and run-only lines restored; plan review compares segment plans; repeat/replan reset segments; segment editor scoped away from efforts activities; finish review shows mismatch notes; phone-width segment touch targets.
 - FITLOG v2 parser corrections: nested-repeat error, projected expansion cap, 24-hour clock cap, first-tag dispatch, sequential repeats, REPEAT before MODE, pre-pass TYPE validation, distinct v1/v2 fingerprints, mixed-error line attribution, and prefix-line warnings instead of silent strips. Import dialog and preview now surface v2.
 - Default backups no longer store a quick-log list, restoring v105 import compatibility; Restore-defaults and undo-blank-start leave it unset. Explicitly ticking walk in Settings still stores it by choice.
-- See [v107 update notes](docs/releases/V107-UPDATE-NOTES.md) and [v107 QC](docs/releases/V107-QC.md). Deployment status will be recorded after the release gate and Pages workflow complete.
+- See [v107 update notes](docs/releases/V107-UPDATE-NOTES.md) and [v107 QC](docs/releases/V107-QC.md). Published from `main` at `d20e6bb7c28e96d395541dbdf2cc3f649e68ee1b` (v107 release `c4511c5` plus a CI test-import fix); GitHub Pages workflow run #60 passed and deployed.
 
 ## v106 — release candidate
 
