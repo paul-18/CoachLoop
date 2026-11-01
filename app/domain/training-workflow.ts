@@ -24,6 +24,31 @@ export function moveBlockLater(workout: WorkoutSession, id: string): WorkoutSess
   return block ? {...workout, blockOrder:[...order.filter(b => b.id !== id), block], updatedAt:new Date().toISOString()} : workout;
 }
 
+/** Move a block one step up or down in the visible (normalized) order.
+ *  Repairs missing entries exactly as moveBlockLater does, then swaps the
+ *  entry with its adjacent neighbor in the normalized order. The
+ *  exercises[]/cardio[] arrays are never reordered. At either end the
+ *  workout is returned unchanged (menus disable the button there). */
+export function moveBlock(workout: WorkoutSession, id: string, direction: "up" | "down"): WorkoutSession {
+  const order = [...workout.blockOrder];
+  for (const e of workout.exercises) if (!order.some(b => b.id === e.id)) order.push({type:'exercise', id:e.id});
+  for (const e of workout.cardio) if (!order.some(b => b.id === e.id)) order.push({type:'activity', id:e.id});
+  const seen = new Set<string>();
+  const normalized = order.filter(b => {
+    const exists = b.type === "exercise" ? workout.exercises.some(e => e.id === b.id) : workout.cardio.some(c => c.id === b.id);
+    if (!exists || seen.has(b.id)) return false;
+    seen.add(b.id);
+    return true;
+  });
+  const index = normalized.findIndex(b => b.id === id);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || target < 0 || target >= normalized.length) return workout;
+  const next = [...normalized];
+  const [moved] = next.splice(index, 1);
+  next.splice(target, 0, moved!);
+  return {...workout, blockOrder: next, updatedAt: new Date().toISOString()};
+}
+
 // Keep the original prescription and performed sets; replacements get their own identity.
 export function substituteExercise(workout: WorkoutSession, id: string, name: string, unit: Unit): WorkoutSession {
   const original = workout.exercises.find(e => e.id === id);

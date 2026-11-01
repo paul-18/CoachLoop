@@ -49,6 +49,43 @@ export function segmentCountLabel(segments: readonly ActivitySegment[]) {
   return `${done} of ${total} parts done`;
 }
 
+/** Plain-words plan for one part, label first when present. Never parses the label. */
+export function segmentPlanText(segment: ActivitySegment): string {
+  const kindWord = segment.kind === "other" ? "Part" : segment.kind[0]!.toUpperCase() + segment.kind.slice(1);
+  const measures: string[] = [];
+  if (segment.plannedDurationSec != null) measures.push(segment.plannedDurationSec < 60 ? `${formatMeasure(segment.plannedDurationSec)} sec` : `${formatMeasure(segment.plannedDurationSec / 60)} min`);
+  if (segment.kind !== "rest" && segment.plannedDistanceM != null) measures.push(segment.plannedDistanceM >= 1000 ? `${formatMeasure(segment.plannedDistanceM / 1000)} km` : `${formatMeasure(segment.plannedDistanceM)} m`);
+  const base = segment.label?.trim() ? segment.label.trim() : kindWord;
+  return measures.length ? (segment.label?.trim() ? `${base} · ${measures.join(" · ")}` : `${base} ${measures.join(" · ")}`) : base;
+}
+
+/** Labels are pipe-separated in FITLOG, so | and newlines would break parsing. Plain message, enforced in UI (v108) and parser (v110). */
+export function segmentLabelError(label: string): string | null {
+  if (label.includes("|")) return "Labels cannot contain |.";
+  if (/[\r\n]/.test(label)) return "Labels cannot contain line breaks.";
+  return null;
+}
+
+/** Compact import-preview lines in stored order: one line per ungrouped part, one collapsed line per repeat group at its first occurrence. */
+export function previewSegmentLines(segments: readonly ActivitySegment[]): string[] {
+  const lines: string[] = [];
+  const emitted = new Set<string>();
+  for (const segment of segments) {
+    if (!segment.groupId) { lines.push(segmentPlanText(segment)); continue; }
+    if (emitted.has(segment.groupId)) continue;
+    emitted.add(segment.groupId);
+    const parts = segments.filter(part => part.groupId === segment.groupId);
+    const iterations = [...new Set(parts.map(part => part.iteration ?? 1))].sort((a, b) => a - b);
+    const first = iterations[0] ?? 1;
+    const pattern = parts.filter(part => (part.iteration ?? 1) === first);
+    lines.push(`Repeat ${iterations.length}x: ${pattern.map(segmentPlanText).join(" + ")}`);
+  }
+  return lines;
+}
+
+/** Complete-all is unknown resolution: typed actuals become Measured, the rest complete as prescribed. Skips untouched. */
+export const completeAllRemainingSegments = resolveUnknownSegments;
+
 export function segmentGroupProgress(segments: readonly ActivitySegment[]) {
   const iterations = new Map<number, ActivitySegment[]>();
   segments.forEach(segment => {
@@ -89,6 +126,7 @@ export function repeatedSegments(pattern: readonly ActivitySegment[], repetition
   if (pattern.length * repetitions > 100) throw new Error("A repeated block can create at most 100 segments.");
   return Array.from({ length: repetitions }, (_, index) => pattern.map(segment => ({
     id: uid("segment"), kind: segment.kind,
+    label: segment.label,
     plannedDurationSec: segment.plannedDurationSec ?? null,
     actualDurationSec: null,
     plannedDistanceM: segment.plannedDistanceM ?? null,

@@ -76,6 +76,8 @@ export type PartStatus = "completed" | "modified" | "skipped" | "unknown";
 export interface ActivitySegment {
   id: string;
   kind: "run" | "walk" | "rest" | "other";
+  /** Optional human label ("Tempo", "Freestyle", "Push-ups x15"). Display text only; never parsed. Must not contain | or newlines (enforced in UI + v110 parser). */
+  label?: string;
   plannedDurationSec?: number | null;
   actualDurationSec?: number | null;
   plannedDistanceM?: number | null;

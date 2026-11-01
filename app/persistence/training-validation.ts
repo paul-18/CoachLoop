@@ -41,6 +41,7 @@ const activitySegmentSchema = z.object({
   kind: z.enum(["run", "walk", "rest", "other"]),
   plannedDurationSec: nullableNumber.optional(), actualDurationSec: nullableNumber.optional(),
   plannedDistanceM: nullableNumber.optional(), actualDistanceM: nullableNumber.optional(),
+  label: z.string().optional(),
   status: z.enum(["completed", "modified", "skipped", "unknown"]),
   groupId: identifier.optional(), iteration: z.number().int().min(1).max(50).optional(),
 }).passthrough().refine(segment => (segment.groupId === undefined) === (segment.iteration === undefined), "Repeated segments must include both groupId and iteration");

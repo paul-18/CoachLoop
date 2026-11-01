@@ -64,7 +64,7 @@ function compactSegments(activity: WorkoutSession["cardio"][number]) {
     const metrics = segment.status === "completed"
       ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.kind !== "rest" && segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
       : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.kind !== "rest" && segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""] : [];
-    return { key, label: `${segment.kind} · ${segment.status}${metrics.filter(Boolean).length ? ` · ${metrics.filter(Boolean).join(" · ")}` : ""}` };
+    return { key, label: `${segment.label?.trim() ? `${segment.label.trim()} · ` : ""}${segment.kind} · ${segment.status}${metrics.filter(Boolean).length ? ` · ${metrics.filter(Boolean).join(" · ")}` : ""}` };
   });
 }
 

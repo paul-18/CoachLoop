@@ -97,10 +97,10 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
       assert.equal(document.querySelector('[role="dialog"]'), null, 'bad backup never reaches restore confirmation');
       assert.deepEqual((await storage.loadTrainingState()).goals, current.goals);
     }
-    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v108' }));
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v109' }));
     await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review');
     const futureWarning = document.querySelector('[role="dialog"]').textContent;
-    assert.ok(futureWarning.includes('This backup was written by Coach Loop v108, newer than this release (v107). Some newer details may not appear here.'));
+    assert.ok(futureWarning.includes('This backup was written by Coach Loop v109, newer than this release (v108). Some newer details may not appear here.'));
     assert.equal(button('Merge backup').disabled, true, 'restore is blocked until acknowledgment');
     const acknowledgment = document.querySelector('[role="dialog"] [role="checkbox"]');
     assert.ok(acknowledgment, 'newer backup has an accessible acknowledgment control');
@@ -141,7 +141,7 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     const exported = parseBackup(await downloads.at(-1).text());
     assert.deepEqual(exported.goals, backup.goals); assert.equal(exported.coachProfile, backup.coachProfile);
     assert.deepEqual(exported.bodyweightEntries, backup.bodyweightEntries); assert.equal(exported.workouts.length, 1);
-    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v108', goals: ['Future priority'] }));
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v109', goals: ['Future priority'] }));
     await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review for replace');
     const replaceMethod = document.querySelector('select[aria-label="Restore method"]');
     replaceMethod.value = 'replace'; replaceMethod.dispatchEvent(new Event('change', { bubbles: true }));

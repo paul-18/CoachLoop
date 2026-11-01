@@ -19,7 +19,7 @@ import { prepareLoadedState } from "../app/persistence/migrations";
 import { validateSyncedState } from "../app/persistence/training-validation";
 
 test("release is v107; nested move and effort data survives current validation", () => {
-  assert.equal(APP_RELEASE, "v107");
+  assert.equal(APP_RELEASE, "v108");
   const state = defaultState();
   const workout = makeWorkout("lb", 90);
   const run = makeCardio("run");
@@ -46,15 +46,15 @@ test("v105 stamp-free backup imports unchanged; v107 backup stamps and round-tri
 
   const currentState = prepareLoadedState(original);
   const exported = serializeBackup(currentState);
-  assert.equal(JSON.parse(exported).writtenByRelease, "v107");
+  assert.equal(JSON.parse(exported).writtenByRelease, "v108");
   assert.deepEqual(parseBackupReview(exported).state, currentState);
 });
 
 test("newer backup warning uses numeric release order and exact blocking copy", () => {
   const state = defaultState();
-  const future = { ...state, writtenByRelease: "v108" };
+  const future = { ...state, writtenByRelease: "v109" };
   const review = parseBackupReview(JSON.stringify(future));
-  assert.equal(review.newerReleaseWarning, "This backup was written by Coach Loop v108, newer than this release (v107). Some newer details may not appear here.");
+  assert.equal(review.newerReleaseWarning, "This backup was written by Coach Loop v109, newer than this release (v108). Some newer details may not appear here.");
   const lower = parseBackupReview(JSON.stringify({ ...state, writtenByRelease: "v99" }));
   assert.equal(lower.newerReleaseWarning, null, "release numbers compare numerically");
   assert.equal(parseBackupReview(JSON.stringify(state)).newerReleaseWarning, null, "an unknown release does not warn");

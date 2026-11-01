@@ -2,6 +2,18 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v108 — built, not submitted
+
+- Interaction foundation (spec v2 §3): the segment table is replaced by a stepper — current card + "Part N of M" text + progress dots + Show all compact cards, labeled "Done: <plan>" actions, tap-part expansion for one part at a time, "Complete all remaining as prescribed" on the stepper, and Undo for every Done tap. "Edit detail" is deleted; Add part and Repeat pattern live in the Show-all footer.
+- Post-session cards for yoga, grappling, soccer, and water polo (duration + visible notes + labeled Done) when no segments exist; any activity WITH segments always shows the stepper. Mobility is a session card (moves read-only + duration + visible notes + labeled Done); pose cards are deferred to v109.
+- Slim effort rows for force: plan as text + labeled check + "Did different" behind a tap; prescription stays behind "Edit prescription".
+- Import preview lists parts compactly (one line per part, one collapsed line per repeat group, labels shown) instead of a single segment count.
+- Move up/down for exercises and activities, operating on blockOrder (never the arrays), disabled at the ends, with "Moved up"/"Moved down" toasts.
+- Optional ActivitySegment.label end-to-end (model, tap-part edit, cards, preview, coach export, History) with |/newline rejection in the UI. No FITLOG v3 parser in v108: labels come from UI edits only; v1/v2 parsers untouched.
+- Activity completion stays independent of parts completion: final part done does not complete the activity, all-skipped is not complete, adding a part to a completed activity reopens it. As-prescribed values stay labeled as prescribed, never presented as measured; modified-without-actual contributes nothing for the missing measure.
+- Compat: old backups import unchanged; v108 labeled backups import in v105 verbatim (its activity schema is passthrough and its loader spreads whole activities — labels preserved opaquely, not stripped; v105 has no segment UI). Release bumped to v108; release-gate tests updated for the new stamp.
+- See [v108 update notes](docs/releases/V108-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul submits when he approves.
+
 ## v107 — published
 
 - Fixes the v106 analysis findings: Repeat no longer destroys pattern-row data; group taps mark typed actuals as Measured; mark-typed-complete leaves segmented activities unfinished while unknown parts remain; "Not fully recorded" reaches weekly cards, Progress/Review text, summaries, and CSV; coach export keeps detail fields for segmented sessions and groups repeat lines; History badge and run-only lines restored; plan review compares segment plans; repeat/replan reset segments; segment editor scoped away from efforts activities; finish review shows mismatch notes; phone-width segment touch targets.

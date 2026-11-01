@@ -108,7 +108,7 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
           ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.kind !== "rest" && segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
           : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.kind !== "rest" && segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""]
             : [];
-        return `- ${segment.kind.toUpperCase()} · ${segment.status.toUpperCase()}${values.filter(Boolean).length ? ` · ${values.filter(Boolean).join(" · ")}` : ""}`;
+        return `- ${segment.label?.trim() ? `${segment.label.trim()} · ` : ""}${segment.kind.toUpperCase()} · ${segment.status.toUpperCase()}${values.filter(Boolean).length ? ` · ${values.filter(Boolean).join(" · ")}` : ""}`;
       };
       const segmentGroups = new Map<string, NonNullable<typeof activity.segments>>();
       for (const segment of activity.segments) {

@@ -18,7 +18,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea";
 
 import { ExerciseSubstitution } from "./exercise-substitution";
-import { moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues } from "../domain/training-workflow";
+import { moveBlock, moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues } from "../domain/training-workflow";
 import { activityEffortSummary, activityLoggingStyle, completeActivityEffort, makeActivityEffort } from "../domain/activity-logging";
 
 import { completedSetValues, convertWeight, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, formatMeasure, displayedDistance, workoutLiftingVolume } from "../domain/training-metrics";
@@ -36,7 +36,7 @@ import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from 
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
-import { canCompleteAsPrescribed, completeActivity, completeSegmentGroup, repeatedSegments, repeatPatternError, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentMismatch } from "../domain/activity-segments";
+import { completeActivity, completeSegmentGroup, repeatedSegments, repeatPatternError, resolveUnknownSegments, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentLabelError, segmentMismatch, segmentPlanText } from "../domain/activity-segments";
 
 function compactSetSummary(sets: TrainingSet[]) {
   const groups: Array<{ load: string; reps: string[] }> = [];
@@ -283,6 +283,10 @@ function ExerciseEditor({
   onCompleteSet,
   onRemove,
   onLater,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onSubstitute,
   increment,
   onIncrement,
@@ -298,6 +302,10 @@ function ExerciseEditor({
   onCompleteSet: (setId: string, seconds: number) => void;
   onRemove: () => void;
   onLater: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onSubstitute: (anchor: HTMLButtonElement | null) => void;
   increment: number;
   onIncrement: (value: number) => void;
@@ -401,7 +409,7 @@ function ExerciseEditor({
 
         </div>
         <div className="flex items-center gap-2">
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 px-3 py-3 sm:px-4">
@@ -507,16 +515,39 @@ function ExerciseEditor({
   );
 }
 
-function ActivitySegmentEditor({ activity, onChange, initiallyOpen = false }: { activity: CardioEntry; onChange: (segments: ActivitySegment[]) => void; initiallyOpen?: boolean }) {
-  const [open, setOpen] = useState(initiallyOpen);
+function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChange: (segments: ActivitySegment[]) => void }) {
+  const [showAll, setShowAll] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [repeatCount, setRepeatCount] = useState("6");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [labelError, setLabelError] = useState<string | null>(null);
   const segments = activity.segments ?? [];
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
   const groups = [...new Set(segments.flatMap(segment => segment.groupId ? [segment.groupId] : []))];
+  const counts = segmentCounts(segments);
+  const currentIndex = segments.findIndex(segment => segment.status === "unknown");
+  const current = currentIndex >= 0 ? segments[currentIndex] : null;
+  const statusText = (segment: ActivitySegment) => segment.status === "unknown" ? "Not confirmed" : segment.status === "modified" ? "Measured" : segment.status === "skipped" ? "Skipped" : "As prescribed";
   const update = (next: ActivitySegment[]) => onChange(next);
   const updateOne = (id: string, change: Partial<ActivitySegment>) => update(segments.map(segment => segment.id === id ? { ...segment, ...change } : segment));
+  // Done actions only change statuses, so Undo restores statuses by id onto the
+  // CURRENT segments instead of replacing the array (a stale snapshot could
+  // clobber edits made after the tap).
+  const restoreStatuses = (previous: ActivitySegment[]) => update(segmentsRef.current.map(segment => {
+    const before = previous.find(item => item.id === segment.id);
+    return before ? { ...segment, status: before.status } : segment;
+  }));
+  const doneOne = (segment: ActivitySegment) => {
+    const previous = segments;
+    updateOne(segment.id, { status: segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" : "completed" });
+    toast(`Done: ${segmentPlanText(segment)}`, { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+  };
+  const completeAll = () => {
+    const previous = segments;
+    update(resolveUnknownSegments(segments));
+    toast("All remaining parts done as prescribed", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } });
+  };
   const add = () => update([...segments, { id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : activity.activityType === "run" ? "run" : "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }]);
   const repeat = () => {
     try {
@@ -527,33 +558,69 @@ function ActivitySegmentEditor({ activity, onChange, initiallyOpen = false }: { 
       update([...segments.filter(segment => !selectedIds.includes(segment.id)), ...copies]); setSelectedIds([]);
     } catch (error) { toast.error(error instanceof Error ? error.message : "Repeat could not be added"); }
   };
-  return <section className="activity-segment-editor">
-    <Button type="button" variant="outline" aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? "Hide detail" : segments.length ? `Edit detail · ${segmentCountLabel(segments)}` : "Add detail"}</Button>
-    {open && <div className="activity-segment-panel">
-      <p className="text-xs text-white/55">Optional parts for this activity. Planned values stay plans until a part is marked complete.</p>
-      {segments.map((segment, index) => <div className="activity-segment-row" key={segment.id}>
-        {!segment.groupId && <label className="segment-repeat-select"><input type="checkbox" aria-label={`Include segment ${index + 1} in repeat pattern`} checked={selectedIds.includes(segment.id)} onChange={event => setSelectedIds(current => event.target.checked ? [...current, segment.id] : current.filter(id => id !== segment.id))} />Pattern</label>}
-        <label className="field-label">Kind<NativeSelect aria-label={`Segment ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
-        <label className="field-label">Plan sec<DecimalInput min={0} max={86400} value={segment.plannedDurationSec ?? null} onValueChange={plannedDurationSec => updateOne(segment.id, { plannedDurationSec })} /></label>
-        <label className="field-label">Actual sec<DecimalInput min={0} max={86400} value={segment.actualDurationSec ?? null} onValueChange={actualDurationSec => updateOne(segment.id, { actualDurationSec, status: "unknown" })} /></label>
-        <label className="field-label">Plan m<DecimalInput min={0} max={1000000} value={segment.plannedDistanceM ?? null} onValueChange={plannedDistanceM => updateOne(segment.id, { plannedDistanceM })} /></label>
-        <label className="field-label">Actual m<DecimalInput min={0} max={1000000} value={segment.actualDistanceM ?? null} onValueChange={actualDistanceM => updateOne(segment.id, { actualDistanceM, status: "unknown" })} /></label>
-        <span className="segment-status">{segment.status === "unknown" ? "Not confirmed" : segment.status === "modified" ? "Measured" : segment.status === "skipped" ? "Skipped" : "As prescribed"}</span>
-        <div className="segment-row-actions">
-          <Button type="button" variant="outline" onClick={() => updateOne(segment.id, { status: segment.actualDurationSec != null || segment.actualDistanceM != null ? "modified" : "completed" })}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : segment.plannedDurationSec != null || segment.plannedDistanceM != null ? "Complete as prescribed" : "Mark complete"}</Button>
-          <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "skipped" })}>Skip</Button>
-          {segment.status !== "unknown" && <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "unknown" })}>Undo confirmation</Button>}
-          <Button type="button" variant="ghost" aria-label={`Remove segment ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); setSelectedIds(current => current.filter(value => value !== segment.id)); toast(`Segment ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const current = segmentsRef.current; const next = [...current]; next.splice(Math.min(at, current.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
-        </div>
+  const expandedPart = (segment: ActivitySegment, index: number) => <div className="activity-stepper-expanded">
+    <div className="stepper-plan-fields">
+      <label className="field-label">Kind<NativeSelect aria-label={`Part ${index + 1} kind`} value={segment.kind} onChange={event => updateOne(segment.id, { kind: event.target.value as ActivitySegment["kind"] })}><NativeSelectOption value="run">Run</NativeSelectOption><NativeSelectOption value="walk">Walk</NativeSelectOption><NativeSelectOption value="rest">Rest</NativeSelectOption><NativeSelectOption value="other">Other</NativeSelectOption></NativeSelect></label>
+      <label className="field-label">Plan sec<DecimalInput min={0} max={86400} value={segment.plannedDurationSec ?? null} onValueChange={plannedDurationSec => updateOne(segment.id, { plannedDurationSec })} /></label>
+      <label className="field-label">Plan m<DecimalInput min={0} max={1000000} value={segment.plannedDistanceM ?? null} onValueChange={plannedDistanceM => updateOne(segment.id, { plannedDistanceM })} /></label>
+      <label className="field-label">Label · optional<Input aria-label={`Part ${index + 1} label`} value={segment.label ?? ""} placeholder="Tempo, Freestyle…" onChange={event => {
+        const value = event.target.value;
+        const error = segmentLabelError(value);
+        if (error) { setLabelError(error); return; }
+        setLabelError(null);
+        updateOne(segment.id, { label: value.trim() ? value : undefined });
+      }} /></label>
+      {labelError && <p role="alert" className="text-xs text-amber-100">{labelError}</p>}
+    </div>
+    <div className="stepper-actual-fields">
+      <label className="field-label">Actual sec<DecimalInput min={0} max={86400} value={segment.actualDurationSec ?? null} onValueChange={actualDurationSec => updateOne(segment.id, { actualDurationSec, status: "unknown" })} /></label>
+      <label className="field-label">Actual m<DecimalInput min={0} max={1000000} value={segment.actualDistanceM ?? null} onValueChange={actualDistanceM => updateOne(segment.id, { actualDistanceM, status: "unknown" })} /></label>
+    </div>
+    <span className="segment-status">{statusText(segment)}</span>
+    <div className="segment-row-actions">
+      <Button type="button" variant="outline" onClick={() => doneOne(segment)}>{segment.actualDurationSec != null || segment.actualDistanceM != null ? "Mark actual" : segment.plannedDurationSec != null || segment.plannedDistanceM != null ? "Complete as prescribed" : "Mark complete"}</Button>
+      <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "skipped" })}>Skip</Button>
+      {segment.status !== "unknown" && <Button type="button" variant="ghost" onClick={() => updateOne(segment.id, { status: "unknown" })}>Undo confirmation</Button>}
+      <Button type="button" variant="ghost" aria-label={`Remove part ${index + 1}`} onClick={() => { const removed = segment; const at = index; update(segments.filter(item => item.id !== segment.id)); setSelectedIds(currentSelected => currentSelected.filter(value => value !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`Part ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
+    </div>
+  </div>;
+  const partCard = (segment: ActivitySegment, index: number) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
+    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Part ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
+      <span className="stepper-part-index">{index + 1}</span>
+      <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
+      <span className="stepper-part-status">{statusText(segment)}</span>
+    </button>
+    {segment.status === "unknown" && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneOne(segment)}>Done: {segmentPlanText(segment)}</Button>}
+    {expandedId === segment.id && expandedPart(segment, index)}
+  </div>;
+  return <section className="activity-stepper" aria-label={`Parts for ${activity.name}`}>
+    <div className="stepper-progress" aria-label="Part progress">
+      <span className="stepper-position">{current ? `Part ${currentIndex + 1} of ${segments.length}` : segments.length ? `All ${segments.length} parts resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "No parts yet"}</span>
+      <span className="stepper-dots" role="img" aria-label={`${counts.done} of ${segments.length} parts done`}>{segments.map((segment, index) => <span key={segment.id} className={`stepper-dot ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""} ${index === currentIndex ? "is-current" : ""}`} title={`Part ${index + 1}: ${statusText(segment)}`} />)}</span>
+    </div>
+    {current && <div className="activity-stepper-current">
+      <button type="button" className="stepper-current-text" aria-expanded={expandedId === current.id} aria-label={`Current part ${currentIndex + 1}: ${segmentPlanText(current)}`} onClick={() => setExpandedId(value => value === current.id ? null : current.id)}>
+        <span className="stepper-part-plan">{segmentPlanText(current)}</span>
+        {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
+      </button>
+      <Button type="button" className="stepper-done-current bg-[var(--lime)] text-[#11140d]" onClick={() => doneOne(current)}>Done: {segmentPlanText(current)}</Button>
+      {expandedId === current.id && expandedPart(current, currentIndex)}
+    </div>}
+    <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>Complete all remaining as prescribed</Button>
+    <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all parts" : `Show all · ${segmentCountLabel(segments)}`}</Button>
+    {showAll && <div className="activity-stepper-list">
+      {segments.map((segment, index) => <div key={segment.id}>
+        {!segment.groupId && <label className="segment-repeat-select"><input type="checkbox" aria-label={`Include part ${index + 1} in repeat pattern`} checked={selectedIds.includes(segment.id)} onChange={event => setSelectedIds(currentSelected => event.target.checked ? [...currentSelected, segment.id] : currentSelected.filter(id => id !== segment.id))} />Pattern</label>}
+        {partCard(segment, index)}
       </div>)}
       {groups.map(groupId => {
         const group = segments.filter(segment => segment.groupId === groupId);
         const count = segmentCounts(group);
         const progress = segmentGroupProgress(group);
-        return <div className="activity-segment-group" key={groupId}><span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} rounds done · {count.done} of {count.total} parts</span><Button type="button" variant="outline" disabled={!count.unknown} onClick={() => update(completeSegmentGroup(segments, groupId))}>Complete unknown parts</Button></div>;
+        return <div className="activity-segment-group" key={groupId}><span>Repeat group · {progress.roundsDone} of {progress.roundsTotal} rounds done · {count.done} of {count.total} parts</span><Button type="button" variant="outline" disabled={!count.unknown} onClick={() => { const previous = segments; update(completeSegmentGroup(segments, groupId)); toast("Unknown parts in this group done", { action: { label: "Undo", onClick: () => restoreStatuses(previous) } }); }}>Complete unknown parts</Button></div>;
       })}
-      <Button type="button" variant="outline" onClick={add}><Plus /> Add segment</Button>
-      {segments.some(segment => !segment.groupId) && <div className="segment-repeat-controls"><label className="field-label">Repeat count (2–50)<Input type="number" min={2} max={50} step={1} value={repeatCount} onChange={event => setRepeatCount(event.target.value)} /></label><Button type="button" variant="outline" disabled={!selectedIds.length} onClick={repeat}>Repeat selected pattern xN</Button><span className="text-xs text-white/50">Select one or more ungrouped rows as the pattern.</span></div>}
+      <Button type="button" variant="outline" onClick={add}><Plus /> Add part</Button>
+      {segments.some(segment => !segment.groupId) && <div className="segment-repeat-controls"><label className="field-label">Repeat count (2–50)<Input type="number" min={2} max={50} step={1} value={repeatCount} onChange={event => setRepeatCount(event.target.value)} /></label><Button type="button" variant="outline" disabled={!selectedIds.length} onClick={repeat}>Repeat selected pattern xN</Button><span className="text-xs text-white/50">Select one or more ungrouped parts as the pattern.</span></div>}
     </div>}
   </section>;
 }
@@ -565,6 +632,10 @@ function CardioEditor({
   onChange,
   onCompleteEffort,
   onLater,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onRemove,
 }: {
   isNext: boolean;
@@ -573,10 +644,15 @@ function CardioEditor({
   onChange: (activity: CardioEntry) => void;
   onCompleteEffort: (seconds: number) => void;
   onLater: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onRemove: () => void;
 }) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
+  const [expandedEffortId, setExpandedEffortId] = useState<string | null>(null);
   const style = activityLoggingStyle(activity);
   const efforts = activity.efforts ?? [];
   const hasCompletedEfforts = efforts.some((effort) => effort.completed);
@@ -594,6 +670,12 @@ function CardioEditor({
     completedAsPlanned: "completedAsPlanned" in changes ? Boolean(changes.completedAsPlanned) : changesActual ? false : activity.completedAsPlanned,
     updatedAt: new Date().toISOString(),
   });
+  const postSessionNoSegments = ["yoga", "grappling", "soccer", "water_polo"].includes(activity.activityType) && !activity.segments?.length;
+  const mobilitySessionCard = activity.activityType === "mobility" && style === "routine";
+  const canAddParts = ["run", "walk", "hike", "ruck", "bike", "row", "other"].includes(activity.activityType) && style !== "efforts";
+  const activityDoneLabel = activity.completed ? "Activity complete"
+    : activity.segments?.length ? `Done: ${activity.name}`
+    : `Done: ${activity.name}${activity.plannedDurationMin !== null ? ` ${formatMeasure(activity.plannedDurationMin)} min` : ""}${activity.plannedDistanceKm !== null ? ` ${formatMeasure(activity.plannedDistanceKm)} km` : ""}`;
   if (!open && !activity.completed) {
     const summary = [activity.activityType === "other" ? "Custom activity" : activity.activityType.replace(/_/g, " "), activity.segments?.length ? segmentCountLabel(activity.segments) : activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "", activity.intensity].filter(Boolean).join(" · ");
     const warning = unusualActivityWarning(activity);
@@ -624,7 +706,7 @@ function CardioEditor({
         </div>
         <div className="flex items-center gap-2">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
@@ -638,27 +720,37 @@ function CardioEditor({
           {activity.activityType === "ruck" && style === "single" && <label className="field-label">Pack load <span className="text-white/60">{activity.ruckLoadUnit}</span><DecimalInput min={0} max={1000} value={activity.ruckLoad} onValueChange={(ruckLoad) => update({ ruckLoad }, true)} placeholder="—" className="mt-1 h-9 border-white/8 bg-black/20" /></label>}
         </div>}
         {unusualActivityWarning(activity) && <p role="status" className="activity-warning">{unusualActivityWarning(activity)}</p>}
-        {style !== "efforts" && <ActivitySegmentEditor activity={activity} onChange={segments => update({ segments }, true)} initiallyOpen={initiallyOpen} />}
+        {activity.segments?.length ? <ActivityStepper activity={activity} onChange={segments => {
+          const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
+          update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+        }} /> : postSessionNoSegments ? null : canAddParts ? <Button type="button" variant="outline" onClick={() => update({ segments: [{ id: uid("segment"), kind: activity.activityType === "walk" ? "walk" : activity.activityType === "run" ? "run" : "other", plannedDurationSec: null, actualDurationSec: null, plannedDistanceM: null, actualDistanceM: null, status: "unknown" }], ...(activity.completed ? { completed: false } : {}) }, true)}><Plus /> Add parts</Button> : null}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
             const changeEffort = (changes: Partial<typeof effort>) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, ...changes } : item), completed: false }, true);
+            const planText = [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ") || "Effort";
             return <div key={effort.id} className={`activity-effort ${effort.completed ? "is-done" : ""}`}>
               <span className="activity-effort-number">{index + 1}</span>
-              <label className="field-label">Metres<DecimalInput min={0} max={1000000} value={effort.actualDistanceM} onValueChange={(actualDistanceM) => changeEffort({ actualDistanceM })} placeholder={effort.plannedDistanceM?.toString() ?? "—"} /></label>
-              <label className="field-label">Load <span className="text-white/60">{activity.effortLoadUnit ?? "lb"}</span><DecimalInput min={0} max={5000} value={effort.actualLoad} onValueChange={(actualLoad) => changeEffort({ actualLoad })} placeholder={effort.plannedLoad?.toString() ?? "—"} /></label>
-              <label className="field-label">Seconds<DecimalInput min={0} max={86400} value={effort.actualDurationSec} onValueChange={(actualDurationSec) => changeEffort({ actualDurationSec })} placeholder={effort.plannedDurationSec?.toString() ?? "—"} /></label>
-              <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}`} onClick={() => {
+              <span className="activity-effort-plan">{planText}{effort.completed ? " · Done" : ""}</span>
+              <Button type="button" variant="ghost" onClick={() => setExpandedEffortId(value => value === effort.id ? null : effort.id)} aria-expanded={expandedEffortId === effort.id}>Did different</Button>
+              <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${planText}`} onClick={() => {
                 const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
                 update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
                 if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
                 if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
-              }}><Check /></Button>
+              }}>{effort.completed ? <><Check /> Done</> : `Done: ${planText}`}</Button>
+              {expandedEffortId === effort.id && <div className="activity-effort-actuals">
+                <label className="field-label">Metres<DecimalInput min={0} max={1000000} value={effort.actualDistanceM} onValueChange={(actualDistanceM) => changeEffort({ actualDistanceM })} placeholder={effort.plannedDistanceM?.toString() ?? "—"} /></label>
+                <label className="field-label">Load <span className="text-white/60">{activity.effortLoadUnit ?? "lb"}</span><DecimalInput min={0} max={5000} value={effort.actualLoad} onValueChange={(actualLoad) => changeEffort({ actualLoad })} placeholder={effort.plannedLoad?.toString() ?? "—"} /></label>
+                <label className="field-label">Seconds<DecimalInput min={0} max={86400} value={effort.actualDurationSec} onValueChange={(actualDurationSec) => changeEffort({ actualDurationSec })} placeholder={effort.plannedDurationSec?.toString() ?? "—"} /></label>
+                <span className="text-xs text-white/50">Enter what differed, then tap Done.</span>
+              </div>}
             </div>;
           })}
           <div className="activity-effort-actions"><Button type="button" variant="ghost" onClick={() => update({ efforts: [...efforts, makeActivityEffort()], completed: false })}><Plus /> Add effort</Button><span>{efforts.filter((item) => item.completed).length}/{efforts.length} done</span></div>
           {efforts.length > 0 && <details className="activity-effort-plan"><summary>Edit prescription</summary><div>{efforts.map((effort, index) => <div key={effort.id} className="activity-effort-plan-row"><span>{index + 1}</span><label className="field-label">Metres<DecimalInput min={0} value={effort.plannedDistanceM} onValueChange={(plannedDistanceM) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDistanceM } : item) })} /></label><label className="field-label">Load<DecimalInput min={0} value={effort.plannedLoad} onValueChange={(plannedLoad) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedLoad } : item) })} /></label><label className="field-label">Seconds<DecimalInput min={0} value={effort.plannedDurationSec} onValueChange={(plannedDurationSec) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDurationSec } : item) })} /></label><Button type="button" variant="ghost" aria-label={`Remove effort ${index + 1}`} onClick={() => update({ efforts: efforts.filter((item) => item.id !== effort.id), completed: false })}><X /></Button></div>)}</div></details>}
         </div>}
         {style === "routine" && activity.activityType !== "mobility" && <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
+        {postSessionNoSegments && style !== "routine" && <label className="field-label block">What I did<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : "Flow, class, poses…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>}
         <details className="activity-details"><summary>{activity.activityType === "mobility" ? "Activity options" : "More details"}{activity.intensity ? ` · ${activity.intensity}` : ""}</summary>
           <div className="activity-option-grid"><label className="field-label">Effort / 10 · optional<Input inputMode="decimal" value={activity.effort} placeholder="—" onChange={(event) => update({ effort: event.target.value }, true)} /></label>
             <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => update({ activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined })} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20 capitalize">{(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label>
@@ -682,7 +774,7 @@ function CardioEditor({
         {activity.activityType === "mobility" && style === "routine" ? (
           <div className="sm:col-span-2">
             <p className="field-label">Movement routine</p>
-            {activity.mobilityMoves.length ? <div className="mobility-list mt-2">{activity.mobilityMoves.map((move) => <div key={move.id}><span><Check />{move.name}</span><strong>{move.prescription}</strong></div>)}</div> : <p className="mt-2 text-sm text-white/60">No movements listed yet.</p>}
+            {activity.mobilityMoves.length ? <div className="mobility-list mt-2">{activity.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div> : <p className="mt-2 text-sm text-white/60">No movements listed yet.</p>}
             <details className="routine-editor mt-2">
               <summary>Edit movements</summary>
               <Textarea
@@ -698,7 +790,8 @@ function CardioEditor({
             </details>
           </div>
         ) : null}
-        {(style !== "routine" || activity.activityType === "mobility") && <details className="log-notes"><summary>{activity.notes ? "Your notes" : "Add your notes"}</summary><Textarea aria-label="Your activity notes" value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder="Feel, pain, terrain — anything useful" className="mt-1 min-h-12 border-white/8 bg-black/20" /></details>}
+        {mobilitySessionCard && <label className="field-label block">Your notes<Textarea aria-label="Your activity notes" value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder="Feel, pain, terrain — anything useful" className="mt-1 min-h-12 border-white/8 bg-black/20" /></label>}
+        {(style !== "routine" || activity.activityType === "mobility") && !mobilitySessionCard && !postSessionNoSegments && <details className="log-notes"><summary>{activity.notes ? "Your notes" : "Add your notes"}</summary><Textarea aria-label="Your activity notes" value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder="Feel, pain, terrain — anything useful" className="mt-1 min-h-12 border-white/8 bg-black/20" /></details>}
         {style !== "efforts" && <Button
           type="button"
           variant="outline"
@@ -717,7 +810,7 @@ function CardioEditor({
           }}
           className={activity.completed ? "border-[var(--lime)]/25 bg-[var(--lime)]/8 text-[var(--lime)]" : "border-white/10 bg-white/[0.025] text-white"}
         >
-          <Check /> {activity.completed ? "Activity complete" : canCompleteAsPrescribed(activity) ? "Complete as prescribed" : "Mark complete"}
+          <Check /> {activityDoneLabel}
         </Button>}
         {style === "efforts" && <p className="text-xs text-white/50">Complete each effort above. Unfinished efforts stay incomplete when you finish the workout.</p>}
       </CardContent>
@@ -888,6 +981,16 @@ export function WorkoutEditor({
     latestWorkout.current = next; onUpdate(next);
   };
 
+  const moveFor = (id: string) => {
+    const order = normalizedBlockOrder(workout);
+    const index = order.findIndex(block => block.id === id);
+    const move = (direction: "up" | "down") => {
+      const next = moveBlock(workout, id, direction);
+      if (next !== workout) { onUpdate(next); toast.success(direction === "up" ? "Moved up" : "Moved down"); }
+    };
+    return { canMoveUp: index > 0, canMoveDown: index >= 0 && index < order.length - 1, onMoveUp: () => move("up"), onMoveDown: () => move("down") };
+  };
+
   const removeExercise = (id: string) => {
     const removed = workout.exercises.find((item) => item.id === id);
     const index = workout.exercises.findIndex((item) => item.id === id);
@@ -981,6 +1084,7 @@ export function WorkoutEditor({
             increment={state.loadIncrements?.[incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
             onIncrement={value => onIncrement(incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases),value)}
             onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
+            {...moveFor(block.exercise.id)}
             onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
             onChange={updateExercise}
             onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
@@ -995,6 +1099,7 @@ export function WorkoutEditor({
             onChange={updateCardio}
             onCompleteEffort={(seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.activity.id })}
             onLater={() => { onUpdate(moveBlockLater(workout, block.activity.id)); toast.success("Moved to the end of this workout"); }}
+            {...moveFor(block.activity.id)}
             onRemove={() => {
               const removed = block.activity;
               const index = normalizedBlockOrder(workout).findIndex((item) => item.id === removed.id);

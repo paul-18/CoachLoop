@@ -27,6 +27,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 import { exampleFitlog, exampleFitlogV2, parseFitlog } from "../interchange/fitlog";
 
 import { formatLoad, formatMeasure } from "../domain/training-metrics";
+import { previewSegmentLines } from "../domain/activity-segments";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
@@ -263,7 +264,8 @@ export function ImportWorkoutDialog({
                     {block.activity.ruckLoad !== null ? ` · Pack load ${block.activity.ruckLoad} ${block.activity.ruckLoadUnit}` : ""}
                     {(block.activity.effortRestSec ?? 0) > 0 ? ` · Effort rest ${block.activity.effortRestSec}s` : ""}
                   </p>
-                  {block.activity.segments?.length ? <p className="mt-1 text-sm text-white/60">{block.activity.segments.length} planned segments{(() => { const total = block.activity.segments.reduce((sum, segment) => sum + (segment.plannedDurationSec ?? 0), 0); return total > 0 ? ` · ${formatMeasure(total / 60)} min planned` : ""; })()}</p> : null}
+                  {block.activity.segments?.length ? <ul className="mt-3 space-y-1 text-sm text-white/75">{previewSegmentLines(block.activity.segments).map((line, index) => <li key={index}>{line}</li>)}</ul> : null}
+                  {block.activity.notes && ["yoga", "grappling", "soccer", "water_polo"].includes(block.activity.activityType) ? <p className="mt-1 text-sm text-white/60">Notes: {block.activity.notes.length > 100 ? `${block.activity.notes.slice(0, 100).trimEnd()}…` : block.activity.notes}</p> : null}
                   {block.activity.intervals && <RunPlan text={block.activity.intervals} />}
                   {!!block.activity.efforts?.length && <ol className="mt-3 space-y-2 text-sm text-white/75">{block.activity.efforts.map((e, index) => <li key={e.id}>{index + 1}. {[e.plannedDistanceM !== null ? `${e.plannedDistanceM} m` : "", e.plannedDurationSec !== null ? `${e.plannedDurationSec} sec` : "", e.plannedLoad !== null ? `${e.plannedLoad} ${block.activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ")}</li>)}</ol>}
                   {block.activity.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{block.activity.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
