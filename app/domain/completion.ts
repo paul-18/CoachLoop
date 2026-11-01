@@ -1,10 +1,17 @@
 import type { ActivityEffort, CardioEntry, TrainingSet, WorkoutSession } from "./training-types";
 import { normalizedBlockOrder } from "./block-order";
-export const hasCompletedActivityWork = (activity: CardioEntry) => activity.completed || !!activity.efforts?.some((e) => e.completed);
+import { segmentCounts, segmentHasTypedActual, segmentMeasure } from "./activity-segments";
+export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.skipped && (activity.segments?.length
+  ? segmentCounts(activity.segments).done > 0
+  : activity.completed || !!activity.efforts?.some((e) => e.completed));
 export const performedDuration = (activity: CardioEntry) =>
-  activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDurationSec === null ? sum : (sum ?? 0) + e.actualDurationSec / 60, null) : activity.actualDurationMin;
+  activity.segments?.length
+    ? (() => { const result = segmentMeasure(activity, "duration"); return result?.fullyRecorded ? result.value === null ? null : result.value / 60 : null; })()
+    : activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDurationSec === null ? sum : (sum ?? 0) + e.actualDurationSec / 60, null) : activity.actualDurationMin;
 export const performedDistance = (activity: CardioEntry) =>
-  activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDistanceM === null ? sum : (sum ?? 0) + e.actualDistanceM / 1000, null) : activity.actualDistanceKm;
+  activity.segments?.length
+    ? (() => { const result = segmentMeasure(activity, "distance"); return result?.fullyRecorded ? result.value === null ? null : result.value / 1000 : null; })()
+    : activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDistanceM === null ? sum : (sum ?? 0) + e.actualDistanceM / 1000, null) : activity.actualDistanceKm;
 
 /** Print a measured total. Does not change stored metres, seconds or sums. */
 export function formatMeasure(value: number, maxDecimals = 2): string {
@@ -92,6 +99,7 @@ export const completedSetValues = (set: TrainingSet) => {
 
 export const activityStillOpen = (activity: CardioEntry) => {
   if (activity.skipped) return false;
+  if (activity.segments?.length) return activity.segments.some(segment => segment.status === "unknown");
   if (activity.efforts?.length) return activity.efforts.some(effort => !effort.completed);
   return !activity.completed;
 };
@@ -157,27 +165,32 @@ export function workoutProgressCopy(workout: WorkoutSession): string {
   const sets = countableSets(workout);
   const doneSets = sets.filter(set => set.completed && !set.skipped).length;
   const activities = openActivities(workout);
-  const effortActivities = activities.filter(activity => activity.efforts?.length);
-  const singles = activities.filter(activity => !activity.efforts?.length);
+  const segmented = activities.filter(activity => activity.segments?.length);
+  const effortActivities = activities.filter(activity => !activity.segments?.length && activity.efforts?.length);
+  const singles = activities.filter(activity => !activity.segments?.length && !activity.efforts?.length);
   const efforts = effortActivities.flatMap(activity => activity.efforts ?? []);
   const doneEfforts = efforts.filter(effort => effort.completed).length;
   const doneSingles = singles.filter(activity => activity.completed).length;
   const piece = (done: number, total: number, singular: string, plural: string) => total ? `${done}/${total} ${total === 1 ? singular : plural}` : "";
-  const parts = [piece(doneSets, sets.length, "set", "sets"), piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities")].filter(Boolean);
-  return parts.join(" · ");
+  const partProgress = segmented.map(activity => {
+    const counts = segmentCounts(activity.segments ?? []);
+    return `${activity.name} ${piece(counts.done, counts.total, "part", "parts")}`;
+  });
+  const counts = [piece(doneSets, sets.length, "set", "sets"), piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities"), ...partProgress].filter(Boolean);
+  return counts.join(" · ");
 }
 
 /** Keep completed efforts visible even when their parent activity is unfinished. */
 export function workoutCompletionSummary(workout: WorkoutSession): string {
   const progress = workoutProgressCopy(workout);
-  const anyDone = progress.split(" · ").some(part => Number(part.split("/")[0]) > 0);
+  const anyDone = progress.split(" · ").some(part => Number(/(\d+)\s*\//.exec(part)?.[1] ?? 0) > 0);
   if (!anyDone) return "Nothing is marked complete yet, but you can still save the session.";
   return `${progress} complete.`;
 }
 
 export function hasGenuineTraining(workout: WorkoutSession) {
   const workingSet = workout.exercises.some(exercise => exercise.sets.some(set => set.completed && !set.skipped && !set.warmup));
-  const activity = workout.cardio.some(item => !item.skipped && (item.completed || !!item.efforts?.some(effort => effort.completed)));
+  const activity = workout.cardio.some(hasCompletedActivityWork);
   return workingSet || activity;
 }
 
@@ -194,7 +207,8 @@ export function exerciseSetProgress(sets: Array<{ completed: boolean; skipped?: 
 
 /** History badge. An explicit skip stays Skipped; a missing flag stays unfinished, not skipped. */
 export function activityHistoryLabel(activity: CardioEntry): string {
-  if (activity.skipped && !activity.completed) return "Skipped";
+  if (activity.skipped) return "Skipped";
+  if (activity.segments?.length) return `${segmentCounts(activity.segments).done} of ${activity.segments.length} parts done`;
   if (activity.completed) return activity.completedAsPlanned ? "As prescribed" : "Completed";
   if (hasCompletedActivityWork(activity)) return "Partly completed";
   return "Not completed";
@@ -208,6 +222,7 @@ export function effortHasTypedActual(effort: ActivityEffort) {
 
 /** A typed distance, time, or effort result. Null means untouched. Zero counts as typed. */
 export function activityHasTypedActual(activity: CardioEntry) {
+  if (activity.segments?.some(segment => segment.status === "unknown" && segmentHasTypedActual(segment))) return true;
   if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
   return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
 }
@@ -216,6 +231,7 @@ export function activityHasTypedActual(activity: CardioEntry) {
 export function unconfirmedActualActivities(workout: WorkoutSession) {
   return workout.cardio.filter((activity) => {
     if (activity.skipped) return false;
+    if (activity.segments?.length) return activity.segments.some(segment => segment.status === "unknown" && segmentHasTypedActual(segment));
     if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
     if (activity.completed) return false;
     return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
@@ -224,9 +240,11 @@ export function unconfirmedActualActivities(workout: WorkoutSession) {
 
 export function unconfirmedActualKey(workout: WorkoutSession) {
   return unconfirmedActualActivities(workout).map((activity) => {
+    const segments = (activity.segments ?? []).filter(segment => segment.status === "unknown" && segmentHasTypedActual(segment))
+      .map(segment => `${segment.id}:${segment.actualDistanceM}:${segment.actualDurationSec}`).join(",");
     const efforts = (activity.efforts ?? []).filter((effort) => !effort.completed && effortHasTypedActual(effort))
       .map((effort) => `${effort.id}:${effort.actualDistanceM}:${effort.actualDurationSec}:${effort.actualLoad}`).join(",");
-    return `${activity.id}:${activity.actualDistanceKm}:${activity.actualDurationMin}:${efforts}`;
+    return `${activity.id}:${activity.actualDistanceKm}:${activity.actualDurationMin}:${segments}:${efforts}`;
   }).join("|");
 }
 
@@ -242,6 +260,10 @@ export function markTypedActivitiesComplete(workout: WorkoutSession, ids: readon
     ...workout,
     cardio: workout.cardio.map((activity) => {
       if (!chosen.has(activity.id) || activity.skipped) return activity;
+      if (activity.segments?.length) {
+        const segments = activity.segments.map(segment => segment.status === "unknown" && segmentHasTypedActual(segment) ? { ...segment, status: "modified" as const } : segment);
+        return { ...activity, segments, completed: true, completedAsPlanned: false };
+      }
       if (activity.efforts?.length) {
         const efforts = activity.efforts.map((effort) => !effort.completed && effortHasTypedActual(effort) ? { ...effort, completed: true } : effort);
         return { ...activity, efforts, completed: efforts.length > 0 && efforts.every((effort) => effort.completed), completedAsPlanned: false };

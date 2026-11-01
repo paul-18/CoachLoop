@@ -30,18 +30,26 @@ const exerciseSchema = z.object({
   coachNotes: z.string(), sets: z.array(setSchema), deletedSetIds: stringArray.optional(),
   updatedAt: timestamp, substitutedFor: z.string().optional(),
 }).passthrough();
-const moveSchema = z.object({ id: identifier, name: z.string(), prescription: z.string() });
+const moveSchema = z.object({ id: identifier, name: z.string(), prescription: z.string() }).passthrough();
 const effortSchema = z.object({
   id: identifier, plannedDistanceM: nullableNumber, actualDistanceM: nullableNumber,
   plannedDurationSec: nullableNumber, actualDurationSec: nullableNumber,
   plannedLoad: loadNumber, actualLoad: loadNumber, completed: z.boolean(),
-});
+}).passthrough();
+const activitySegmentSchema = z.object({
+  id: identifier,
+  kind: z.enum(["run", "walk", "rest", "other"]),
+  plannedDurationSec: nullableNumber.optional(), actualDurationSec: nullableNumber.optional(),
+  plannedDistanceM: nullableNumber.optional(), actualDistanceM: nullableNumber.optional(),
+  status: z.enum(["completed", "modified", "skipped", "unknown"]),
+  groupId: identifier.optional(), iteration: z.number().int().min(1).max(50).optional(),
+}).passthrough().refine(segment => (segment.groupId === undefined) === (segment.iteration === undefined), "Repeated segments must include both groupId and iteration");
 const activitySchema = z.object({
   id: identifier, name: z.string(),
   externalSourceId: z.string().optional(),
   activityType: z.enum(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"]),
   loggingStyle: z.enum(["single", "routine", "efforts"]).optional(),
-  efforts: z.array(effortSchema).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
+  efforts: z.array(effortSchema).optional(), segments: z.array(activitySegmentSchema).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
   plannedDurationMin: nullableNumber, actualDurationMin: nullableNumber,
   plannedDistanceKm: nullableNumber, actualDistanceKm: nullableNumber,
   ruckLoad: loadNumber, ruckLoadUnit: unit, averageHr: nullableNumber,
@@ -106,7 +114,7 @@ export const storedStateBoundary = z.object({
     weeklyCards: z.array(z.enum(["strength", "run", "ruck", "water_polo", "circuit", "swim", "bike", "row", "walk", "hike", "soccer", "grappling", "yoga", "mobility", "force", "other"])).refine(values => new Set(values).size === values.length).optional(),
     progressSections: z.array(z.enum(["weekly", "coverage", "balance", "bodyweight", "trends", "benchmarks", "activities", "waist", "monthly", "calendar", "records"])).refine(values => new Set(values).size === values.length).optional(),
     bodyDiagram: z.enum(["male", "female"]).optional(),
-    quickLogActivities: z.array(z.enum(["run", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
+    quickLogActivities: z.array(z.enum(["run", "walk", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
     defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
@@ -154,7 +162,11 @@ function validateWorkoutIntegrity(w: WorkoutSession) {
     unique(exercise.sets.map(s => s.id), "set");
     if (exercise.sets.some(s => s.completed && s.skipped)) throw new Error("A set cannot be completed and skipped");
   }
-  for (const activity of w.cardio) unique((activity.efforts ?? []).map(e => e.id), "effort");
+  for (const activity of w.cardio) {
+    unique((activity.efforts ?? []).map(e => e.id), "effort");
+    const segments = activity.segments ?? [];
+    unique(segments.map(segment => segment.id), "activity segment");
+  }
 }
 function validateStateIntegrity(state: TrainingState) {
   unique(state.workouts.map(w => w.id), "workout");

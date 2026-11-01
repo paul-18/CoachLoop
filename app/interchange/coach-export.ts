@@ -1,6 +1,7 @@
-import { performedDuration, performedDistance, formatMeasure, hasTrainingEvidence } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, hasTrainingEvidence } from "../domain/completion";
+import { formatSegmentMeasure, hasSegmentPrescription, segmentCountLabel, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 import { hyroxExport } from "../domain/hyrox";
-import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER } from "./fitlog";
+import { FITLOG_INSTRUCTIONS, FITLOG_REMINDER, FITLOG_V2_INSTRUCTIONS } from "./fitlog";
 import { formatLoad, formatPerformedSet, strengthRecords } from "../domain/training-metrics";
 import { benchmarkDueDate } from "../domain/benchmarks";
 import { localDate } from "../domain/training-types";
@@ -18,7 +19,7 @@ Base everything on the completed training history, goals, bodyweight entries, an
 
 Account for accumulated load, recovery, sleep, injuries, travel, and anything else in the brief. Keep training challenging and productive — no junk volume.
 
-Be direct: recommend the next useful session from recent history, explain your reasoning briefly, and when I ask for a workout, return exactly one importable FITLOG block and nothing else.`;
+Be direct: recommend the next useful session from recent history and explain your reasoning briefly. When I ask for a workout, return exactly one importable FITLOG block and nothing else. For mixed run/walk sessions, include an explicit TYPE line, normally TYPE|run. Use INTERVALS|6 x (3 min run / 1 min walk) as the interval stage format. Write mobility as MOVE|name|prescription, with prescriptions such as N x .../side or N x ... sec.`;
 const plannedSetLine = (set: TrainingSet) => {
   const load = formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode);
   const effort = set.plannedRpe
@@ -85,11 +86,38 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
     const activity = activityById.get(block.id);
     if (!activity) return;
     lines.push(`\n${activity.name}:`);
+    if (activity.skipped) {
+      lines.push("- SKIPPED");
+      return;
+    }
+    const activityDone = activity.segments?.length ? hasCompletedActivityWork(activity) : activity.completed;
+    if (activity.segments?.length) {
+      if (activity.completedAsPlanned && hasSegmentPrescription(activity)) lines.push("- Completed as prescribed");
+      lines.push(`- Segments: ${segmentCountLabel(activity.segments)}`);
+      const duration = segmentMeasure(activity, "duration");
+      const distance = segmentMeasure(activity, "distance");
+      lines.push(`- Total duration: ${formatSegmentMeasure(duration, "duration")}`);
+      lines.push(`- Total distance: ${formatSegmentMeasure(distance, "distance")}`);
+      if (activity.activityType === "run") {
+        lines.push(`- Running only: ${formatSegmentMeasure(segmentMeasure(activity, "duration", "run"), "duration")} · ${formatSegmentMeasure(segmentMeasure(activity, "distance", "run"), "distance")}`);
+        lines.push(`- Walking only: ${formatSegmentMeasure(segmentMeasure(activity, "duration", "walk"), "duration")} · ${formatSegmentMeasure(segmentMeasure(activity, "distance", "walk"), "distance")}`);
+        if (activity.effort) lines.push(`- RPE: ${activity.effort}/10`);
+      }
+      for (const segment of activity.segments) {
+        const values = segment.status === "completed"
+          ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
+          : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""]
+            : [];
+        lines.push(`- ${segment.kind.toUpperCase()} · ${segment.status.toUpperCase()}${values.filter(Boolean).length ? ` · ${values.filter(Boolean).join(" · ")}` : ""}`);
+      }
+      const mismatch = segmentMismatch(activity);
+      if (mismatch) lines.push(`- Warning: ${mismatch.message}`);
+    }
     if (activity.completed && activity.efforts?.length) lines.push(`- Efforts: ${activity.efforts.map((effort) => effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "done" : "not completed").join("; ")}`);
-    if (!activity.completed && activity.efforts?.length) {
+    if (!activity.completed && !activity.segments?.length && activity.efforts?.length) {
       lines.push(...activity.efforts.map((effort, index) => `- Effort ${index + 1}: ${effort.completed ? [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "completed; measures unrecorded" : "NOT COMPLETED"}`));
     }
-    if (!activity.completed) {
+    if (!activityDone) {
       const planned = [
         activity.plannedDurationMin !== null ? `${activity.plannedDurationMin} min` : "",
         activity.plannedDistanceKm !== null ? `${activity.plannedDistanceKm} km` : "",
@@ -98,10 +126,11 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       lines.push(`- ${workout.status === "planned" ? "PLANNED" : "NOT COMPLETED"}${planned ? `: ${planned}` : ""}`);
       if (activity.mobilityMoves?.length) lines.push(`- Movements: ${activity.mobilityMoves.map((move) => `${move.name}${move.prescription ? ` ${move.prescription}` : ""}`).join("; ")}`);
       if (activity.efforts?.length) lines.push(`- Prescribed efforts: ${activity.efforts.map((effort) => [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : ""].filter(Boolean).join(" · ")).join("; ")}`);
-    } else {
+    } else if (!activity.segments?.length) {
       const duration = performedDuration(activity);
       const distance = performedDistance(activity);
-      if (activity.completedAsPlanned) lines.push("- Completed as prescribed");
+      const hasPrescription = activity.plannedDurationMin !== null || activity.plannedDistanceKm !== null || Boolean(activity.intervals || activity.mobilityMoves?.some(move => move.prescription) || activity.efforts?.some(effort => effort.plannedDistanceM !== null || effort.plannedDurationSec !== null || effort.plannedLoad !== null));
+      if (activity.completedAsPlanned && hasPrescription) lines.push("- Completed as prescribed");
       if (duration !== null) lines.push(`- Duration: ${formatMeasure(duration)} min`);
       if (distance !== null) lines.push(`- Distance: ${formatMeasure(distance)} km`);
       if (activity.intensity) lines.push(`- Target intensity (not reported effort): ${activity.intensity}`);
@@ -247,5 +276,8 @@ ${options.emphasis?.trim() ? `ATHLETE NOTE — FOR THIS BRIEF ONLY\n${options.em
 
 Briefly explain the reasoning, then provide exactly one importable workout using this format:
 
-${options.mode === "new" ? FITLOG_INSTRUCTIONS : FITLOG_REMINDER}`;
+${options.mode === "new" ? FITLOG_INSTRUCTIONS : FITLOG_REMINDER}
+
+For planned segmented activities, use FITLOG version 2 and follow these rules:
+${FITLOG_V2_INSTRUCTIONS}`;
 };

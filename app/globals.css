@@ -163,11 +163,11 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .coach-cue { display: flex; align-items: baseline; gap: 7px; border-left: 2px solid rgba(102,199,255,.42); border-radius: 0 8px 8px 0; background: rgba(102,199,255,.04); padding: 6px 9px; color: rgba(220,241,255,.66); font-size: .74rem; line-height: 1.35; overflow-wrap: anywhere; }
 .coach-cue strong { flex: 0 0 auto; color: #9bdcff; font-size: .61rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .mobility-list { display: grid; gap: 1px; overflow: hidden; border: 1px solid rgba(255,255,255,.065); border-radius: 12px; background: rgba(0,0,0,.13); }
-.mobility-list > div { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.mobility-list > div { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr); align-items: start; gap: 6px 12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.05); }
 .mobility-list > div:last-child { border-bottom: 0; }
 .mobility-list span { display: flex; min-width: 0; align-items: center; gap: 7px; color: rgba(255,255,255,.7); font-size: .84rem; overflow-wrap: anywhere; }
 .mobility-list span svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--lime); }
-.mobility-list strong { flex: 0 0 auto; color: var(--lime); font-size: .76rem; font-weight: 800; }
+.mobility-list strong { min-width: 0; color: var(--lime); font-size: .76rem; font-weight: 800; overflow-wrap: anywhere; white-space: normal; text-align: right; }
 .routine-editor { border-radius: 10px; background: rgba(255,255,255,.02); padding: 9px 11px; }
 .routine-editor summary { cursor: pointer; color: rgba(255,255,255,.48); font-size: .78rem; font-weight: 750; }
 .goals-panel { overflow: hidden; border: 1px solid rgba(255,255,255,.07); border-radius: 17px; background: rgba(255,255,255,.022); }
@@ -408,7 +408,6 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .activity-details { padding: 0 9px; }
   .activity-details[open] { padding-bottom: 12px; }
   .activity-details > summary, .log-notes > summary, .routine-editor > summary { min-height: 44px; }
-  .activity-basics .field-label { font-size: .67rem; letter-spacing: 0; }
   .coach-cue { font-size: .75rem; }
   .coach-hero { grid-template-columns: 1fr; padding: 20px; gap: 12px; border-radius: 18px; }
   .coach-orbit { display: none; }
@@ -445,6 +444,8 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .rest-timer button { min-width: 44px; min-height: 44px; }
 }
 @media (max-width: 640px) {
+  .mobility-list > div { grid-template-columns: minmax(0, 1fr); }
+  .mobility-list strong { padding-left: 21px; text-align: left; }
   .set-row { grid-template-columns: 44px minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px; }
   .set-number { width: 44px; }
   .set-input span { font-size: .75rem; letter-spacing: .02em; }
@@ -866,6 +867,16 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 @media(max-width:360px) { .display-choice-grid, .theme-options { grid-template-columns:1fr; } }
 
 .activity-cards:has(> :only-child) { grid-template-columns:1fr; }
+
+.activity-segment-editor { display:grid; gap:10px; margin-top:12px; }
+.activity-segment-panel { display:grid; gap:12px; padding:12px; border:1px solid #ffffff12; border-radius:12px; background:#00000018; }
+.activity-segment-row { display:grid; grid-template-columns:70px repeat(4,minmax(70px,1fr)); align-items:end; gap:8px; padding:10px; border:1px solid #ffffff10; border-radius:10px; }
+.activity-segment-row .field-label { min-width:0; font-size:.72rem; }
+.segment-repeat-select { display:flex; align-items:center; gap:5px; font-size:.7rem; }
+.segment-status { align-self:center; color:#b5b9ad; font-size:.72rem; }
+.segment-row-actions { display:flex; grid-column:1/-1; flex-wrap:wrap; gap:6px; }
+.activity-segment-group,.segment-repeat-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:8px 0; }
+@media(max-width:640px) { .activity-segment-row { grid-template-columns:repeat(2,minmax(0,1fr)); } .segment-repeat-select { grid-column:1/-1; } .segment-status { grid-column:1/-1; } .segment-row-actions { grid-column:1/-1; } }
 
 .settings-panel button[data-slot="button"] { min-height:44px; }
 .settings-panel button[data-slot="button"][aria-label] { min-width:44px; }

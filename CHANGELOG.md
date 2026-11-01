@@ -2,6 +2,12 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v106 — release candidate
+
+- Adds release stamps to backup exports, a one-time restore acknowledgment for backups from a numerically newer release, and validation passthrough for future movement and effort fields. Legacy skipped cardio is excluded from completed training evidence.
+- Adds optional segmented cardio logging, per-part completion and measured-result rules, run/walk-specific totals, repeat groups, a quick-log detail editor, and the strict FITLOG v2 parser. FITLOG v1 remains supported.
+- See [v106 update notes](docs/releases/V106-UPDATE-NOTES.md) and [v106 QC](docs/releases/V106-QC.md). Deployment status will be recorded after the release gate and Pages workflow complete.
+
 ## v105 — published
 
 - Finish review edits now stay on the candidate workout, and choosing to mark typed activity results complete does not alter the draft until Save. Cancelling the review discards that candidate cleanly.

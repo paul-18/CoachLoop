@@ -31,6 +31,7 @@ import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlo
 import { FirstWorkoutNote } from "./first-workout-note";
 
 import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress } from "../domain/completion";
+import { formatSegmentMeasure, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 
 import { WorkoutVolume } from "./workout-editor";
 
@@ -45,6 +46,26 @@ function savedHistoryUi(): { search: string; filter: "all" | "completed" | "skip
       page: typeof saved?.page === "number" && Number.isSafeInteger(saved.page) && saved.page >= 0 ? saved.page : null,
     };
   } catch { return { search: "", filter: "all", expanded: null, page: null }; }
+}
+
+function compactSegments(activity: WorkoutSession["cardio"][number]) {
+  const groups = new Map<string, NonNullable<typeof activity.segments>>();
+  for (const segment of activity.segments ?? []) {
+    const key = segment.groupId ?? segment.id;
+    groups.set(key, [...(groups.get(key) ?? []), segment]);
+  }
+  return [...groups.entries()].map(([key, parts]) => {
+    if (parts[0]?.groupId) {
+      const progress = segmentGroupProgress(parts);
+      return { key, label: `Repeat group · ${progress.roundsDone} of ${progress.roundsTotal} rounds done · ${progress.done} of ${progress.total} parts` };
+    }
+    const segment = parts[0];
+    if (!segment) return { key, label: "" };
+    const metrics = segment.status === "completed"
+      ? [segment.plannedDurationSec != null ? `${formatMeasure(segment.plannedDurationSec / 60)} min as prescribed` : "", segment.plannedDistanceM != null ? `${formatMeasure(segment.plannedDistanceM / 1000)} km as prescribed` : ""]
+      : segment.status === "modified" ? [segment.actualDurationSec != null ? `${formatMeasure(segment.actualDurationSec / 60)} min measured` : "", segment.actualDistanceM != null ? `${formatMeasure(segment.actualDistanceM / 1000)} km measured` : ""] : [];
+    return { key, label: `${segment.kind} · ${segment.status}${metrics.filter(Boolean).length ? ` · ${metrics.filter(Boolean).join(" · ")}` : ""}` };
+  });
 }
 
 function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSession; unit: Unit; history: WorkoutSession[] }) {
@@ -82,21 +103,26 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
           );
         }
         const item = block.activity;
-        const duration = hasCompletedActivityWork(item) ? performedDuration(item) : item.actualDurationMin !== null ? item.actualDurationMin : item.plannedDurationMin;
-        const distance = hasCompletedActivityWork(item) ? performedDistance(item) : item.actualDistanceKm !== null ? item.actualDistanceKm : item.plannedDistanceKm;
+        const duration = item.skipped ? null : hasCompletedActivityWork(item) ? performedDuration(item) : item.actualDurationMin !== null ? item.actualDurationMin : item.plannedDurationMin;
+        const distance = item.skipped ? null : hasCompletedActivityWork(item) ? performedDistance(item) : item.actualDistanceKm !== null ? item.actualDistanceKm : item.plannedDistanceKm;
+        const durationLabel = item.skipped ? "Not recorded" : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "duration"), "duration") : duration !== null ? `${formatMeasure(duration)} min` : "Not recorded";
+        const distanceLabel = item.skipped ? "Not recorded" : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "distance"), "distance") : distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : "Not recorded";
+        const mismatch = segmentMismatch(item);
         return (
-          <section key={item.id} className={`history-exercise ${item.completed ? "" : "history-activity-incomplete"}`}>
-            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.skipped && !item.completed ? "border-amber-300/15 text-amber-200/65" : item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{activityHistoryLabel(item)}</Badge></div>
+          <section key={item.id} className={`history-exercise ${item.completed && !item.skipped ? "" : "history-activity-incomplete"}`}>
+            <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.skipped ? "border-amber-300/15 text-amber-200/65" : item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{activityHistoryLabel(item)}</Badge></div>
             {item.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{item.coachNotes}</p></details>}
+            {item.segments?.length ? <div className="history-segments"><p className="text-sm text-white/65">{segmentCountLabel(item.segments)}</p><div className="mt-2 space-y-1">{compactSegments(item).map(row => <p key={row.key} className="text-xs text-white/55">{row.label}</p>)}</div></div> : null}
+            {mismatch && <p role="note" className="mt-2 rounded-lg border border-amber-300/25 p-2 text-xs text-amber-100">{mismatch.message}</p>}
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
-            {(item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.actualDistanceM !== null ? effort.actualDistanceM : effort.plannedDistanceM, effort.actualLoad !== null ? effort.actualLoad : effort.plannedLoad, effort.actualDurationSec !== null ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
+            {!item.skipped && (item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.actualDistanceM !== null ? effort.actualDistanceM : effort.plannedDistanceM, effort.actualLoad !== null ? effort.actualLoad : effort.plannedLoad, effort.actualDurationSec !== null ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
             <div className="history-cardio-grid">
-              {(duration !== null || !(item.efforts?.length)) && <div><small>Duration</small><strong>{duration !== null ? `${formatMeasure(duration)} min` : "Not recorded"}</strong></div>}
-              {!(["mobility", "soccer", "grappling", "yoga"].includes(item.activityType)) && (distance !== null || !(item.efforts?.length)) && <div><small>Distance</small><strong>{distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : "Not recorded"}</strong></div>}
-              {item.activityType === "ruck" && <div><small>Ruck load</small><strong>{item.ruckLoad !== null ? `${item.ruckLoad} ${item.ruckLoadUnit}` : "Not recorded"}</strong></div>}
+              {(duration !== null || !(item.efforts?.length) || Boolean(item.segments?.length)) && <div><small>Duration</small><strong>{durationLabel}</strong></div>}
+              {!(["mobility", "soccer", "grappling", "yoga"].includes(item.activityType)) && (distance !== null || !(item.efforts?.length) || Boolean(item.segments?.length)) && <div><small>Distance</small><strong>{distanceLabel}</strong></div>}
+              {!item.skipped && item.activityType === "ruck" && <div><small>Ruck load</small><strong>{item.ruckLoad !== null ? `${item.ruckLoad} ${item.ruckLoadUnit}` : "Not recorded"}</strong></div>}
             </div>
             {item.activityType === "run" && item.intervals && <RunPlan text={item.intervals} />}
-            {(item.effort || item.intensity || item.averageHr !== null || item.elevationM !== null || item.pace || (item.intervals && item.activityType !== "run")) && <details className="history-extra"><summary>More activity details</summary><div className="history-cardio-grid">{item.effort && <div><small>Effort</small><strong>{item.effort}/10</strong></div>}{item.intensity && <div><small>Intensity</small><strong>{item.intensity}</strong></div>}{item.averageHr !== null && <div><small>Average HR</small><strong>{item.averageHr} bpm</strong></div>}{item.elevationM !== null && <div><small>Elevation</small><strong>{item.elevationM} m</strong></div>}{item.pace && <div><small>Pace</small><strong>{item.pace}</strong></div>}</div>{item.intervals && item.activityType !== "run" && <p className="history-detail-note">{item.intervals}</p>}</details>}
+            {!item.skipped && (item.effort || item.intensity || item.averageHr !== null || item.elevationM !== null || item.pace || (item.intervals && item.activityType !== "run")) && <details className="history-extra"><summary>More activity details</summary><div className="history-cardio-grid">{item.effort && <div><small>Effort</small><strong>{item.effort}/10</strong></div>}{item.intensity && <div><small>Intensity</small><strong>{item.intensity}</strong></div>}{item.averageHr !== null && <div><small>Average HR</small><strong>{item.averageHr} bpm</strong></div>}{item.elevationM !== null && <div><small>Elevation</small><strong>{item.elevationM} m</strong></div>}{item.pace && <div><small>Pace</small><strong>{item.pace}</strong></div>}</div>{item.intervals && item.activityType !== "run" && <p className="history-detail-note">{item.intervals}</p>}</details>}
             {item.notes && <p className="history-detail-note"><strong>Your note:</strong> {item.notes}</p>}
           </section>
         );

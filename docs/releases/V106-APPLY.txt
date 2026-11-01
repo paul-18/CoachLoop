@@ -1,0 +1,1 @@
+v106 is a full source release. After review, merge it to the repository's main branch and allow the GitHub Pages deployment workflow to complete. The user requested this release be pushed to main. See V106-UPDATE-NOTES.md for behavior and the physical iPhone follow-up checklist.

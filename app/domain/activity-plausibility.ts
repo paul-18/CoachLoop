@@ -31,6 +31,21 @@ function distanceText(kilometres: number, type: CardioEntry["activityType"]) {
 /** Warn only when both actual distance and actual duration were entered. Planned numbers never count. */
 export function unusualActivityWarning(activity: CardioEntry): string | null {
   if (activity.skipped) return null;
+  if (activity.segments?.length) {
+    const warnings = activity.segments.flatMap((segment, index) => {
+      if (segment.status !== "completed" && segment.status !== "modified") return [];
+      if (segment.kind !== "run" && segment.kind !== "walk") return [];
+      const limit = FASTEST_MIN_PER_KM[segment.kind];
+      const metres = segment.status === "completed" ? segment.plannedDistanceM : segment.actualDistanceM;
+      const seconds = segment.status === "completed" ? segment.plannedDurationSec : segment.actualDurationSec;
+      if (metres == null || metres <= 0 || seconds == null || seconds < 0 || limit === undefined) return [];
+      const distance = metres / 1000;
+      const duration = seconds / 60;
+      if (duration > 0 && duration / distance >= limit) return [];
+      return [`${activity.name}, ${segment.kind} segment ${index + 1}: ${distanceText(distance, segment.kind)} in ${formatMeasure(duration)} min. ${UNUSUAL_ENTRY_MESSAGE}`];
+    });
+    return warnings.length ? warnings.join(" ") : null;
+  }
   const limit = FASTEST_MIN_PER_KM[activity.activityType];
   if (activity.efforts?.length) {
     const warnings = activity.efforts.flatMap((effort, index) => {

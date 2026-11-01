@@ -97,6 +97,17 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
       assert.equal(document.querySelector('[role="dialog"]'), null, 'bad backup never reaches restore confirmation');
       assert.deepEqual((await storage.loadTrainingState()).goals, current.goals);
     }
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v107' }));
+    await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review');
+    const futureWarning = document.querySelector('[role="dialog"]').textContent;
+    assert.ok(futureWarning.includes('This backup was written by Coach Loop v107, newer than this release (v106). Some newer details may not appear here.'));
+    assert.equal(button('Merge backup').disabled, true, 'restore is blocked until acknowledgment');
+    const acknowledgment = document.querySelector('[role="dialog"] [role="checkbox"]');
+    assert.ok(acknowledgment, 'newer backup has an accessible acknowledgment control');
+    acknowledgment.click();
+    await until(() => !button('Merge backup').disabled, 'acknowledgment enables restore');
+    button('Cancel').click(); await until(() => !document.querySelector('[role="dialog"]'), 'newer backup review cancels');
+    assert.equal((await storage.loadTrainingState()).workouts.length, 40, 'warning review does not write before restore');
     const text = serializeBackup(backup);
     await upload(text);
     await until(() => button('Merge backup'), 'valid backup has review');

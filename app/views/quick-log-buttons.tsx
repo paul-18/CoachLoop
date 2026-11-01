@@ -1,8 +1,8 @@
-import { Backpack, Bike, RotateCcw, Waves } from "lucide-react";
+import { Backpack, Bike, Footprints, RotateCcw, Waves } from "lucide-react";
 import { DEFAULT_QUICK_LOG_ACTIVITIES, QUICK_LOG_OPTIONS, type AppSettings, type QuickLogActivityType } from "../domain/training-types";
 import { GrapplingIcon, RunningIcon, SoccerBallIcon, SwimmingIcon, YogaIcon } from "./sport-icons";
 
-const icons = { run: RunningIcon, swim: SwimmingIcon, bike: Bike, ruck: Backpack, circuit: RotateCcw, soccer: SoccerBallIcon, grappling: GrapplingIcon, yoga: YogaIcon, water_polo: Waves };
+const icons = { run: RunningIcon, walk: Footprints, swim: SwimmingIcon, bike: Bike, ruck: Backpack, circuit: RotateCcw, soccer: SoccerBallIcon, grappling: GrapplingIcon, yoga: YogaIcon, water_polo: Waves };
 export function QuickLogButtons({ settings, disabled, onChoose }: { settings: AppSettings; disabled: boolean; onChoose: (type: QuickLogActivityType) => void }) {
   const selected = settings.quickLogActivities ?? DEFAULT_QUICK_LOG_ACTIVITIES;
   return <div className="quick-grid">{selected.map(type => {

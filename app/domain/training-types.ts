@@ -72,6 +72,19 @@ export interface ActivityEffort {
   completed: boolean;
 }
 
+export type PartStatus = "completed" | "modified" | "skipped" | "unknown";
+export interface ActivitySegment {
+  id: string;
+  kind: "run" | "walk" | "rest" | "other";
+  plannedDurationSec?: number | null;
+  actualDurationSec?: number | null;
+  plannedDistanceM?: number | null;
+  actualDistanceM?: number | null;
+  status: PartStatus;
+  groupId?: string;
+  iteration?: number;
+}
+
 export interface CardioEntry {
   id: string;
   /** The selected external activity already attached to this entry. */
@@ -95,6 +108,7 @@ export interface CardioEntry {
     | "other";
   loggingStyle?: "single" | "routine" | "efforts";
   efforts?: ActivityEffort[];
+  segments?: ActivitySegment[];
   effortRestSec?: number;
   effortLoadUnit?: Unit;
   plannedDurationMin: number | null;
@@ -169,7 +183,7 @@ export interface ExerciseMuscleTarget {
 }
 
 export const QUICK_LOG_OPTIONS = [
-  { type: "run", label: "Run" }, { type: "swim", label: "Swim" },
+  { type: "run", label: "Run" }, { type: "walk", label: "Walk" }, { type: "swim", label: "Swim" },
   { type: "bike", label: "Bike" }, { type: "ruck", label: "Ruck" },
   { type: "circuit", label: "Circuit" }, { type: "soccer", label: "Soccer" },
   { type: "grappling", label: "Grappling" }, { type: "yoga", label: "Yoga" },

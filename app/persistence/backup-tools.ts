@@ -2,6 +2,7 @@ import { uid, type TrainingState } from "../domain/training-types";
 import { mergeRestoredState } from "./cloud-sync";
 import { validateSyncedState } from "./training-validation";
 import { prepareLoadedState } from "./migrations";
+import { APP_RELEASE } from "../app-release";
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 export const LARGE_BACKUP_BYTES = 10 * 1024 * 1024;
 const checkBackupSize = (text: string) => {
@@ -9,22 +10,24 @@ const checkBackupSize = (text: string) => {
 };
 /** The same size boundary applies on export and restore: never label an unusable file a full backup. */
 export function serializeBackup(state: TrainingState): string {
-  const text = JSON.stringify(validateSyncedState(state), null, 2);
+  const text = JSON.stringify({ ...validateSyncedState(state), writtenByRelease: APP_RELEASE }, null, 2);
   checkBackupSize(text);
   return text;
 }
 export function parseBackup(text: string): TrainingState { return parseBackupReview(text).state; }
 /** Returns migration disclosures without writing or mutating the selected file. */
-export function parseBackupReview(text: string): { state: TrainingState; notices: string[] } {
+export function parseBackupReview(text: string): { state: TrainingState; notices: string[]; writtenByRelease: string | null; newerReleaseWarning: string | null } {
   checkBackupSize(text);
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw new Error("This JSON file is incomplete or corrupt"); }
   if (!raw || typeof raw !== "object" || !("version" in raw)) throw new Error("Choose a Coach Loop JSON backup");
-  const obj = raw as { version?: unknown; evidenceVersion?: unknown };
+  const obj = raw as { version?: unknown; evidenceVersion?: unknown; writtenByRelease?: unknown };
   if ("format" in raw && raw.format === "coach-loop-recovery") throw new Error("Choose an individual checkpoint JSON, not the diagnostic recovery bundle");
   if (obj.version !== 1 || (obj.evidenceVersion !== undefined && obj.evidenceVersion !== 1 && obj.evidenceVersion !== 2)) throw new Error("This backup requires a different or newer Coach Loop version");
   try {
-    const state = prepareLoadedState(raw);
+    const stateInput = { ...(raw as Record<string, unknown>) };
+    delete stateInput.writtenByRelease;
+    const state = prepareLoadedState(stateInput);
     const notices: string[] = [];
     if (obj.evidenceVersion !== 2) {
       notices.push("Older backup: supported legacy fields and training evidence were migrated. Review the preview before restoring.");
@@ -32,8 +35,20 @@ export function parseBackupReview(text: string): { state: TrainingState; notices
       const count = [...(original.bodyweightEntries ?? []), ...(original.waistEntries ?? [])].filter(entry => entry.updatedAt === undefined).length;
       if (count) notices.push(`${count} legacy measurement timestamp(s) were missing. Their measurement dates at midnight UTC are used, rather than today's date. Merge can retain newer local measurements; Complete restore uses this backup.`);
     }
-    return { state, notices };
+    const writtenByRelease = typeof obj.writtenByRelease === "string" ? obj.writtenByRelease : null;
+    const writtenNumber = releaseNumber(writtenByRelease);
+    const currentNumber = releaseNumber(APP_RELEASE);
+    const newerReleaseWarning = writtenNumber !== null && currentNumber !== null && writtenNumber > currentNumber
+      ? `This backup was written by Coach Loop ${writtenByRelease}, newer than this release (${APP_RELEASE}). Some newer details may not appear here.`
+      : null;
+    return { state, notices, writtenByRelease, newerReleaseWarning };
   } catch (error) { throw new Error(`Backup contains invalid data: ${error instanceof Error ? error.message.slice(0, 220) : "check its records"}`); }
+}
+function releaseNumber(value: string | null): number | null {
+  const match = value?.trim().match(/^v(\d+)$/i);
+  if (!match) return null;
+  const number = Number(match[1]);
+  return Number.isSafeInteger(number) ? number : null;
 }
 /** Deliberate recovery uses new IDs so existing tombstones still protect stale merges. */
 export function recoverDeleted(current: TrainingState, backup: TrainingState): TrainingState {

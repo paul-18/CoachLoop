@@ -8,7 +8,7 @@ import type { ShellModel } from "./use-shell-model";
 
 export function WorkoutScreen({ model }: { model: ShellModel }) {
   const { displayedState, localSaveStatus, setLocalSaveRetry, committing, demoActive, exitDemo } = model.persistence;
-  const { displayedWorkout, editingWorkoutId, putWorkout, finishEditor, discardWorkout, leaveEditor } = model.workouts;
+  const { displayedWorkout, editingWorkoutId, quickLogActivityId, putWorkout, finishEditor, discardWorkout, leaveEditor } = model.workouts;
   if (!displayedWorkout) return null;
   return <>
     {demoActive && <DemoBar onExit={() => { exitDemo(); model.workouts.setWorkoutOpen(false); }} />}
@@ -17,7 +17,7 @@ export function WorkoutScreen({ model }: { model: ShellModel }) {
     <ViewErrorBoundary onReload={model.restart} label="This workout" resetKey={displayedWorkout.id}>
       {displayedWorkout.hyrox
         ? <HyroxWorkout saveStatus={localSaveStatus} history={displayedState.workouts} key={displayedWorkout.id} workout={displayedWorkout} unit={displayedState.settings.defaultUnit} onUpdate={putWorkout} onFinish={finishEditor} onDiscard={discardWorkout} onBack={leaveEditor} />
-        : <WorkoutEditor demoMode={demoActive} saveStatus={localSaveStatus} workout={displayedWorkout} state={displayedState} onIncrement={model.progress.updateLoadIncrement} onUpdate={putWorkout} onFinish={(workout) => finishEditor(workout)} onDiscard={editingWorkoutId ? undefined : discardWorkout} onBack={leaveEditor} />}
+        : <WorkoutEditor demoMode={demoActive} quickLogActivityId={quickLogActivityId} saveStatus={localSaveStatus} workout={displayedWorkout} state={displayedState} onIncrement={model.progress.updateLoadIncrement} onUpdate={putWorkout} onFinish={(workout) => finishEditor(workout)} onDiscard={editingWorkoutId ? undefined : discardWorkout} onBack={leaveEditor} />}
     </ViewErrorBoundary>
     </div>
     <Toaster position="top-center" />

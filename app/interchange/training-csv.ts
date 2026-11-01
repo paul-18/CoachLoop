@@ -8,7 +8,23 @@ export function trainingCsvRows(state: TrainingState): string[][] {
     if (w.status === "skipped") { row({ date: w.date, workout: w.name, record_status: "skipped", notes: w.notes, skip_reason: w.skipReason }); continue; }
     if (w.status !== "completed") continue;
     w.exercises.forEach(e => e.sets.forEach((s, i) => row({ date: w.date, workout: w.name, record_status: s.completed ? "completed" : s.skipped ? "skipped" : "incomplete", type: "strength", exercise_or_activity: e.name, set: String(i + 1), load_type: s.loadType, weight_mode: s.weightMode, planned_weight: s.plannedWeight?.toString() ?? "", actual_weight: s.actualWeight?.toString() ?? "", unit: s.unit, planned_reps: s.plannedReps, actual_reps: s.actualReps, completed_as_planned: String(s.completedAsPlanned), rpe_or_effort: csvSetEffort(s), notes: `${e.notes} ${s.notes}`.trim(), warmup: String(s.warmup) })));
-    w.cardio.forEach(c => row({ date: w.date, workout: w.name, record_status: c.completed ? "completed" : hasCompletedActivityWork(c) ? "partial" : "incomplete", type: c.activityType, exercise_or_activity: c.name, completed_as_planned: String(c.completedAsPlanned), rpe_or_effort: c.effort, duration_min: hasCompletedActivityWork(c) && performedDuration(c) !== null ? formatMeasure(performedDuration(c)!) : "", distance_km: hasCompletedActivityWork(c) && performedDistance(c) !== null ? formatMeasure(performedDistance(c)!) : "", ruck_load: c.ruckLoad !== null ? `${c.ruckLoad} ${c.ruckLoadUnit}` : "", average_hr: c.averageHr?.toString() ?? "", elevation_m: c.elevationM?.toString() ?? "", pace: c.pace, notes: c.notes, efforts: (c.efforts ?? []).map((e, i) => `${i + 1}: ${e.completed ? "done" : "not done"}${e.completed && e.actualDistanceM !== null ? ` ${e.actualDistanceM} m` : ""}${e.completed && e.actualLoad !== null ? ` ${e.actualLoad} ${c.effortLoadUnit ?? "lb"}` : ""}${e.completed && e.actualDurationSec !== null ? ` ${e.actualDurationSec} sec` : ""}`).join("; ") }));
+    w.cardio.forEach(c => {
+      const hasEvidence = hasCompletedActivityWork(c);
+      row({
+        date: w.date, workout: w.name,
+        record_status: c.skipped ? "skipped" : c.completed ? "completed" : hasEvidence ? "partial" : "incomplete",
+        type: c.activityType, exercise_or_activity: c.name,
+        completed_as_planned: String(c.completedAsPlanned && hasEvidence),
+        rpe_or_effort: hasEvidence ? c.effort : "",
+        duration_min: hasEvidence && performedDuration(c) !== null ? formatMeasure(performedDuration(c)!) : "",
+        distance_km: hasEvidence && performedDistance(c) !== null ? formatMeasure(performedDistance(c)!) : "",
+        ruck_load: hasEvidence && c.ruckLoad !== null ? `${c.ruckLoad} ${c.ruckLoadUnit}` : "",
+        average_hr: hasEvidence ? c.averageHr?.toString() ?? "" : "",
+        elevation_m: hasEvidence ? c.elevationM?.toString() ?? "" : "",
+        pace: hasEvidence ? c.pace : "", notes: c.notes,
+        efforts: hasEvidence ? (c.efforts ?? []).map((e, i) => `${i + 1}: ${e.completed ? "done" : "not done"}${e.completed && e.actualDistanceM !== null ? ` ${e.actualDistanceM} m` : ""}${e.completed && e.actualLoad !== null ? ` ${e.actualLoad} ${c.effortLoadUnit ?? "lb"}` : ""}${e.completed && e.actualDurationSec !== null ? ` ${e.actualDurationSec} sec` : ""}`).join("; ") : "",
+      });
+    });
   }
   return rows;
 }

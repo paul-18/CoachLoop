@@ -117,8 +117,9 @@ export const exerciseMappingEntries = (state: TrainingState) => {
 export const coverageExerciseKey = exerciseKey;
 
 import { hasCompletedActivityWork, performedDuration, performedDistance } from "./completion";
-type ActivityTotals = { sessions: number; minutes: number; distanceKm: number; dates: string[] };
-const emptyActivityTotals = (): ActivityTotals => ({ sessions: 0, minutes: 0, distanceKm: 0, dates: [] });
+import { segmentMeasure } from "./activity-segments";
+type ActivityTotals = { sessions: number; minutes: number; distanceKm: number; dates: string[]; minutesIncomplete: boolean; distanceIncomplete: boolean };
+const emptyActivityTotals = (): ActivityTotals => ({ sessions: 0, minutes: 0, distanceKm: 0, dates: [], minutesIncomplete: false, distanceIncomplete: false });
 
 export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, days = 7) => {
   const result = { runs: emptyActivityTotals(), waterPolo: emptyActivityTotals(), rucks: { ...emptyActivityTotals(), loadDistance: 0, unit }, circuits: emptyActivityTotals() };
@@ -128,8 +129,12 @@ export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, d
       if (!hasCompletedActivityWork(item)) return;
       const totals = item.activityType === "run" ? result.runs : item.activityType === "water_polo" ? result.waterPolo : item.activityType === "ruck" ? result.rucks : item.activityType === "circuit" ? result.circuits : null;
       if (!totals) return;
-      const minutes = performedDuration(item) ?? 0;
-      const distance = performedDistance(item) ?? 0;
+      const runningDuration = item.activityType === "run" && item.segments?.length ? segmentMeasure(item, "duration", "run") : null;
+      const runningDistance = item.activityType === "run" && item.segments?.length ? segmentMeasure(item, "distance", "run") : null;
+      const minutes = runningDuration ? runningDuration.value === null ? 0 : runningDuration.value / 60 : performedDuration(item) ?? 0;
+      const distance = runningDistance ? runningDistance.value === null ? 0 : runningDistance.value / 1000 : performedDistance(item) ?? 0;
+      if (runningDuration && runningDuration.done && !runningDuration.fullyRecorded) totals.minutesIncomplete = true;
+      if (runningDistance && runningDistance.done && !runningDistance.fullyRecorded) totals.distanceIncomplete = true;
       totals.sessions += 1;
       totals.minutes += minutes;
       totals.distanceKm += distance;

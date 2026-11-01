@@ -29,7 +29,7 @@ export function planDifferences(workout: WorkoutSession): string[] {
     });
   }
   for (const activity of workout.cardio) {
-    if (!activity.completed) continue;
+    if (!activity.completed || activity.skipped) continue;
     const planned: string[] = [];
     const actual: string[] = [];
     if (activity.plannedDurationMin !== null && performedDuration(activity) !== activity.plannedDurationMin) {
