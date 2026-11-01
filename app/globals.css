@@ -1015,3 +1015,31 @@ html[data-coach-theme="red"] .calendar-legend .strength { color: #ffb4b0; }
 html[data-coach-theme="teal"] { --lime:#43d9c3; --theme-accent-rgb:67,217,195; }
 html[data-coach-theme="amber"] { --lime:#ffbf5a; --theme-accent-rgb:255,191,90; }
 html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; }
+
+/* v113 compact UI: minutes + options share a row; AMRAP list; rounds stepper; effort icon row. */
+.activity-basics-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; align-items: end; }
+.activity-basics-row > .activity-basics { grid-column: 1; margin: 0; }
+.activity-basics-row > .activity-details { grid-column: 2; margin: 0; align-self: end; }
+.activity-basics-row > .activity-details[open] { grid-column: 1 / -1; }
+.activity-basics-row > .activity-details:only-child { grid-column: 1 / -1; }
+.activity-basics-row > .activity-details > summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; }
+.amrap-plan { display: grid; gap: 6px; padding: 10px; border: 1px solid rgba(255,255,255,.085); border-radius: 12px; background: rgba(0,0,0,.24); }
+.amrap-plan-head { font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--lime); }
+.amrap-plan ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.amrap-plan li { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; background: rgba(0,0,0,.25); font-weight: 650; overflow-wrap: anywhere; }
+.amrap-plan li span { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: .75rem; }
+.routine-rounds, .stepper-rounds-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.routine-rounds-count, .stepper-rounds-count { flex: 1; margin: 0; text-align: center; font-weight: 800; }
+.rounds-step { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; }
+.routine-rounds .rounds-add { background: var(--lime); color: #11140d; border-color: transparent; }
+.stepper-rounds-bar .rounds-step { order: -1; }
+.activity-effort { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 8px; }
+.activity-effort-actions { display: contents; }
+.activity-effort .activity-effort-check, .activity-effort .activity-effort-edit { width: 44px; height: 44px; min-height: 44px; padding: 0; }
+.activity-effort .activity-effort-edit { grid-column: 3; grid-row: 1; }
+.activity-effort .activity-effort-check { grid-column: 4; grid-row: 1; }
+.activity-effort-actuals { grid-column: 1 / -1; }
+.activity-efforts > .activity-effort-actions { display: flex; align-items: center; justify-content: space-between; }
+.preview-repeat-head { margin-top: 4px; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--lime); }
+.preview-nested { margin-left: 14px; }
+.done-meta::before { content: " · "; white-space: pre; }

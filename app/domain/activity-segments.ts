@@ -84,6 +84,23 @@ export function previewSegmentLines(segments: readonly ActivitySegment[]): strin
   return lines;
 }
 
+/** v113 import preview: every interval on its own line; a repeat shows a "Repeat Nx" heading with its pattern lines nested beneath. */
+export function previewSegmentRows(segments: readonly ActivitySegment[]): { text: string; nested: boolean; heading: boolean }[] {
+  const rows: { text: string; nested: boolean; heading: boolean }[] = [];
+  const emitted = new Set<string>();
+  for (const segment of segments) {
+    if (!segment.groupId) { rows.push({ text: segmentPlanText(segment), nested: false, heading: false }); continue; }
+    if (emitted.has(segment.groupId)) continue;
+    emitted.add(segment.groupId);
+    const parts = segments.filter(part => part.groupId === segment.groupId);
+    const iterations = [...new Set(parts.map(part => part.iteration ?? 1))].sort((a, b) => a - b);
+    const first = iterations[0] ?? 1;
+    rows.push({ text: `Repeat ${iterations.length}x`, nested: false, heading: true });
+    parts.filter(part => (part.iteration ?? 1) === first).forEach(part => rows.push({ text: segmentPlanText(part), nested: true, heading: false }));
+  }
+  return rows;
+}
+
 /** Complete-all is unknown resolution: typed actuals become Measured, the rest complete as prescribed. Skips untouched. */
 export const completeAllRemainingSegments = resolveUnknownSegments;
 

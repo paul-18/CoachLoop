@@ -2,6 +2,15 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v113 — published
+
+- Import preview (`previewSegmentRows`): repeat groups now render a `Repeat Nx` heading followed by each interval or station on its own separate dark card row.
+- AMRAP & rounds stepper: routine circuit prescriptions (`12 min AMRAP: ...`) split into a heading and numbered exercise rows (`.amrap-plan`); routine and segmented circuit rounds counters use a single-row `[ - ] N rounds done [ ✓ ]` stepper.
+- Compact activity cards: `Minutes` and `Activity options` / `More details` sit side-by-side on one row (`.activity-basics-row`) and expand full-width below when opened; Sled/Force efforts use inline icon buttons on a single row; activity `Done` buttons display `✓ Done · 12 min` visually while keeping the full name for screen readers.
+- Focus auto-advance fix: completing a strength exercise or activity in a workout now automatically opens the next incomplete block even when the workout has only one strength exercise.
+- Shorter Coach & Import copy: simplified the Paste FITLOG dialog description to one sentence and updated the visible `exampleFitlogV3()` block in Coach view to a clean strength + easy run example while keeping the full v3 spec on `Copy format`.
+- See [v113 update notes](docs/releases/V113-UPDATE-NOTES.md).
+
 ## v112 — published
 
 - Coach view `"Need the FITLOG format?"` fix: `.coach-quick-controls` wraps cleanly, `.coach-format-disclosure` prevents horizontal bleed, and `.fitlog-example` wraps long lines inside a dark code box so expanding the format guide never overflows iPhone screens. Remaining `"part"` wording in `FITLOG_V3_INSTRUCTIONS` replaced with `"interval"` / `"interval or station"`.

@@ -21,8 +21,8 @@ test('v110: Coach view offers one v3 format copy and the new profile paragraph, 
   const { dom, root } = await openApp();
   try {
     tab('Coach'); await until(() => document.querySelector('.coach-format-disclosure'), 'Coach format disclosure renders');
-    assert.ok(button('Copy v3 format'), 'single v3 format button');
-    assert.ok(button('Copy new profile paragraph'), 'profile paragraph button');
+    assert.ok(button('Copy format') || button('Copy v3 format'), 'single v3 format button');
+    assert.ok(button('Copy profile paragraph') || button('Copy new profile paragraph'), 'profile paragraph button');
     assert.equal(button('Copy v1 format'), undefined, 'v1 copy button is gone');
     assert.equal(button('Copy v2 segments'), undefined, 'v2 copy button is gone');
     assert.match(document.querySelector('.fitlog-example').textContent, /\[FITLOG:3\]/, 'coach example is a v3 block');
@@ -37,13 +37,12 @@ test('v110: import dialog mentions v3 and a v3 block imports end to end with lab
     button('Paste or save workout').click();
     await until(() => document.querySelector('[role="dialog"] textarea'), 'import opens');
     const dialog = document.querySelector('[role="dialog"]');
-    assert.match(dialog.textContent, /\[FITLOG:3\]/, 'dialog names the v3 envelope');
-    assert.match(dialog.textContent, /Versions 1 and 2 still import/, 'dialog keeps legacy import note');
+    assert.match(dialog.textContent, /FITLOG/, 'dialog names the FITLOG block');
     change(dom, document.querySelector('[role="dialog"] textarea'), block); await wait(30);
     button('Review import').click();
     await until(() => document.querySelector('.import-preview-lines'), 'preview lines render');
-    const preview = document.querySelector('.import-preview-lines').textContent;
-    assert.match(preview, /Repeat 4x: Push-ups x15 \+ Goblet squat x12 \+ Rest 20 sec/, 'preview group line carries station labels');
+    const preview = [...document.querySelectorAll('.import-preview-lines li')].map(li => li.textContent).join(' | ');
+    assert.match(preview, /Repeat 4x \| Push-ups x15 \| Goblet squat x12 \| Rest 20 sec/, 'preview group rows carry station labels on separate lines');
     button('Start workout').click();
     await until(() => document.querySelector('.workout-shell'), 'active workout editor opens');
     const collapsed = document.querySelector('[aria-label="Edit Garage circuit"]') || document.querySelector('[aria-label="Log Garage circuit"]');

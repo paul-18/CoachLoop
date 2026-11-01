@@ -413,7 +413,7 @@ test('v108: import preview lists parts and collapses repeat groups', async () =>
     (buttonExact('Import a plan') || [...document.querySelectorAll('button')].find(b => b.querySelector('strong')?.textContent === 'Import workout')).click();
     await until(() => document.querySelector('[aria-label="FITLOG workout text"]'), 'import dialog opens');
     buttonExact('Load a segments example').click();
-    await until(() => document.body.textContent.includes('Repeat 6x: Run 4 min + Walk 1 min'), 'group collapse line in preview');
+    await until(() => [...document.querySelectorAll('.import-preview-lines li')].map(li => li.textContent).join('|').includes('Repeat 6x|Run 4 min|Walk 1 min'), 'group collapse line in preview');
     assert.match(document.body.textContent, /Run 10 min/);
     assert.equal(document.body.textContent.includes('13 planned segments'), false, 'old summary line is gone');
   } finally { root.unmount(); await wait(30); dom.window.close(); }

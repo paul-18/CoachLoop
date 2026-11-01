@@ -194,3 +194,34 @@ test('v112: header collapse button, no Logging style dropdown in UI, and Focus m
     assert.equal(document.body.textContent.includes('Logging style'), false, 'Logging style dropdown removed from activity UI');
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
+
+test('v113: AMRAP exercise rows, compact Minutes + Options row, single-exercise auto-advance to activities, and per-line preview rows', async () => {
+  const dom = environment();
+  const { defaultState, makeWorkout, makeExercise, makeSet, makeCardio } = require('../app/domain/training-types.ts');
+  const { previewSegmentRows } = require('../app/domain/activity-segments.ts');
+  const rows = previewSegmentRows([
+    { id: '1', kind: 'run', plannedDurationSec: 240, plannedDistanceM: 1000, actualDurationSec: null, actualDistanceM: null, status: 'unknown', groupId: 'g1', iteration: 1, label: 'Tempo' },
+    { id: '2', kind: 'walk', plannedDurationSec: 60, plannedDistanceM: null, actualDurationSec: null, actualDistanceM: null, status: 'unknown', groupId: 'g1', iteration: 1 },
+  ]);
+  assert.deepEqual(rows.map(r => r.text), ['Repeat 1x', 'Tempo · 4 min · 1 km', 'Walk 1 min']);
+
+  const state = defaultState(), workout = makeWorkout('lb', 0, 'v113 Compact QC');
+  const squat = makeExercise('lb', 0, 'Squat'); squat.sets = [makeSet('lb', { plannedWeight: 185, plannedReps: '5' })];
+  const amrap = makeCardio('circuit', 'Garage AMRAP'); amrap.plannedDurationMin = 12;
+  amrap.intervals = '12 min AMRAP: 10 burpees, 15 kettlebell swings (24 kg), 200 m run';
+  const mob = makeCardio('mobility', 'Thoracic Recovery'); mob.plannedDurationMin = 12;
+  workout.exercises = [squat]; workout.cardio = [amrap, mob];
+  workout.blockOrder = [{ type: 'exercise', id: squat.id }, { type: 'activity', id: amrap.id }, { type: 'activity', id: mob.id }];
+  const { root } = await setup(dom, state, workout);
+  try {
+    // Completing the only exercise automatically opens the next incomplete activity (Garage AMRAP).
+    document.querySelector('[aria-label="Complete Squat, Set 1"]').click();
+    await until(() => document.querySelector('.amrap-plan'), 'Garage AMRAP opens automatically and renders .amrap-plan');
+    assert.deepEqual([...document.querySelectorAll('.amrap-plan li')].map(li => li.textContent.trim()), ['110 burpees', '215 kettlebell swings (24 kg)', '3200 m run']);
+    assert.ok(document.querySelector('.activity-basics-row > .activity-basics') && document.querySelector('.activity-basics-row > .activity-details'), 'Minutes and Options share .activity-basics-row');
+
+    // Completing Garage AMRAP automatically opens the next incomplete activity (Thoracic Recovery).
+    button('Done: Garage AMRAP 12 min').click();
+    await until(() => button('Done: Thoracic Recovery 12 min'), 'Thoracic Recovery opens automatically when Garage AMRAP completes');
+  } finally { root.unmount(); await wait(30); dom.window.close(); }
+});

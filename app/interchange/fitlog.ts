@@ -228,17 +228,17 @@ Omit unspecified targets instead of inventing them. Put short NOTES directly bel
 
 export function exampleFitlogV3() {
   return `[FITLOG:3]
-WORKOUT|Run/walk intervals|2026-01-15
-CARDIO|Run/walk session
+WORKOUT|Squats and an easy run|2026-01-15
+EXERCISE|Barbell Back Squat
+SET|5|135 lb total||WARMUP
+SET|5|185 lb total|RPE 7
+SET|5|185 lb total|RPE 8
+NOTES|Brace hard at the bottom.
+CARDIO|Easy run
 TYPE|run
-MODE|segments
+MODE|summary
+DURATION|20
 INTENSITY|Easy conversational effort
-DURATION|40
-REPEAT|6
-SEGMENT|run|4 min||Tempo
-SEGMENT|walk|1 min||
-ENDREPEAT
-SEGMENT|run|10 min|2 km|Cool-down
 [/FITLOG]`;
 }
 

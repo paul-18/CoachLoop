@@ -27,7 +27,7 @@ import { type SyncStatus } from "../persistence/cloud-sync";
 import { exampleFitlog, exampleFitlogV2, parseFitlog } from "../interchange/fitlog";
 
 import { formatLoad, formatMeasure } from "../domain/training-metrics";
-import { previewSegmentLines } from "../domain/activity-segments";
+import { previewSegmentRows } from "../domain/activity-segments";
 import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
@@ -138,7 +138,7 @@ export function ImportWorkoutDialog({
             Bring a workout in
           </DialogTitle>
           <DialogDescription className="leading-6 text-white/48">
-            Paste your AI’s reply. FITLOG is the block between [FITLOG:3] and [/FITLOG]. Version 3 is the current format: segments use MODE, SEGMENT, REPEAT, and optional labels. Versions 1 and 2 still import. Only that block is read, and it is listed before anything is saved.
+            Paste your AI’s reply. Only the FITLOG block is read, and you review it before anything is saved.
           </DialogDescription>
         </DialogHeader>
 
@@ -265,7 +265,7 @@ export function ImportWorkoutDialog({
                     {block.activity.ruckLoad !== null ? ` · Pack load ${block.activity.ruckLoad} ${block.activity.ruckLoadUnit}` : ""}
                     {(block.activity.effortRestSec ?? 0) > 0 ? ` · Effort rest ${block.activity.effortRestSec}s` : ""}
                   </p>
-                  {block.activity.segments?.length ? <ul className="import-preview-lines mt-3 grid gap-1.5 text-xs text-white/80">{previewSegmentLines(block.activity.segments).map((line, index) => <li key={index} className="rounded-lg border border-white/7 bg-black/25 px-2.5 py-1.5">{line}</li>)}</ul> : null}
+                  {block.activity.segments?.length ? <ul className="import-preview-lines mt-3 grid gap-1.5 text-xs text-white/80">{previewSegmentRows(block.activity.segments).map((row, index) => <li key={index} className={row.heading ? "preview-repeat-head" : `rounded-lg border border-white/7 bg-black/25 px-2.5 py-1.5${row.nested ? " preview-nested" : ""}`}>{row.text}</li>)}</ul> : null}
                   {block.activity.notes && ["yoga", "grappling", "soccer", "water_polo"].includes(block.activity.activityType) ? <p className="mt-1 text-sm text-white/60">Notes: {block.activity.notes.length > 100 ? `${block.activity.notes.slice(0, 100).trimEnd()}…` : block.activity.notes}</p> : null}
                   {block.activity.intervals && <RunPlan text={block.activity.intervals} />}
                   {!!block.activity.efforts?.length && <ol className="mt-3 flex flex-wrap gap-2 text-xs text-white/80">{block.activity.efforts.map((e, index) => <li key={e.id} className="rounded-lg border border-white/7 bg-black/25 px-2.5 py-1.5">{index + 1}. {[e.plannedDistanceM !== null ? `${e.plannedDistanceM} m` : "", e.plannedDurationSec !== null ? `${e.plannedDurationSec} sec` : "", e.plannedLoad !== null ? `${e.plannedLoad} ${block.activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ")}</li>)}</ol>}

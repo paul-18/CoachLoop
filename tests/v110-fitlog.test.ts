@@ -113,12 +113,15 @@ SEGMENT|run|10 min|`), "lb", {});
   assert.equal(goldenV2.cardio[0].segments?.length, 13);
 });
 
-test("v110: the v3 example parses with labels, and coach export text carries them", () => {
+test("v113: the v3 example is a safe strength workout plus an easy run and parses cleanly", () => {
   const workout = parseFitlog(exampleFitlogV3(), "lb", {});
-  assert.deepEqual((workout.cardio[0].segments ?? []).map((segment) => segment.label), ["Tempo", undefined, "Tempo", undefined, "Tempo", undefined, "Tempo", undefined, "Tempo", undefined, "Tempo", undefined, "Cool-down"]);
+  assert.equal(workout.exercises.length, 1);
+  assert.equal(workout.cardio.length, 1);
+  assert.equal(workout.cardio[0].segments?.length ?? 0, 0);
+  assert.deepEqual(workout.importWarnings, []);
   const text = workoutToText(workout);
-  assert.match(text, /Tempo/);
-  assert.match(text, /Cool-down/);
+  assert.match(text, /Barbell Back Squat/);
+  assert.match(text, /Easy run/);
 });
 
 test("v110: coach prompts carry exactly one OUTPUT FORMAT section and it is v3", () => {
