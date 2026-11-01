@@ -1,7 +1,7 @@
 COACH LOOP — APPLYING AN AI-PROVIDED UPDATE
 
-Current repository release: v103 (`app/app-release.ts` on `main`). The prepared
-v104 candidate is not live. Check the selected release's notes, QC and exact
+Current published release: v104 (`app/app-release.ts` on `main`). The prepared
+v105 candidate is not live. Check the selected release's notes, QC and exact
 baseline before applying it; do not use this file as a version-specific recipe.
 
 This is the reusable procedure. Each package also provides release-specific

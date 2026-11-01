@@ -311,9 +311,9 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-The repository's current release is **v103**. v103 warns about implausible activity results, asks before finishing activities with entered but unconfirmed results, advances the rest timer to the next open block, numbers warm-ups separately, and clarifies starter removal and quick-log choices. See [v103 notes](docs/releases/V103-UPDATE-NOTES.md) and [v103 checks](docs/releases/V103-QC.md).
+The latest published release is **v104** (`main` commit `6fb1537a0c9e575b09c2b07b08937afe52d510d1`). Its release gate passed and it is live on GitHub Pages. See [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 QC](docs/releases/V104-QC.md).
 
-The prepared **v104 candidate** tightens whole-number reps in strength calculations, keeps unusual-result review on every finish path, adds a shared training-rule fixture for the PWA and Flutter experiment, and runs a mobile-sized WebKit navigation smoke check in the release gate. It is not live until merged to `main` and the Pages deployment succeeds. See [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 device/check guidance](docs/releases/V104-QC.md).
+The prepared **v105 candidate** fixes note and effort retention in the second finish review, keeps completion changes provisional until Save, aligns unfinished-activity count and detail, and updates two UI messages. See [v105 notes](docs/releases/V105-UPDATE-NOTES.md) and [v105 QC](docs/releases/V105-QC.md).
 
 v102 warns before saving an impossible distance and duration, aligns History counts with the workout header, and shows a skipped activity as Skipped. The first saved-workout note also appears on History. First-run choices are Explore a sample log, Preview one workout, and Set up my log. Not now dismisses the coaching prompt without marking the profile done. See [v102 notes](docs/releases/V102-UPDATE-NOTES.md) and [v102 checks](docs/releases/V102-QC.md).
 

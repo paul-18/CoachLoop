@@ -98,7 +98,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     saveRecoveryCopy(next, "workout-complete");
     setWorkoutOpen(false);
     setView("history");
-    toast.success(finishingWorkout.completedAt ? "History edit complete" : "Workout completed");
+    toast.success(finishingWorkout.completedAt ? "History edit saved" : "Workout saved");
   };
 
   const discardWorkout = () => {

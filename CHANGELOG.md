@@ -2,13 +2,20 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v104 — prepared candidate
+## v105 — prepared candidate
+
+- Finish review edits now stay on the candidate workout, and choosing to mark typed activity results complete does not alter the draft until Save. Cancelling the review discards that candidate cleanly.
+- The unfinished-work detail list now uses the same open-activity rule as its count. A DOM regression covers cancel/retry, session effort and notes retention, and a 10 km / 19 min warning requiring explicit confirmation.
+- Saved-workout toast and Progress empty-state wording now match the action and control labels.
+- Release records document the v104 upload recovery and the v104 second-review data-loss finding and correction.
+
+## v104 — published
 
 - Whole-rep validation now applies to strength estimates and volume, including legacy completed records with decimal reps.
 - Unusual distance/time checks include entered effort results before completion, and the unconfirmed-results prompt proceeds through the standard finish review.
 - The release gate adds a mobile-sized WebKit smoke check for bottom navigation, content clearance and repeated tab switching.
 - PWA and Flutter projects carry matching shared training-rule fixtures for actual reps, completing prescriptions and lifting volume.
-- README, license status and release guidance are clarified. This candidate is not published until merged and deployed.
+- README, license status and release guidance are clarified. Published to GitHub Pages from `main` at `6fb1537a0c9e575b09c2b07b08937afe52d510d1` after the release gate passed.
 
 ## v103
 

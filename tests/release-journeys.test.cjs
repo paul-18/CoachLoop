@@ -181,6 +181,69 @@ test('merged-session UI finishes first, resumes second after remount, discards i
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });
 
+test('second finish review keeps candidate edits, cancellation changes nothing, and unusual results need explicit save', async () => {
+  const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
+  const App = require('../app/workout-app.tsx').default;
+  const { defaultState, makeWorkout, makeCardio } = require('../app/domain/training-types.ts');
+  const storage = require('../app/persistence/training-storage.ts');
+  const state = defaultState(), workout = makeWorkout('lb', 60, 'Second review regression');
+  const run = makeCardio('run');
+  workout.exercises = [];
+  workout.status = 'active';
+  workout.startedAt = new Date().toISOString();
+  run.actualDistanceKm = 10;
+  run.actualDurationMin = 19;
+  workout.cardio = [run];
+  workout.blockOrder = [{ type: 'activity', id: run.id }];
+  state.workouts = [workout]; state.activeWorkoutId = workout.id;
+  await storage.saveTrainingState(state);
+  let root = createRoot(document.getElementById('root'));
+  const button = (text, within = document) => [...within.querySelectorAll('button')].find(b => b.textContent.trim() === text);
+  const setValue = (element, value) => {
+    const prototype = element.tagName === 'TEXTAREA' ? dom.window.HTMLTextAreaElement.prototype : dom.window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  try {
+    root.render(React.createElement(App));
+    await until(() => document.querySelector('.active-workout-card'), 'active workout is available');
+    document.querySelector('.active-workout-card').click();
+    await until(() => document.querySelector('.workout-header'), 'workout editor opens');
+    button('Done', document.querySelector('.workout-header')).click();
+    await until(() => button('Mark complete and finish'), 'unconfirmed results prompt opens');
+    button('Mark complete and finish').click();
+    await until(() => document.querySelector('[role="alertdialog"]')?.textContent.includes('Session effort'), 'candidate review opens');
+    assert.match(document.querySelector('[role="alertdialog"]').textContent, /10 km/);
+    assert.match(document.querySelector('[role="alertdialog"]').textContent, /Save unusual entry/);
+    button('Keep training', document.querySelector('[role="alertdialog"]')).click();
+    await until(() => !document.querySelector('[role="alertdialog"]'), 'candidate review cancels');
+    let stored = await storage.loadTrainingState();
+    assert.equal(stored.workouts[0].cardio[0].completed, false, 'cancel does not commit mark-complete choice');
+    assert.equal(stored.workouts[0].sessionRpe, '');
+    assert.equal(stored.workouts[0].notes, '');
+
+    button('Done', document.querySelector('.workout-header')).click();
+    await until(() => button('Mark complete and finish'), 'unconfirmed prompt returns after cancelled review');
+    button('Mark complete and finish').click();
+    await until(() => document.querySelector('[role="alertdialog"]')?.querySelector('[aria-label="Session effort out of 10"]'), 'second review fields appear');
+    const dialog = document.querySelector('[role="alertdialog"]');
+    setValue(dialog.querySelector('[aria-label="Session effort out of 10"]'), '7');
+    setValue(dialog.querySelector('textarea'), 'Test note second review');
+    assert.equal(dialog.querySelector('[aria-label="Session effort out of 10"]').value, '7');
+    assert.equal(dialog.querySelector('textarea').value, 'Test note second review');
+    button('Save unusual entry', dialog).click();
+    await until(() => !document.querySelector('.workout-header'), 'confirmed unusual result saves');
+    await until(async () => (await storage.loadTrainingState()).workouts[0].completedAt, 'saved workout commits');
+    stored = await storage.loadTrainingState();
+    assert.equal(stored.workouts[0].cardio[0].completed, true);
+    assert.equal(stored.workouts[0].cardio[0].actualDistanceKm, 10);
+    assert.equal(stored.workouts[0].cardio[0].actualDurationMin, 19);
+    assert.equal(stored.workouts[0].sessionRpe, '7');
+    assert.equal(stored.workouts[0].notes, 'Test note second review');
+    assert.match(document.body.textContent, /Workout saved/);
+  } finally { root.unmount(); await wait(30); dom.window.close(); }
+});
+
 test('damaged-log screen downloads both diagnostic bundle and independently restorable checkpoint', async () => {
   const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');
   const App = require('../app/workout-app.tsx').default;

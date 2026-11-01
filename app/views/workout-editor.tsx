@@ -866,11 +866,16 @@ export function WorkoutEditor({
   const progress = workoutProgressCopy(workout);
   const reviewWorkout = finishCandidate ?? workout;
   const unusual = unusualWorkoutWarning(reviewWorkout);
-  const skippedSets = workout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
+  const skippedSets = reviewWorkout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
   const unfinishedSets = reviewWorkout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
   const unfinishedActivities = reviewWorkout.cardio.filter(activityStillOpen).length;
   const differences = planDifferences(reviewWorkout);
   const pendingActuals = unconfirmedActualActivities(workout);
+  const updateReviewWorkout = (update: Partial<WorkoutSession>) => {
+    const next = { ...reviewWorkout, ...update };
+    if (finishCandidate) setFinishCandidate(next);
+    else onUpdate(next);
+  };
   const openFinish = (fromMenu: boolean) => {
     finishFromMenu.current = fromMenu;
     setFinishCandidate(null);
@@ -882,7 +887,6 @@ export function WorkoutEditor({
   };
   const finishFromActualsPrompt = (markComplete: boolean) => {
     const next = markComplete ? markTypedActivitiesComplete(workout, pendingActuals.map((activity) => activity.id)) : workout;
-    if (markComplete) onUpdate(next);
     acknowledgedActuals.current = markComplete ? null : unconfirmedActualKey(workout);
     setFinishCandidate(next);
     setActualsPromptOpen(false);
@@ -981,7 +985,7 @@ export function WorkoutEditor({
               <UnconfirmedActualsPrompt activities={pendingActuals.map((activity) => ({ id: activity.id, name: activity.name }))} onMarkAndFinish={() => { void finishFromActualsPrompt(true); }} onFinishIncomplete={() => { void finishFromActualsPrompt(false); }} onReturn={() => setActualsPromptOpen(false)} />
             </AlertDialogContent>
           </AlertDialog>
-          <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); if (!open) setFinishCandidate(null); if (!open && finishFromMenu.current) queueMicrotask(() => { workoutOptionsRef.current?.focus(); finishFromMenu.current = false; }); }}>
+          <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); if (!open) { setFinishCandidate(null); acknowledgedActuals.current = null; } if (!open && finishFromMenu.current) queueMicrotask(() => { workoutOptionsRef.current?.focus(); finishFromMenu.current = false; }); }}>
             <Button onClick={() => openFinish(false)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
               <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
@@ -990,9 +994,9 @@ export function WorkoutEditor({
                 {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
                 <WorkoutVolume workout={reviewWorkout} unit={state.settings.defaultUnit} />
                 {differences.length > 0 && <details className="log-notes" open><summary>Changed from plan · {differences.length}</summary><ul className="space-y-1.5 py-2 text-sm text-white/70">{differences.map((change, index) => <li key={index} className="break-words">{change}</li>)}</ul></details>}
-                {unfinishedSets + unfinishedActivities > 0 && <details className="log-notes"><summary>Review unfinished work ({unfinishedSets + unfinishedActivities})</summary><ul className="space-y-2 py-2 text-sm text-white/65">{reviewWorkout.exercises.filter((exercise) => exercise.sets.some((set) => !set.completed && !set.skipped)).map((exercise) => <li key={exercise.id}>{exercise.name}: {exercise.sets.filter((set) => !set.completed && !set.skipped).length} sets incomplete</li>)}{reviewWorkout.cardio.filter((activity) => !activity.completed).map((activity) => <li key={activity.id}>{activity.name}: incomplete</li>)}</ul></details>}
-                <div className="finish-fields"><details className="log-notes"><summary>Session effort · optional{workout.sessionRpe ? ` · ${workout.sessionRpe}/10` : ""}</summary><Input aria-label="Session effort out of 10" inputMode="decimal" value={workout.sessionRpe} placeholder="—" onChange={(event) => onUpdate({ ...workout, sessionRpe: event.target.value })} /></details>
-                <label className="field-label">Notes · optional<Textarea value={workout.notes} onChange={(event) => onUpdate({ ...workout, notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label></div>
+                {unfinishedSets + unfinishedActivities > 0 && <details className="log-notes"><summary>Review unfinished work ({unfinishedSets + unfinishedActivities})</summary><ul className="space-y-2 py-2 text-sm text-white/65">{reviewWorkout.exercises.filter((exercise) => exercise.sets.some((set) => !set.completed && !set.skipped)).map((exercise) => <li key={exercise.id}>{exercise.name}: {exercise.sets.filter((set) => !set.completed && !set.skipped).length} sets incomplete</li>)}{reviewWorkout.cardio.filter(activityStillOpen).map((activity) => <li key={activity.id}>{activity.name}: incomplete</li>)}</ul></details>}
+                <div className="finish-fields"><details className="log-notes"><summary>Session effort · optional{reviewWorkout.sessionRpe ? ` · ${reviewWorkout.sessionRpe}/10` : ""}</summary><Input aria-label="Session effort out of 10" inputMode="decimal" value={reviewWorkout.sessionRpe} placeholder="—" onChange={(event) => updateReviewWorkout({ sessionRpe: event.target.value })} /></details>
+                <label className="field-label">Notes · optional<Textarea value={reviewWorkout.notes} onChange={(event) => updateReviewWorkout({ notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label></div>
               </div>
               {finishError && <p role="alert" className="text-sm text-red-200">{finishError}</p>}
               <AlertDialogFooter><AlertDialogCancel disabled={finishing} className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction disabled={finishing} onClick={async event => { event.preventDefault(); setFinishing(true); setFinishError(""); try { await onFinish(finishCandidate ?? undefined); setRestUntil(null); setFinishOpen(false); setFinishCandidate(null); } catch { setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings."); } finally { setFinishing(false); } }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{unusualSaveLabel(unusual, finishing, finishLabel)}</AlertDialogAction></AlertDialogFooter>
