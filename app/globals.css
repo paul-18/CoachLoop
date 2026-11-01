@@ -88,10 +88,10 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .today-streak-link { display: inline-flex; align-items: center; gap: 4px; text-align: left; min-height: 44px; }
 .today-streak-link:hover { color: var(--lime); }
 .training-calendar-disclosure { scroll-margin-top: 20px; }
-.run-plan { min-width: 0; border-left: 2px solid rgba(142,209,232,.45); padding: 8px 10px; background: rgba(142,209,232,.055); border-radius: 0 8px 8px 0; color: rgba(226,244,248,.85); overflow-wrap: anywhere; }
-.run-plan-label { display: block; margin-bottom: 4px; color: rgba(142,209,232,.8); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.run-plan p { display: flex; align-items: baseline; gap: 9px; margin: 0; padding: 3px 0; font-size: .82rem; line-height: 1.45; }
-.run-plan p span { flex: 0 0 18px; color: rgba(142,209,232,.7); font-size: .72rem; font-weight: 800; }
+.run-plan { display: grid; gap: 6px; min-width: 0; border: 1px solid rgba(255,255,255,.085); padding: 10px 12px; background: rgba(0,0,0,.24); border-radius: 12px; color: rgba(255,255,255,.88); overflow-wrap: anywhere; }
+.run-plan-label { display: block; margin-bottom: 2px; color: rgba(255,255,255,.56); font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.run-plan p { display: flex; align-items: center; gap: 9px; margin: 0; padding: 6px 10px; border: 1px solid rgba(255,255,255,.065); border-radius: 9px; background: rgba(0,0,0,.22); font-size: .82rem; font-weight: 650; line-height: 1.45; }
+.run-plan p span { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; background: rgba(var(--theme-accent-rgb),.12); color: var(--lime); font-size: .72rem; font-weight: 800; }
 @media (max-width: 640px) { .quick-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } .quick-grid button { min-width: 0; min-height: 70px; } }
 .quick-grid button { display: flex; min-height: 82px; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 17px; background: rgba(255,255,255,.022); color: rgba(255,255,255,.56); font-size: .74rem; font-weight: 800; transition: .18s ease; }
 @media (hover: hover) and (pointer: fine) { .quick-grid button:hover { border-color: rgba(var(--theme-accent-rgb),.18); color: var(--lime); background: rgba(var(--theme-accent-rgb),.045); } }
@@ -114,15 +114,16 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .coach-action-row h2 { font-size: 1.12rem; font-weight: 850; letter-spacing: -.035em; }
 .coach-action-row p { margin-top: 4px; color: rgba(255,255,255,.5); font-size: .82rem; }
 .coach-action-row button { min-height: 44px; flex: 0 0 auto; }
-.coach-quick-copy { min-width: 0; display: grid; gap: 2px; border: 1px solid #ffffff12; border-radius: 16px; padding: 14px 16px; }
+.coach-quick-copy { min-width: 0; max-width: 100%; overflow: hidden; display: grid; gap: 2px; border: 1px solid #ffffff12; border-radius: 16px; padding: 14px 16px; }
 .coach-quick-copy > h2 { padding-bottom: 3px; color: #dce8d1; font-size: .92rem; font-weight: 800; }
-.coach-quick-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid #ffffff10; }
+.coach-quick-row { min-width: 0; max-width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid #ffffff10; }
 .coach-quick-row > div:first-child { min-width: 0; }
 .coach-quick-row strong, .coach-quick-row small { display: block; }
 .coach-quick-row strong { color: #e4ebdc; font-size: .86rem; }
 .coach-quick-row small { color: #a8b2a2; font-size: .75rem; line-height: 1.35; }
 .coach-quick-row button { min-height: 44px; flex-shrink: 0; }
-.coach-quick-controls { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.coach-quick-controls { display: flex; flex-wrap: wrap; min-width: 0; max-width: 100%; align-items: center; gap: 7px; }
+.coach-quick-controls button { max-width: 100%; white-space: normal; height: auto; padding-block: 8px; }
 .coach-quick-controls [data-slot="native-select-wrapper"] { min-width: 0; max-width: 100%; }
 .coach-quick-controls select { min-width: 0; max-width: 100%; color: #f1f6eb; }
 @media (max-width: 640px) {
@@ -529,27 +530,28 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .activity-editor .routine-editor,
 .activity-editor .activity-details { min-width: 0; max-width: 100%; }
 .activity-editor .field-label { min-width: 0; overflow-wrap: anywhere; }
-.activity-editor button { min-width: 0; max-width: 100%; }
+.activity-editor button { min-width: 0; max-width: 100%; white-space: normal; height: auto; min-height: 44px; padding-block: 8px; line-height: 1.3; text-align: center; }
 .activity-editor textarea,
 .activity-editor input,
 .activity-editor [data-slot="native-select-wrapper"] { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
 .activity-basics { width: 100%; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .activity-option-grid { width: 100%; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.activity-instructions { min-width: 0; border-left: 2px solid rgba(142,209,232,.45); padding: 7px 10px; background: rgba(142,209,232,.055); border-radius: 0 8px 8px 0; color: rgba(226,244,248,.79); font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
+.activity-instructions { min-width: 0; border: 1px solid rgba(255,255,255,.085); padding: 9px 12px; background: rgba(0,0,0,.24); border-radius: 12px; color: rgba(255,255,255,.88); font-size: .82rem; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .activity-instructions summary { cursor: pointer; list-style: none; }
 .activity-instructions summary::-webkit-details-marker { display: none; }
 .activity-instructions p { margin-top: 8px; color: rgba(255,255,255,.62); }
 .activity-efforts { min-width: 0; display: grid; gap: 8px; }
-.activity-effort-plan-row { display: grid; grid-template-columns: 24px repeat(3,minmax(0,1fr)) 44px; align-items: end; gap: 5px; min-width: 0; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
-.activity-effort.is-done { border-color: rgba(var(--theme-accent-rgb),.25); background: rgba(var(--theme-accent-rgb),.055); }
+.activity-effort-plan-row { display: grid; grid-template-columns: 24px repeat(3,minmax(0,1fr)) 44px; align-items: end; gap: 5px; min-width: 0; padding: 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.22); }
+.activity-effort.is-done { border-color: rgba(var(--theme-accent-rgb),.28); background: rgba(var(--theme-accent-rgb),.065); }
 /* v111: a display row is leading state + plan on one line, actions on the next.
    The check lives in the leading slot, never glued onto the plan text, and the
    Done button reads the same ("Done") in both states, so nothing shifts. */
-.activity-effort { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 8px; align-items: center; min-width: 0; padding: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.13); }
+.activity-effort { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 8px; align-items: center; min-width: 0; padding: 10px 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(0,0,0,.26); }
 .activity-effort-state { display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
 .activity-effort-state svg { width: 18px; height: 18px; }
 .activity-effort.is-done .activity-effort-state { color: var(--lime); }
 .activity-effort-plan-text { min-width: 0; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.activity-effort-prescribed { color: rgba(255,255,255,.52); font-size: .75rem; font-weight: 600; }
 .activity-effort-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .activity-effort-actuals { grid-column: 1 / -1; display: grid; gap: 8px; min-width: 0; }
 .activity-effort-plan-row > span { padding-bottom: 13px; text-align: center; color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 800; }
@@ -836,8 +838,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--l
 @media (max-width: 640px) {
   .coach-cue:not(.compact-coach-cue) { flex-direction: column; align-items: stretch; gap: 4px; }
 }
-.coach-format-disclosure summary { min-height: 44px; cursor: pointer; color: rgba(255,255,255,.75); }
+.coach-format-disclosure { min-width: 0; max-width: 100%; overflow: hidden; }
+.coach-format-disclosure summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: rgba(255,255,255,.75); font-weight: 750; }
 .coach-format-disclosure .coach-quick-row { margin-top: 8px; }
+.fitlog-example { min-width: 0; max-width: 100%; margin: 10px 0 0; padding: 12px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(0,0,0,.26); color: rgba(255,255,255,.84); font-size: .75rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: auto; }
 
 /* Read long coaching context without squeezed single-line fields. */
 .goal-read-card { padding: 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(0,0,0,.12); }
@@ -897,32 +901,40 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-dot.is-measured { background:#8ed1e8; }
 .stepper-dot.is-skipped { background:transparent; border:1px solid rgba(255,255,255,.35); }
 .stepper-dot.is-current { outline:2px solid rgba(255,255,255,.65); outline-offset:1px; }
-.activity-stepper-current { display:grid; gap:10px; min-width:0; padding:12px; border:1px solid #ffffff1a; border-radius:12px; background:#00000021; }
-.stepper-current-text { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.activity-stepper-current { display:grid; gap:10px; min-width:0; padding:12px; border:1px solid #ffffff1a; border-radius:12px; background:#00000028; }
+.stepper-current-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; min-width:0; min-height:44px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
 .stepper-part-intensity { font-size:.8rem; line-height:1.4; color:rgba(255,255,255,.6); }
 .activity-stepper-list { display:grid; gap:10px; min-width:0; }
-.activity-stepper-part { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.activity-stepper-part { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000026; }
 .activity-stepper-part.is-done { border-color:rgba(var(--theme-accent-rgb),.25); }
 .activity-stepper-part.is-measured { border-color:rgba(142,209,232,.35); }
 .activity-stepper-part.is-skipped { opacity:.75; }
-.stepper-part-text { display:flex; align-items:baseline; gap:8px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.stepper-part-text { display:flex; align-items:center; gap:8px; min-width:0; min-height:44px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
 .stepper-part-index { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; border-radius:50%; background:rgba(255,255,255,.1); font-size:.75rem; font-weight:800; }
 .stepper-part-plan { flex:1 1 auto; min-width:0; font-weight:700; line-height:1.45; text-wrap:pretty; }
 .stepper-part-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
-.stepper-done { min-height:44px; }
-.stepper-rounds-count { font-weight:800; }
+.stepper-done { min-height:44px; white-space:normal; height:auto; padding-block:8px; }
+.stepper-done-current { min-height:44px; white-space:normal; height:auto; padding-block:10px; font-weight:800; }
+.stepper-rounds-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; min-width:0; padding:6px 10px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:rgba(0,0,0,.22); }
+.stepper-rounds-count { margin:0; font-weight:800; font-size:.85rem; }
+.stepper-round-actions { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
+.stepper-round-actions button { flex:1 1 140px; min-height:44px; }
+.stepper-unit-stations { display:grid; gap:6px; width:100%; min-width:0; margin-top:6px; }
+.stepper-unit-station-row { display:flex; align-items:center; gap:8px; width:100%; min-width:0; padding:6px 10px; border:1px solid rgba(255,255,255,.075); border-radius:10px; background:rgba(0,0,0,.26); }
+.stepper-unit-station-name { flex:1 1 auto; min-width:0; font-weight:700; font-size:.85rem; line-height:1.4; overflow-wrap:anywhere; }
 .activity-stepper-units { display:grid; gap:10px; min-width:0; }
 /* v111 swim spacing: a set row is its own padded block; title, status, and Done
    are distinct elements with real gaps, so they can never glue into one string. */
-.activity-stepper-unit { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.activity-stepper-unit { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000026; }
 .stepper-unit-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; min-width:0; }
 .stepper-unit-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
-.stepper-unit-text { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.stepper-unit-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; min-width:0; min-height:44px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
 .stepper-unit-title { font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
+.stepper-unit-summary { font-size:.8rem; line-height:1.4; color:rgba(255,255,255,.72); overflow-wrap:anywhere; }
 .stepper-unit-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
 .activity-stepper-unit-stations { display:grid; gap:8px; min-width:0; }
 /* v111 quick-add: kind chips + one minutes field + Add, always visible. */
-.stepper-quick-add { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000021; }
+.stepper-quick-add { display:grid; gap:8px; min-width:0; padding:10px; border:1px solid #ffffff14; border-radius:12px; background:#00000026; }
 .stepper-quick-chips { display:flex; flex-wrap:wrap; gap:8px; }
 .stepper-quick-chips button { min-height:44px; min-width:44px; padding:0 12px; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:transparent; color:inherit; font:inherit; font-weight:700; cursor:pointer; }
 .stepper-quick-chips button[aria-pressed="true"] { border-color:var(--lime); background:rgba(var(--theme-accent-rgb),.12); color:var(--lime); }
@@ -930,8 +942,8 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-quick-row .field-label { flex:1 1 auto; min-width:0; }
 .stepper-quick-row button { min-height:44px; }
 /* v111 routine-circuit rounds counter. */
-.routine-rounds { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
-.routine-rounds-count { font-weight:800; }
+.routine-rounds { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; padding:6px 10px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:rgba(0,0,0,.22); }
+.routine-rounds-count { font-weight:800; font-size:.85rem; margin-right:auto; }
 .routine-rounds button { min-height:44px; }
 .activity-stepper-expanded { display:grid; gap:10px; min-width:0; }
 .stepper-plan-fields { display:grid; gap:8px; min-width:0; }

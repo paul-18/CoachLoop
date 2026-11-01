@@ -3,7 +3,7 @@ import { normalizedBlockOrder } from "./block-order";
 import { segmentCounts, segmentHasTypedActual, segmentMeasure } from "./activity-segments";
 export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.skipped && (activity.segments?.length
   ? segmentCounts(activity.segments).done > 0
-  : activity.completed || !!activity.efforts?.some((e) => e.completed));
+  : activity.completed || !!activity.efforts?.some((e) => e.completed) || (activity.roundsDone ?? 0) > 0);
 export const performedDuration = (activity: CardioEntry) =>
   activity.segments?.length
     ? (() => { const result = segmentMeasure(activity, "duration"); return result?.fullyRecorded ? result.value === null ? null : result.value / 60 : null; })()
@@ -228,7 +228,7 @@ export function effortHasTypedActual(effort: ActivityEffort) {
 export function activityHasTypedActual(activity: CardioEntry) {
   if (activity.segments?.some(segment => segment.status === "unknown" && segmentHasTypedActual(segment))) return true;
   if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
-  return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
+  return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin) || (activity.roundsDone ?? 0) > 0;
 }
 
 /** Activities the user typed results for but did not mark complete. Skipped and already complete activities are left out. */
@@ -238,7 +238,7 @@ export function unconfirmedActualActivities(workout: WorkoutSession) {
     if (activity.segments?.length) return activity.segments.some(segment => segment.status === "unknown" && segmentHasTypedActual(segment));
     if (activity.efforts?.length) return activity.efforts.some((effort) => !effort.completed && effortHasTypedActual(effort));
     if (activity.completed) return false;
-    return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin);
+    return finiteEntered(activity.actualDistanceKm) || finiteEntered(activity.actualDurationMin) || (activity.roundsDone ?? 0) > 0;
   });
 }
 
@@ -248,7 +248,7 @@ export function unconfirmedActualKey(workout: WorkoutSession) {
       .map(segment => `${segment.id}:${segment.actualDistanceM}:${segment.actualDurationSec}`).join(",");
     const efforts = (activity.efforts ?? []).filter((effort) => !effort.completed && effortHasTypedActual(effort))
       .map((effort) => `${effort.id}:${effort.actualDistanceM}:${effort.actualDurationSec}:${effort.actualLoad}`).join(",");
-    return `${activity.id}:${activity.actualDistanceKm}:${activity.actualDurationMin}:${segments}:${efforts}`;
+    return `${activity.id}:${activity.actualDistanceKm}:${activity.actualDurationMin}:${activity.roundsDone ?? 0}:${segments}:${efforts}`;
   }).join("|");
 }
 

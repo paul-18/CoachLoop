@@ -176,9 +176,9 @@ SET|6-8|185 lb total|RIR 2
 REST|180
 NOTES|Keep the descent controlled.
 
-2. Segmented activities — one SEGMENT line per planned part:
+2. Segmented activities — one SEGMENT line per planned interval:
 SEGMENT|kind|duration|distance|label
-Kind is run, walk, rest or other. For bike, row, hike, and other non-run activities, use kind other — there is no bike or row kind. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. The label is optional free text that names the part (Tempo, Freestyle, Push-ups x15); it must not contain | or newlines. The 4-field form without a label still parses; a 6th field is an error.
+Kind is run, walk, rest or other. For bike, row, hike, and other non-run activities, use kind other — there is no bike or row kind. Duration is blank or must include a unit (30 sec, 4 min) or clock form (4:30); a bare number is invalid. Distance is blank or a number with m or km; a bare number is invalid. The label is optional free text that names the interval or station (Tempo, Freestyle, Push-ups x15); it must not contain | or newlines. The 4-field form without a label still parses; a 6th field is an error.
 REPEAT|N ... ENDREPEAT repeats a pattern N times, with N from 2 to 50 and no more than 100 expanded segments in the whole workout. Repeat blocks cannot nest, but you may use more than one in sequence. One iteration is one round (circuit), one interval set (swim), or one pattern repetition (run). The app expands each repeated segment with a shared group ID and iteration number. Every imported segment starts unknown; a prescription is never a completed result.
 For segmented runs, use MODE|segments with REPEAT. For SUMMARY-mode runs, use one INTERVALS line instead: INTERVALS|6 x (3 min run / 1 min walk), using this single stage format and ASCII x.
 
@@ -694,7 +694,7 @@ function parseFitlogSegmented(source: string, defaultUnit: Unit, aliases: Record
 
   const bodyStart = block.index! + `[FITLOG:${version}]`.length;
   const bodyEnd = bodyStart + block[1].length;
-  const v1Body = rawLines.map(line => /^(?:(?:MODE|SEGMENT|REPEAT)\||ENDREPEAT$)/i.test(line.text) ? "" : line.raw).join("\n");
+  const v1Body = rawLines.map(line => /^(?:(?:MODE|SEGMENT|REPEAT)\s*\||ENDREPEAT$)/i.test(line.text) ? "" : line.raw).join("\n");
   const v1Source = `${cleaned.slice(0, bodyStart).replace(new RegExp(`\\[FITLOG:${version}\\]`, "i"), "[FITLOG:1]")}${v1Body}${cleaned.slice(bodyEnd)}`;
   const workout = parseFitlogV1(v1Source, defaultUnit, aliases);
   workout.importFingerprint = fitlogFingerprint(cleaned);

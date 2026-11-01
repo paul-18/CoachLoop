@@ -1,12 +1,6 @@
-# Coach Loop v111 — update notes (draft until deployed)
+# Coach Loop v111 — update notes (published)
 
-Status: built locally in a clean worktree from live main `8cb437b`.
-TypeScript, Lint, Production build, PWA generation, and PWA behavior
-pass; Tests pass 365/366, with the single failure the known v103
-trailing timing flake (see Gate below), which passes in isolation.
-The WebKit smoke stage cannot run on this VM (missing system
-libraries) and runs in GitHub Actions CI on submission. NOT pushed.
-NOT deployed. Paul decides on pushing.
+Status: published from `main` at `601b795`; GitHub Pages workflow run #67 passed and deployed (`sw.js` digest `bc33a93b6f8aa66128ee`). Verified on Paul's iPhone 17 on 2026-11-01.
 
 This release fixes exactly the eight things Paul raised in his v109
 phone-test review on 2026-11-01, in his words, and nothing else.

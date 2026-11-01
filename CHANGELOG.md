@@ -2,7 +2,18 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v111 — built, not submitted
+## v112 — published
+
+- Coach view `"Need the FITLOG format?"` fix: `.coach-quick-controls` wraps cleanly, `.coach-format-disclosure` prevents horizontal bleed, and `.fitlog-example` wraps long lines inside a dark code box so expanding the format guide never overflows iPhone screens. Remaining `"part"` wording in `FITLOG_V3_INSTRUCTIONS` replaced with `"interval"` / `"interval or station"`.
+- Card visual consistency: Import preview segment/effort items, `.run-plan`, `.activity-instructions`, and `.activity-effort` rows now use dark card surfaces matching Strength sets instead of plain text or `.coach-cue` styling.
+- Segmented circuits & swim: stations under `Round N of M` and intervals under `Set N of M` render on separate rows (`.stepper-unit-station-row`) instead of one run-on line; added `Undo round` alongside `Done round` in a compact `.stepper-rounds-bar`; tucked the per-round/per-station list into a collapsible `Rounds & stations (N rounds)` disclosure without duplicate per-station `Done:` buttons; suppressed duplicate routine-rounds counter when segments exist.
+- Sled / Force (`efforts`): logging different numbers via `"Did different"` immediately updates the main top row text to show the performed weight/distance/reps while keeping `· prescribed ...` visible alongside it.
+- Header collapse & focus flow: replaced the full-width top `Collapse` bar inside cards with a compact `<ChevronUp />` arrow button next to `...` in the card header; added one-block-at-a-time auto-advance and `"Collapse other blocks"` / `"Focus current block"` in the workout editor; styled routine `Undo round` as a button; enabled multi-line wrapping on `.activity-editor button` and `.stepper-done` so long activity names never clip.
+- Simplified settings: removed the `Logging style` dropdown from `More details` (keeping `loggingStyle` in the data schema and `+ Add effort` on blank `force` blocks).
+- Data & export fixes: `repeatWorkoutDraft` and `replanWorkoutDraft` reset `roundsDone`; `completion.ts`, `history-view.tsx`, and `coach-export.ts` include routine `roundsDone > 0`; `coach-export.ts` preserves activity-level prescribed duration for rep-based segmented circuits; `weekly-cards.ts` checks `flagMinutes` before displaying `0 min`; `fitlog.ts` strips whitespace-padded `REPEAT |` / `SEGMENT |` lines from `v1Body`.
+- See [v112 update notes](docs/releases/V112-UPDATE-NOTES.md).
+
+## v111 — published
 
 - Plain-words sweep (Paul's v109 phone-test review: "Idk what parts mean"): every user-visible stepper string drops "part"/"parts". The generic stepper uses "Interval" ("Interval N of M", "Add interval", "Show all · N intervals", "All N intervals resolved"); circuits keep "Round", swim keeps "Set"; ungrouped circuit units show their station plan text; "Complete unknown parts" becomes "Done: rest of these rounds/sets/intervals" (plural, because the footer completes the whole group). Unlabeled "other" segments read "Interval" instead of "Part". Coach export and History keep the legacy "N of M parts done" count label — the sweep covers the steppers, not those views.
 - Quick-add for manual logging: the generic stepper gains an inline row — Run / Walk / Rest / Other chips, one minutes field, one Add button. Add appends the interval and leaves the row ready, so "5 min run, 5 min walk, 4 min run" is three quick taps plus typing, with no form navigation and no per-interval save round-trip. "Add intervals" now opens the stepper on an empty list instead of inserting a blank interval, so chaining starts clean. Tapping an existing interval still expands it for inline duration/distance editing. Grouped steppers keep their Add button; quick-add there was judged not to fit without complicating the set/round cards, so generic stepper only.
@@ -14,7 +25,7 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 - Simpler stepper chrome: the default view shows only the current card + dots + Done + Show all (plus quick-add on the generic stepper, and the rounds counter / Done-all / station list on circuits). Repeat is a per-group one-tap button — "Repeat this round" / "Repeat this set" / "Repeat this interval" — acting on its own group directly; the selection step is gone entirely (no checkboxes, no "Repeat selected pattern xN", no "Repeat count (2–50)" input, no pattern helper text). Complete-all for generic/swim now lives behind Show all; circuit "Done: all rounds" stays visible.
 - Small semantics unification: a round/set counts as done when nothing in it is unknown and at least one station was done — a round with a skipped rest is a finished round; an all-skipped round is skipped, not done. This keeps the circuit counter, the dots, and the group footers in agreement.
 - Deliberate non-changes: no FITLOG v3 parser or prompt changes, no strength-logging changes, no totals/labels arithmetic changes, no Done-semantics changes beyond the circuit prescribed-count completion above, no segments-exist rule change, no post-session card changes, no yoga rejection change, no mobility pose cards or per-move status (decision still open), no evidenceVersion bump, no new infrastructure, accounts, cloud sync, AI keys, or paid APIs. Synthetic fixtures only.
-- See [v111 update notes](docs/releases/V111-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul decides on pushing.
+- See [v111 update notes](docs/releases/V111-UPDATE-NOTES.md). Published from `main` at `601b795`; GitHub Pages workflow run #67 passed and deployed.
 
 ## v110 — built, not submitted
 

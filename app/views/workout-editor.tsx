@@ -279,6 +279,9 @@ function ExerciseEditor({
   defaultUnit,
   barWeightLb,
   barWeightKg,
+  collapsed = false,
+  onToggleCollapse,
+  onCollapseOthers,
   onChange,
   onCompleteSet,
   onRemove,
@@ -298,6 +301,9 @@ function ExerciseEditor({
   defaultUnit: Unit;
   barWeightLb: number;
   barWeightKg: number;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  onCollapseOthers?: () => void;
   onChange: (exercise: ExerciseBlock) => void;
   onCompleteSet: (setId: string, seconds: number) => void;
   onRemove: () => void;
@@ -347,6 +353,10 @@ function ExerciseEditor({
   if (allDone && !showCompleted) {
     const summary = compactSetSummary(exercise.sets);
     return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Review ${exercise.name}`}><span className="completed-block-icon">{exercise.sets.every(s=>s.completed) ? <Check /> : <span>—</span>}</span><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{exercise.sets.filter(s => s.completed).length} {exercise.sets.filter(s => s.completed).length === 1 ? "set" : "sets"} done{exercise.sets.some(s => s.skipped) ? ` · ${exercise.sets.filter(s => s.skipped).length} skipped` : ""}{summary ? ` · ${summary}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
+  }
+  if (collapsed && !allDone) {
+    const doneSets = exercise.sets.filter(s => s.completed).length;
+    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{doneSets} of {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"} done{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
   }
   return (
     <Card className={`exercise-card gap-0 border-white/8 bg-[#171916] py-0 shadow-none ${allDone ? "is-complete" : ""}`}>
@@ -408,12 +418,12 @@ function ExerciseEditor({
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}><DialogContent className="max-h-[80dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-md"><DialogHeader><DialogTitle>{exercise.name} history</DialogTitle><DialogDescription className="text-white/60">Recent completed results. Warm-ups are labelled.</DialogDescription></DialogHeader><div className="space-y-3">{recentHistory.map((entry) => <div key={entry.date} className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="mb-1 text-xs font-bold text-white/60">{formatDate(entry.date)}</p>{entry.sets.map((set, index) => <p key={`${index}-${set}`} className="text-sm text-white/78">{set}</p>)}</div>)}</div></DialogContent></Dialog>
 
         </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+        <div className="flex items-center gap-1">
+          <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={`Collapse ${exercise.name}`} onClick={() => { if (allDone) setShowCompleted(false); else onToggleCollapse?.(); }}><ChevronUp /></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 px-3 py-3 sm:px-4">
-        {allDone && <Button variant="ghost" size="sm" className="min-h-11 px-3 text-xs text-[var(--lime)]/80" onClick={() => setShowCompleted(false)}>{exercise.sets.every(s=>s.completed) ? "All sets complete" : "Exercise finished"} · Collapse <ChevronUp /></Button>}
         {exercise.coachNotes && <CoachCue text={exercise.coachNotes} />}
         <div className="set-table-heading" aria-hidden="true"><span>Set</span><span>Weight</span><span>Reps</span><span>Done</span></div>
         {exercise.sets.map((set, index) => (
@@ -632,15 +642,22 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
       <Button type="button" variant="ghost" aria-label={`Remove ${word.toLowerCase()} ${index + 1}`} onClick={() => { const removed = segment; const at = segments.indexOf(segment); update(segments.filter(item => item.id !== segment.id)); if (expandedId === segment.id) setExpandedId(null); toast(`${word} ${index + 1} removed`, { action: { label: "Undo", onClick: () => { const currentSegments = segmentsRef.current; const next = [...currentSegments]; next.splice(Math.min(at, currentSegments.length), 0, removed); update(next); } } }); }}><Trash2 /></Button>
     </div>
   </div>;
-  const partCard = (segment: ActivitySegment, index: number, word: string) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
+  const partCard = (segment: ActivitySegment, index: number, word: string, showInlineDone = true) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
     <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`${word} ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
       <span className="stepper-part-index">{index + 1}</span>
       <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
       <span className="stepper-part-status">{statusText(segment)}</span>
     </button>
-    {segment.status === "unknown" && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneOne(segment)}>Done: {segmentPlanText(segment)}</Button>}
+    {showInlineDone && segment.status === "unknown" && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneOne(segment)}>Done: {segmentPlanText(segment)}</Button>}
     {expandedId === segment.id && expandedPart(segment, index, word)}
   </div>;
+  const lastDoneRound = [...groupedUnits].reverse().find(unit => segmentCounts(unit.segments).done > 0);
+  const undoRound = () => {
+    if (!lastDoneRound) return;
+    const ids = new Set(lastDoneRound.segments.map(segment => segment.id));
+    const next = segments.map(segment => ids.has(segment.id) && (segment.status === "completed" || segment.status === "modified") ? { ...segment, status: "unknown" as const } : segment);
+    update(next, { completed: false });
+  };
   const unitDotClass = (unit: SegmentUnit) => {
     const count = segmentCounts(unit.segments);
     if (count.modified) return "is-measured";
@@ -666,13 +683,16 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
       <span className="stepper-position">{currentUnit ? unitPosition(currentUnit, currentUnitIndex) : units.length ? `All ${units.length} ${resolvedWord} resolved · ${counts.done} done${counts.skipped ? ` · ${counts.skipped} skipped` : ""}` : "Nothing added yet"}</span>
       <span className="stepper-dots" role="img" aria-label={`${doneUnits} of ${units.length} ${resolvedWord} done`}>{units.map((unit, index) => <span key={unit.key} className={`stepper-dot ${unitDotClass(unit)} ${index === currentUnitIndex ? "is-current" : ""}`} title={`${unitTitle(unit)}: ${unit.segments.map(segmentPlanText).join(" · ")}`} />)}</span>
     </div>
-    {isCircuit && <p className="stepper-rounds-count">{doneUnits} {doneUnits === 1 ? "round" : "rounds"} done</p>}
+    {isCircuit && <div className="stepper-rounds-bar">
+      <p className="stepper-rounds-count">{doneUnits} {doneUnits === 1 ? "round" : "rounds"} done</p>
+      {lastDoneRound && <Button type="button" variant="outline" size="sm" onClick={undoRound}><Minus /> Undo round</Button>}
+    </div>}
     {currentUnit && <div className="activity-stepper-current">
       {currentUnit.groupId ? <>
         <div className="stepper-current-text" aria-label={`Current ${unitTitle(currentUnit)}`}>
           <span className="stepper-part-plan">{unitTitle(currentUnit)}</span>
           {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
-          <span className="stepper-unit-stations">{currentUnit.segments.map(segment => `${segmentPlanText(segment)} · ${statusText(segment)}`).join(" · ")}</span>
+          <div className="stepper-unit-stations">{currentUnit.segments.map((segment, index) => <div key={segment.id} className="stepper-unit-station-row"><span className="stepper-part-index">{index + 1}</span><span className="stepper-unit-station-name">{segmentPlanText(segment)}</span><span className="stepper-part-status">{statusText(segment)}</span></div>)}</div>
         </div>
       </> : <>
         <button type="button" className="stepper-current-text" aria-expanded={expandedId === currentUnit.segments[0]!.id} aria-label={`Current ${unitPosition(currentUnit, currentUnitIndex)}: ${segmentPlanText(currentUnit.segments[0]!)}`} onClick={() => setExpandedId(value => value === currentUnit.segments[0]!.id ? null : currentUnit.segments[0]!.id)}>
@@ -683,25 +703,31 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
       </>}
       <Button type="button" className="stepper-done-current bg-[var(--lime)] text-[#11140d]" onClick={() => doneUnit(currentUnit)}>{doneLabel(currentUnit)}</Button>
     </div>}
-    {isCircuit && <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>{completeAllLabel}</Button>}
-    {isCircuit ? <div className="activity-stepper-units">
-      {units.map((unit) => unit.groupId ? <div key={unit.key} className="activity-stepper-unit">
-        <div className="stepper-unit-head">
-          <span className="stepper-unit-title">{unitTitle(unit)}</span>
-          <span className="stepper-unit-status">{unitStatusText(unit)}</span>
-        </div>
-        <div className="activity-stepper-unit-stations">{unit.segments.map((segment, index) => partCard(segment, index, "Station"))}</div>
-      </div> : <div key={unit.key} className="activity-stepper-unit">{partCard(unit.segments[0]!, segments.indexOf(unit.segments[0]!), "Station")}</div>)}
-      {groups.map(groupFooter)}
+    {isCircuit && <div className="stepper-round-actions">
+      <Button type="button" variant="outline" disabled={!counts.unknown} onClick={completeAll}>{completeAllLabel}</Button>
       {groupedUnits.length > 0 && <Button type="button" variant="outline" onClick={addAnotherRound}><Plus /> Add another round</Button>}
-      <Button type="button" variant="outline" onClick={add}><Plus /> Add station</Button>
-    </div> : <>
+    </div>}
+    {isCircuit ? <details className="activity-details activity-stepper-units">
+      <summary>Rounds & stations ({units.length} {unitWordPlural})</summary>
+      <div className="mt-2 grid gap-2">
+        {units.map((unit) => unit.groupId ? <div key={unit.key} className="activity-stepper-unit">
+          <div className="stepper-unit-head">
+            <span className="stepper-unit-title">{unitTitle(unit)}</span>
+            <span className="stepper-unit-status">{unitStatusText(unit)}</span>
+          </div>
+          <div className="activity-stepper-unit-stations">{unit.segments.map((segment, index) => partCard(segment, index, "Station", false))}</div>
+        </div> : <div key={unit.key} className="activity-stepper-unit">{partCard(unit.segments[0]!, segments.indexOf(unit.segments[0]!), "Station")}</div>)}
+        {groups.map(groupFooter)}
+        <Button type="button" variant="outline" onClick={add}><Plus /> Add station</Button>
+      </div>
+    </details> : <>
       <Button type="button" variant="ghost" aria-expanded={showAll} onClick={() => setShowAll(value => !value)}>{showAll ? "Hide all" : units.length === 1 ? `Show all · 1 ${unitWord.toLowerCase()}` : `Show all · ${units.length} ${unitWordPlural}`}</Button>
       {showAll && <div className="activity-stepper-list">
         {units.map((unit) => unit.groupId ? <div key={unit.key} className="activity-stepper-unit">
           <div className="stepper-unit-row">
             <button type="button" className="stepper-unit-text" aria-expanded={expandedUnits.includes(unit.key)} aria-label={`${unitTitle(unit)}: ${unit.segments.map(segmentPlanText).join(" · ")}`} onClick={() => setExpandedUnits(current => current.includes(unit.key) ? current.filter(key => key !== unit.key) : [...current, unit.key])}>
               <span className="stepper-unit-title">{unitTitle(unit)}</span>
+              <span className="stepper-unit-summary">{unit.segments.map(segmentPlanText).join(" + ")}</span>
               <span className="stepper-unit-status">{unitStatusText(unit)}</span>
             </button>
             {segmentCounts(unit.segments).unknown > 0 && <Button type="button" variant="outline" className="stepper-done" onClick={() => doneUnit(unit)}>{doneLabel(unit)}</Button>}
@@ -847,6 +873,9 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
 function CardioEditor({
   isNext,
   initiallyOpen = false,
+  openOverride,
+  onOpenChange,
+  onCollapseOthers,
   activity,
   onChange,
   onCompleteEffort,
@@ -859,6 +888,9 @@ function CardioEditor({
 }: {
   isNext: boolean;
   initiallyOpen?: boolean;
+  openOverride?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onCollapseOthers?: () => void;
   activity: CardioEntry;
   onChange: (activity: CardioEntry) => void;
   onCompleteEffort: (seconds: number) => void;
@@ -871,12 +903,13 @@ function CardioEditor({
 }) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [open, setOpen] = useState(initiallyOpen);
+  const isOpen = openOverride !== undefined ? openOverride : open;
+  const setCardOpen = (nextOpen: boolean) => { setOpen(nextOpen); onOpenChange?.(nextOpen); };
   // v111: "Add intervals" opens the stepper instead of inserting a blank interval, so quick-add chaining starts from an empty list.
   const [intervalsOpen, setIntervalsOpen] = useState(false);
   const [expandedEffortId, setExpandedEffortId] = useState<string | null>(null);
   const style = activityLoggingStyle(activity);
   const efforts = activity.efforts ?? [];
-  const hasCompletedEfforts = efforts.some((effort) => effort.completed);
   const distanceUnit = activity.activityType === "swim" || activity.activityType === "row" ? "m" : "km";
   const distanceValue = (value: number | null) => value === null ? null : displayedDistance(value, distanceUnit);
   const readDistance = (value: number | null) => value === null ? null : distanceUnit === "m" ? value / 1000 : value;
@@ -900,16 +933,16 @@ function CardioEditor({
   const activityDoneLabel = activity.completed ? "Activity complete"
     : activity.segments?.length ? `Done: ${activity.name}`
     : `Done: ${activity.name}${activity.plannedDurationMin !== null ? ` ${formatMeasure(activity.plannedDurationMin)} min` : ""}${activity.plannedDistanceKm !== null ? ` ${formatMeasure(activity.plannedDistanceKm)} km` : ""}`;
-  if (!open && !activity.completed) {
+  if (!isOpen && !activity.completed) {
     const summary = [activity.activityType === "other" ? "Custom activity" : activity.activityType.replace(/_/g, " "), activity.segments?.length ? segmentCountLabel(activity.segments) : activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "", activity.intensity].filter(Boolean).join(" · ");
     const warning = unusualActivityWarning(activity);
     return <>
-      <button type="button" className="completed-block activity-summary" onClick={() => setOpen(true)} aria-label={`${activity.segments?.length ? "Edit" : "Log"} ${activity.name}`}><span className="completed-block-copy"><strong>{activity.name}</strong><small>{summary}</small></span><span className="completed-block-edit">{activity.segments?.length ? "Edit" : "Log"} <ChevronDown /></span></button>
+      <button type="button" className="completed-block activity-summary" onClick={() => setCardOpen(true)} aria-label={`${activity.segments?.length ? "Edit" : "Log"} ${activity.name}`}><span className="completed-block-copy"><strong>{activity.name}</strong><small>{summary}</small></span><span className="completed-block-edit">{activity.segments?.length ? "Edit" : "Log"} <ChevronDown /></span></button>
       {warning && <p role="status" className="activity-warning">{warning}</p>}
     </>;
   }
   if (activity.completed && !showCompleted) {
-    const facts = [activityEffortSummary(activity), performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null, performedDistance(activity) !== null ? `${formatMeasure(distanceValue(performedDistance(activity)!)!)} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
+    const facts = [activityEffortSummary(activity), !activity.segments?.length && (activity.roundsDone ?? 0) > 0 ? `${activity.roundsDone} ${activity.roundsDone === 1 ? "round" : "rounds"} done` : null, performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null, performedDistance(activity) !== null ? `${formatMeasure(distanceValue(performedDistance(activity)!)!)} ${distanceUnit}` : null, activity.effort ? `Effort ${activity.effort}/10` : null].filter(Boolean).join(" · ");
     const warning = unusualActivityWarning(activity);
     return <>
       <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Edit completed ${activity.name}`}><span className="completed-block-icon"><Check /></span><span className="completed-block-copy"><strong>{activity.name}</strong><small>Complete{facts ? ` · ${facts}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>
@@ -928,14 +961,13 @@ function CardioEditor({
           />
           <p className="mt-1 text-xs capitalize text-white/60">{activity.activityType === "other" ? "Custom activity" : activity.activityType.replace("_", " ")}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={`Collapse ${activity.name}`} onClick={() => { if (activity.completed) setShowCompleted(false); else setCardOpen(false); }}><ChevronUp /><span className="sr-only">{activity.completed ? "Complete · Collapse" : "Collapse"}</span></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
-        {!activity.completed && <Button type="button" variant="ghost" className="w-full text-white/70" onClick={() => setOpen(false)}>Collapse</Button>}
-        {activity.completed && <Button variant="ghost" className="w-full text-[var(--lime)]" onClick={() => setShowCompleted(false)}><Check /> Complete · Collapse <ChevronUp /></Button>}
         {activity.coachNotes && <CoachCue text={activity.coachNotes} />}
         {activity.intervals && (activity.activityType === "run" ? <RunPlan text={activity.intervals} /> : activity.intervals.length > 105 ? <details className="activity-instructions"><summary>{activity.intervals.slice(0, 100).trimEnd()}… · More</summary><p>{activity.intervals}</p></details> : <p className="activity-instructions">{activity.intervals}</p>)}
         {style !== "efforts" && <div className="activity-basics">
@@ -945,32 +977,42 @@ function CardioEditor({
         </div>}
         {unusualActivityWarning(activity) && <p role="status" className="activity-warning">{unusualActivityWarning(activity)}</p>}
         {activity.segments?.length ? (activity.activityType === "circuit" || activity.activityType === "swim" ? <GroupedActivityStepper activity={activity} onChange={(segments, opts) => {
-          const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
+          const currentActivity = activityRef.current;
+          const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
           if (opts && opts.completed !== undefined) {
             // v111 circuit: a Done action that resolves every round completes the activity; its toast Undo reopens it.
             if (opts.completed) {
-              const done = completeActivity({ ...activity, segments });
+              const done = completeActivity({ ...currentActivity, segments });
               update({ segments: done.segments, completed: true, completedAsPlanned: done.completedAsPlanned }, true);
             } else update({ segments, completed: false, completedAsPlanned: false }, true);
-          } else update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+          } else update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
         }} /> : <ActivityStepper activity={activity} onChange={segments => {
-          const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
-          update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+          const currentActivity = activityRef.current;
+          const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
+          update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
         }} />) : postSessionNoSegments ? null : canAddIntervals ? (intervalsOpen ? <ActivityStepper activity={activity} onChange={segments => {
-          const added = segments.some(segment => !(activity.segments ?? []).some(item => item.id === segment.id));
-          update({ segments, ...(added && activity.completed ? { completed: false } : {}) }, true);
+          const currentActivity = activityRef.current;
+          const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
+          update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
         }} /> : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> Add intervals</Button>) : null}
+        {activity.activityType === "force" && style !== "efforts" && <Button type="button" variant="outline" onClick={() => update({ loggingStyle: "efforts", efforts: [makeActivityEffort()] })}><Plus /> Add effort</Button>}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
             const changeEffort = (changes: Partial<typeof effort>) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, ...changes } : item), completed: false }, true);
-            const planText = [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${activity.effortLoadUnit ?? "lb"}` : ""].filter(Boolean).join(" · ") || "Effort";
+            const unitLabel = activity.effortLoadUnit ?? "lb";
+            const planText = [effort.plannedDistanceM !== null ? `${effort.plannedDistanceM} m` : "", effort.plannedDurationSec !== null ? `${effort.plannedDurationSec} sec` : "", effort.plannedLoad !== null ? `${effort.plannedLoad} ${unitLabel}` : ""].filter(Boolean).join(" · ") || "Effort";
+            const shownDistanceM = effort.actualDistanceM ?? effort.plannedDistanceM;
+            const shownDurationSec = effort.actualDurationSec ?? effort.plannedDurationSec;
+            const shownLoad = effort.actualLoad ?? effort.plannedLoad;
+            const shownText = [shownDistanceM !== null ? `${shownDistanceM} m` : "", shownDurationSec !== null ? `${shownDurationSec} sec` : "", shownLoad !== null ? `${shownLoad} ${unitLabel}` : ""].filter(Boolean).join(" · ") || "Effort";
+            const hasDifferentActual = (effort.actualDistanceM !== null && effort.actualDistanceM !== effort.plannedDistanceM) || (effort.actualDurationSec !== null && effort.actualDurationSec !== effort.plannedDurationSec) || (effort.actualLoad !== null && effort.actualLoad !== effort.plannedLoad);
             // v111: the check never glues onto the plan text. Leading slot holds the number (or a check when done), the plan is its own element, and the action slot is a plain "Done" state in both states — same slot, same size, no layout shift. Tapping Done on a completed effort undoes it.
             return <div key={effort.id} className={`activity-effort ${effort.completed ? "is-done" : ""}`}>
               <span className="activity-effort-state" aria-hidden>{effort.completed ? <Check /> : index + 1}</span>
-              <span className="activity-effort-plan-text">{planText}</span>
+              <span className="activity-effort-plan-text">{shownText}{hasDifferentActual ? <small className="activity-effort-prescribed"> · prescribed {planText}</small> : null}</span>
               <div className="activity-effort-actions">
-                <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${planText}`} onClick={() => {
-                  const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false } : completeActivityEffort(item) : item);
+                <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${shownText}`} onClick={() => {
+                  const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false, ...(!hasDifferentActual ? { actualDistanceM: null, actualDurationSec: null, actualLoad: null } : {}) } : completeActivityEffort(item) : item);
                   update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
                   if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
                   if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
@@ -989,10 +1031,10 @@ function CardioEditor({
           {efforts.length > 0 && <details className="activity-effort-plan"><summary>Edit prescription</summary><div>{efforts.map((effort, index) => <div key={effort.id} className="activity-effort-plan-row"><span>{index + 1}</span><label className="field-label">Metres<DecimalInput min={0} value={effort.plannedDistanceM} onValueChange={(plannedDistanceM) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDistanceM } : item) })} /></label><label className="field-label">Load<DecimalInput min={0} value={effort.plannedLoad} onValueChange={(plannedLoad) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedLoad } : item) })} /></label><label className="field-label">Seconds<DecimalInput min={0} value={effort.plannedDurationSec} onValueChange={(plannedDurationSec) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDurationSec } : item) })} /></label><Button type="button" variant="ghost" aria-label={`Remove effort ${index + 1}`} onClick={() => update({ efforts: efforts.filter((item) => item.id !== effort.id), completed: false })}><X /></Button></div>)}</div></details>}
         </div>}
         {style === "routine" && activity.activityType !== "mobility" && <>
-          {activity.activityType === "circuit" && <div className="routine-rounds">
+          {activity.activityType === "circuit" && !activity.segments?.length && <div className="routine-rounds">
             <span className="routine-rounds-count">{activity.roundsDone ?? 0} {(activity.roundsDone ?? 0) === 1 ? "round" : "rounds"} done</span>
             <Button type="button" variant="outline" onClick={() => { const before = activity.roundsDone ?? 0; update({ roundsDone: before + 1 }, true); toast("Round done", { action: { label: "Undo", onClick: () => update({ roundsDone: before }, true) } }); }}>Done round</Button>
-            <Button type="button" variant="ghost" size="icon" aria-label="Remove one round" disabled={(activity.roundsDone ?? 0) === 0} onClick={() => update({ roundsDone: (activity.roundsDone ?? 0) - 1 }, true)}><Minus /></Button>
+            <Button type="button" variant="outline" size="sm" aria-label="Remove one round" disabled={(activity.roundsDone ?? 0) === 0} onClick={() => update({ roundsDone: (activity.roundsDone ?? 0) - 1 }, true)}><Minus /> Undo round</Button>
           </div>}
           <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>
         </>}
@@ -1000,7 +1042,6 @@ function CardioEditor({
         <details className="activity-details"><summary>{activity.activityType === "mobility" ? "Activity options" : "More details"}{activity.intensity ? ` · ${activity.intensity}` : ""}</summary>
           <div className="activity-option-grid"><label className="field-label">Effort / 10 · optional<Input inputMode="decimal" value={activity.effort} placeholder="—" onChange={(event) => update({ effort: event.target.value }, true)} /></label>
             <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => update({ activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined })} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20 capitalize">{(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label>
-            <label className="field-label">Logging style<NativeSelect value={style} disabled={hasCompletedEfforts} onChange={(event) => update({ loggingStyle: event.target.value as CardioEntry["loggingStyle"], efforts: event.target.value === "efforts" ? efforts : [] })} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="single">One result</NativeSelectOption><NativeSelectOption value="routine">Routine</NativeSelectOption><NativeSelectOption value="efforts">Repeated efforts</NativeSelectOption></NativeSelect></label>
             {activity.activityType === "ruck" && <label className="field-label">Pack unit<NativeSelect value={activity.ruckLoadUnit} onChange={(event) => update({ ruckLoadUnit: event.target.value as Unit, ruckLoad: activity.ruckLoad === null ? null : Number(convertWeight(activity.ruckLoad, activity.ruckLoadUnit, event.target.value as Unit).toFixed(4)) }, true)} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>}
             {style === "efforts" && <><label className="field-label">Effort load unit<NativeSelect value={activity.effortLoadUnit ?? "lb"} onChange={(event) => {
               const from = activity.effortLoadUnit ?? "lb";
@@ -1104,6 +1145,8 @@ export function WorkoutEditor({
   const [finishError, setFinishError] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const [collapsedBlockIds, setCollapsedBlockIds] = useState<string[]>([]);
+  const [openActivityId, setOpenActivityId] = useState<string | null>(quickLogActivityId);
   const workoutOptionsRef = useRef<HTMLButtonElement>(null);
   const isEditingHistory = Boolean(workout.completedAt);
   const finishLabel = isEditingHistory ? "Finish editing" : "Finish workout";
@@ -1216,15 +1259,44 @@ export function WorkoutEditor({
       return sets.length ? [{ date: item.date, sets }] : [];
     }).slice(0, 2);
 
+  const collapseOthers = (keepId: string) => {
+    const otherExerciseIds = latestWorkout.current.exercises.filter((item) => item.id !== keepId).map((item) => item.id);
+    setCollapsedBlockIds(otherExerciseIds);
+    setOpenActivityId(latestWorkout.current.cardio.some((item) => item.id === keepId) ? keepId : null);
+  };
+
   const updateExercise = (exercise: ExerciseBlock) => {
     const current = latestWorkout.current;
+    const prevExercise = current.exercises.find((item) => item.id === exercise.id);
+    const wasDone = Boolean(prevExercise && prevExercise.sets.length > 0 && prevExercise.sets.every((set) => set.completed || set.skipped));
+    const isNowDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed || set.skipped);
     const next = { ...current, exercises: current.exercises.map((item) => item.id === exercise.id ? exercise : item) };
     latestWorkout.current = next;
     onUpdate(next);
+    if (!wasDone && isNowDone) {
+      const upcoming = nextOpenBlock(next);
+      if (upcoming?.type === "exercise") {
+        setCollapsedBlockIds((ids) => ids.filter((id) => id !== upcoming.exercise.id));
+      } else if (upcoming?.type === "activity" && collapsedBlockIds.length > 0) {
+        setOpenActivityId(upcoming.activity.id);
+      }
+    }
   };
   const updateCardio = (activity: CardioEntry) => {
-    const next = { ...latestWorkout.current, cardio: latestWorkout.current.cardio.map(item => item.id === activity.id ? activity : item) };
-    latestWorkout.current = next; onUpdate(next);
+    const current = latestWorkout.current;
+    const prevActivity = current.cardio.find((item) => item.id === activity.id);
+    const wasCompleted = Boolean(prevActivity?.completed);
+    const next = { ...current, cardio: current.cardio.map(item => item.id === activity.id ? activity : item) };
+    latestWorkout.current = next;
+    onUpdate(next);
+    if (!wasCompleted && activity.completed && collapsedBlockIds.length > 0) {
+      const upcoming = nextOpenBlock(next);
+      if (upcoming?.type === "exercise") {
+        setCollapsedBlockIds((ids) => ids.filter((id) => id !== upcoming.exercise.id));
+      } else if (upcoming?.type === "activity") {
+        setOpenActivityId(upcoming.activity.id);
+      }
+    }
   };
 
   const moveFor = (id: string) => {
@@ -1310,7 +1382,7 @@ export function WorkoutEditor({
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{nextBlock && <DropdownMenuItem onSelect={() => collapseOthers(nextBlock.type === "exercise" ? nextBlock.exercise.id : nextBlock.activity.id)}>Focus current block · collapse others</DropdownMenuItem>}{collapsedBlockIds.length > 0 && <DropdownMenuItem onSelect={() => setCollapsedBlockIds([])}>Expand all exercises</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution returnFocus={substitutionAnchor} exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
@@ -1327,6 +1399,9 @@ export function WorkoutEditor({
             defaultUnit={state.settings.defaultUnit}
             barWeightLb={state.settings.barWeightLb}
             barWeightKg={state.settings.barWeightKg}
+            collapsed={collapsedBlockIds.includes(block.exercise.id)}
+            onToggleCollapse={() => setCollapsedBlockIds((ids) => ids.includes(block.exercise.id) ? ids.filter((id) => id !== block.exercise.id) : [...ids, block.exercise.id])}
+            onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.exercise.id) : undefined}
             increment={state.loadIncrements?.[incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
             onIncrement={value => onIncrement(incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases),value)}
             onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
@@ -1341,6 +1416,9 @@ export function WorkoutEditor({
             key={block.activity.id}
             activity={block.activity}
             initiallyOpen={quickLogActivityId === block.activity.id}
+            openOverride={openActivityId === block.activity.id}
+            onOpenChange={(open) => setOpenActivityId(open ? block.activity.id : null)}
+            onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.activity.id) : undefined}
             isNext={nextBlock?.type === "activity" && nextBlock.activity.id === block.activity.id}
             onChange={updateCardio}
             onCompleteEffort={(seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.activity.id })}

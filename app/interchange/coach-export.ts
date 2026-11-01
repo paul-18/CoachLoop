@@ -100,6 +100,10 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       const duration = segmentMeasure(activity, "duration");
       const distance = segmentMeasure(activity, "distance");
       lines.push(`- Total duration: ${formatSegmentMeasure(duration, "duration")}`);
+      if (!duration?.fullyRecorded && (activity.actualDurationMin !== null || activity.plannedDurationMin !== null)) {
+        const sessionMin = activity.actualDurationMin ?? activity.plannedDurationMin!;
+        lines.push(`- Session duration: ${formatMeasure(sessionMin)} min${activity.actualDurationMin === null ? " as prescribed" : ""}`);
+      }
       lines.push(`- Total distance: ${formatSegmentMeasure(distance, "distance")}`);
       if (activity.activityType === "run") {
         lines.push(`- Running only: ${formatSegmentMeasure(segmentMeasure(activity, "duration", "run"), "duration")} · ${formatSegmentMeasure(segmentMeasure(activity, "distance", "run"), "distance")}`);
@@ -158,6 +162,7 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
       const distance = performedDistance(activity);
       const hasPrescription = activity.plannedDurationMin !== null || activity.plannedDistanceKm !== null || Boolean(activity.intervals || activity.mobilityMoves?.some(move => move.prescription) || activity.efforts?.some(effort => effort.plannedDistanceM !== null || effort.plannedDurationSec !== null || effort.plannedLoad !== null));
       if (activity.completedAsPlanned && hasPrescription) lines.push("- Completed as prescribed");
+      if ((activity.roundsDone ?? 0) > 0) lines.push(`- Rounds completed: ${activity.roundsDone}`);
       if (duration !== null) lines.push(`- Duration: ${formatMeasure(duration)} min`);
       if (distance !== null) lines.push(`- Distance: ${formatMeasure(distance)} km`);
       if (activity.intensity) lines.push(`- Target intensity (not reported effort): ${activity.intensity}`);
