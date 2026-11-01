@@ -1,10 +1,8 @@
 # Coach Loop v108 — follow-up update notes (phone layout fixes, same version stamp)
 
-Status: built in a clean worktree from live main `8bfcdbb` (v108 +
-e2e fix), full gate green except the WebKit smoke stage, which cannot
-run on this VM (missing system libraries) and runs in GitHub Actions
-CI on submission. NOT pushed. NOT deployed. Paul submits (push to
-main) when he approves.
+Status: published from main at `f019ab1`; Pages run #64 passed
+(including the WebKit gate CI runs) and deployed; live sw.js digest
+`cbd231b74b335090466a` (Settings suffix `cbd231b7`).
 
 ## What changes
 

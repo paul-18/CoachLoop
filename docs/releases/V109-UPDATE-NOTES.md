@@ -1,9 +1,8 @@
-# Coach Loop v109 — update notes (draft until deployed)
+# Coach Loop v109 — update notes
 
-Status: built locally in a clean worktree, full gate green except the
-WebKit smoke stage, which cannot run on this VM (missing system
-libraries) and runs in GitHub Actions CI on submission. NOT pushed.
-NOT deployed. Paul submits (push to main) when he approves.
+Status: published from main at `1eb6e7b`; Pages run #65 passed
+(including the WebKit gate CI runs) and deployed; live sw.js digest
+`18277fd0b6d7e063b485` (Settings suffix `18277fd0`).
 
 ## What changes
 

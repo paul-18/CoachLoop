@@ -9,7 +9,7 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 - Circuit is prescription-and-completion only: actual station reps/load are NOT stored (no station-result model); differences go in notes. AMRAP is unsupported (no fixed rounds) and stays summary + notes; segment-free AMRAP activities are untouched by construction.
 - v108 rules unchanged: unit completion touches unknown parts only; skips never auto-complete; as-prescribed stays labeled as prescribed; activity completion stays independent of parts completion.
 - Deliberate non-changes: no mobility pose cards (Paul's decision pending), no v110 (no FITLOG v3 parser, no AI prompt changes, no v1/v2 parser edits), no stored-field changes, evidenceVersion stays 2, no new stored fields, no strength-logging or totals/labels changes.
-- See [v109 update notes](docs/releases/V109-UPDATE-NOTES.md). Built locally only — NOT pushed, NOT deployed. Paul submits when he approves.
+- See [v109 update notes](docs/releases/V109-UPDATE-NOTES.md). Published from main at `1eb6e7b`; Pages run #65 passed and deployed.
 
 ## v108 — phone layout fixes (follow-up build, same version stamp)
 
@@ -18,7 +18,7 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 - Effort rows: plan shown once per row; completing an effort keeps the same button in the same place with the checkmark added in place.
 - FITLOG v2 parser now rejects yoga blocks with SEGMENT lines ("Yoga is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines."); summary yoga unaffected; already-stored segmented yoga still renders rather than hiding data. Grappling, soccer, water polo unchanged.
 - Backup "newer release" comparison now understands dotted versions (v108.1, v108.2), so the warning fires correctly across patch releases.
-- See [v108 follow-up update notes](docs/releases/V108-FOLLOWUP-UPDATE-NOTES.md). Built from live main `8bfcdbb`.
+- See [v108 follow-up update notes](docs/releases/V108-FOLLOWUP-UPDATE-NOTES.md). Published from main at `f019ab1`; Pages run #64 passed and deployed.
 
 ## v108 — interaction foundation
 
