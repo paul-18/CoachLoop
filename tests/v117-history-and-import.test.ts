@@ -35,7 +35,7 @@ test("v117: import dialog has only one safe example button without load segments
 
 test("v117: export history inputs are block-aligned with left-aligned date values", () => {
   const historyView = fs.readFileSync(path.join(root, "app/views/history-view.tsx"), "utf8");
-  assert.ok(historyView.includes('grid grid-cols-2 gap-3 sm:grid-cols-3'));
+  assert.ok(historyView.includes('grid grid-cols-1 gap-3 sm:grid-cols-3'));
   assert.ok(historyView.includes('field-label block min-w-0'));
 
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
