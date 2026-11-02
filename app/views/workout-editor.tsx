@@ -160,32 +160,31 @@ function PlateVisualizer({
 
   if (isLegPress) {
     let remaining = total;
-    const plates: number[] = [];
+    const plateCounts: Array<{ plate: number; count: number }> = [];
     for (const plate of available) {
-      const count = Math.min(32 - plates.length, Math.floor((remaining + 0.001) / plate));
-      for (let i = 0; i < count; i++) plates.push(plate);
-      remaining -= count * plate;
+      const count = Math.floor((remaining + 0.001) / plate);
+      if (count > 0) {
+        plateCounts.push({ plate, count });
+        remaining -= count * plate;
+      }
     }
-    const grouped = formatGroupedPlates(plates);
-    const canSplitSymmetric = plates.length > 1 && plates.every((p) => plates.filter(x => x === p).length % 2 === 0);
-    const perSidePlates = canSplitSymmetric ? plates.filter((_, idx) => idx % 2 === 0) : null;
-    const perSideText = perSidePlates ? ` (${formatGroupedPlates(perSidePlates)} per side)` : "";
 
     return (
       <div className="plate-visualizer" aria-label={`Leg press plate loading for ${total} ${unit}`}>
-        <span className="plate-bar" />
-        {plates.slice(0, 16).map((plate, index) => (
-          <span
-            key={`${plate}-${index}`}
-            className="plate-disc"
-            style={{ backgroundColor: plateColors[String(plate)] ?? "#888f82" }}
-          >
-            {plate}
+        {plateCounts.map(({ plate, count }, idx) => (
+          <span key={plate} className="inline-flex items-center gap-1.5">
+            {idx > 0 && <span className="text-xs text-white/45">+</span>}
+            <span
+              className="plate-disc"
+              style={{ backgroundColor: plateColors[String(plate)] ?? "#4f83ff" }}
+            >
+              {plate}
+            </span>
+            <span className="text-xs font-bold text-white/90">× {count}</span>
           </span>
         ))}
-        {plates.length > 16 && <span className="text-[10px] text-white/50">+{plates.length - 16}</span>}
         <span className="plate-copy">
-          {plates.length ? `${grouped} ${unit}${perSideText}` : `0 ${unit}`}
+          {total} {unit} total
           {remaining > 0.01 ? ` · ${remaining.toFixed(2).replace(/\.00$/, "")} ${unit} unfilled` : ""}
         </span>
       </div>
@@ -470,7 +469,7 @@ function ExerciseEditor({
         </div>
         <div className="flex items-center gap-1">
           <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={`Collapse ${exercise.name}`} onClick={() => { if (allDone) setShowCompleted(false); else onToggleCollapse?.(); }}><ChevronUp /></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 px-3 py-3 sm:px-4">
@@ -1020,7 +1019,7 @@ function CardioEditor({
         <div className="flex items-center gap-1">
           {activity.completed && <Badge className="activity-complete-badge"><Check /> Complete</Badge>}
           <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={`Collapse ${activity.name}`} onClick={() => { if (activity.completed) setShowCompleted(false); else setCardOpen(false); }}><ChevronUp /><span className="sr-only">{activity.completed ? "Complete · Collapse" : "Collapse"}</span></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${activity.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => update({ skipped: !activity.skipped, completed: false, completedAsPlanned: false })}>{activity.skipped ? "Restore activity" : "Skip activity"}</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove activity</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="activity-editor px-4 py-3 sm:px-5">
@@ -1440,7 +1439,7 @@ export function WorkoutEditor({
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="border-white/10 bg-[#20231e] text-white">{nextBlock && <DropdownMenuItem onSelect={() => collapseOthers(nextBlock.type === "exercise" ? nextBlock.exercise.id : nextBlock.activity.id)}>Focus current block · collapse others</DropdownMenuItem>}{collapsedBlockIds.length > 0 && <DropdownMenuItem onSelect={() => setCollapsedBlockIds([])}>Expand all exercises</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{nextBlock && <DropdownMenuItem onSelect={() => collapseOthers(nextBlock.type === "exercise" ? nextBlock.exercise.id : nextBlock.activity.id)}>Focus current block · collapse others</DropdownMenuItem>}{collapsedBlockIds.length > 0 && <DropdownMenuItem onSelect={() => setCollapsedBlockIds([])}>Expand all exercises</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution returnFocus={substitutionAnchor} exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />

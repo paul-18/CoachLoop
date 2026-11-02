@@ -438,11 +438,8 @@ export function CoachDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
-        <DialogHeader className="border-b border-white/8 p-4 pb-3 text-left">
-          <div className="flex items-center justify-between gap-2">
-            <DialogTitle className="text-lg font-black tracking-[-0.035em]">Build your coach brief</DialogTitle>
-            <Button type="button" variant="outline" size="sm" onClick={clearToday} className="h-7 px-2 text-xs text-white/70 hover:text-white">Clear today’s fields</Button>
-          </div>
+        <DialogHeader className="border-b border-white/8 p-4 pr-12 pb-3 text-left">
+          <DialogTitle className="text-lg font-black tracking-[-0.035em]">Build your coach brief</DialogTitle>
           <DialogDescription className="text-xs leading-5 text-white/48">
             Choose whether your AI already knows your background. Recorded history and FITLOG instructions are added automatically.
           </DialogDescription>
@@ -475,6 +472,10 @@ export function CoachDialog({
             </NativeSelect>
             {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-1.5 text-xs font-bold text-[var(--lime)]" : "mt-1.5 text-xs font-semibold text-white/60 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
           </label>
+          <div className="col-span-2 flex items-center justify-between pt-1">
+            <span className="text-xs font-semibold text-white/60">Today’s readiness & context</span>
+            <Button type="button" variant="outline" size="sm" onClick={clearToday} className="h-7 px-2 text-xs text-white/70 hover:text-white">Clear today’s fields</Button>
+          </div>
           <label className="field-label">
             Energy (1–10)
             <Input

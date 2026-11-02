@@ -575,22 +575,37 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
   .activity-effort-plan-row { grid-template-columns: 18px repeat(3,minmax(0,1fr)) 40px; gap: 3px; padding-inline: 4px; }
 }
 
-.exercise-title-line { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.exercise-title-line { display: flex; min-width: 0; align-items: center; gap: 8px; position: static; }
 .exercise-title-line > input[aria-label="Exercise name"] { min-width: 0; flex: 1; min-height: 34px; }
 .exercise-setup { min-width: 0; flex: 0 0 auto; }
 .exercise-title-line .exercise-setup > summary { display: flex; min-height: 34px; align-items: center; gap: 3px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; padding: 0 7px; white-space: nowrap; }
 .exercise-title-line .exercise-setup > summary strong { color: rgba(255,255,255,.8); font-size: .8rem; font-variant-numeric: tabular-nums; }
 .exercise-title-line .exercise-setup > summary small { color: rgba(255,255,255,.56); font-size: .7rem; }
 .exercise-title-line .exercise-setup > summary svg { width: 12px; height: 12px; color: rgba(255,255,255,.56); }
-.exercise-title-line .exercise-setup[open] > .exercise-options-row { position: absolute; z-index: 20; right: 12px; width: min(320px,calc(100vw - 52px)); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: #171916; padding: 10px; box-shadow: 0 12px 30px #0009; }
+.exercise-card [data-slot="card-header"] { position: relative; gap: 6px; }
+.exercise-setup[open] > .exercise-options-row,
+.exercise-title-line .exercise-setup[open] > .exercise-options-row {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 2px);
+  left: 12px;
+  right: 12px;
+  width: auto;
+  max-width: 400px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 72px;
+  gap: 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px;
+  background: #191c17;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.8);
+}
 .exercise-card .previous-result { margin-top: 1px; }
 .activity-title-input,
 .activity-card input[aria-label="Activity name"] { background-color: transparent !important; border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important; padding-left: 0 !important; }
-.exercise-title-line { position: relative; }
-.exercise-card [data-slot="card-header"] { gap: 6px; }
 .exercise-card .previous-result { margin-top: 0; }
 .exercise-title-line .exercise-setup > summary { min-height: 32px; }
-.exercise-title-line .exercise-setup[open] > .exercise-options-row { top: calc(100% + 4px); }
 
 /* Main logging uses four columns; optional effort stays out of the way. */
 .compact-set-row, .set-table-heading { grid-template-columns: 44px minmax(0,1.2fr) minmax(0,1fr) 44px; }
@@ -1046,5 +1061,5 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
 .preview-nested { border-left: 3px solid var(--lime); background: rgba(0,0,0,.35); }
 .done-meta::before { content: " · "; white-space: pre; }
 .page-stack { overflow-x: hidden; }
-[role="dialog"] { max-width: 100vw; }
+[role="dialog"] { max-width: calc(100vw - 28px); margin-inline: auto; }
 [role="dialog"] pre { overflow-x: hidden; touch-action: pan-y; }

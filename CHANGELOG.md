@@ -2,6 +2,15 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v116 — published
+
+- Rest interval options alignment & offset: eliminated the shifted/clipped left-offset popup when tapping the rest interval (e.g. `120s rest`) in strength exercises. Positioned `.exercise-options-row` relative to `CardHeader` spanning `left: 12px; right: 12px; width: auto; max-width: 400px;` so it stays fully inside the card and never clips text on iPhone screens.
+- Dialog backdrop margins restored: changed `[role="dialog"] { max-width: 100vw; }` to `max-width: calc(100vw - 28px); margin-inline: auto;` so dialogs like Import Workout and Build Coach Brief show visible darkened background borders on both edges instead of stretching edge-to-edge.
+- Three-dots menu collision safety: added `align="end" sideOffset={6} collisionPadding={16}` to strength, activity, history, and workout header three-dots menus, preventing them from extending off the right edge of the screen.
+- Coach Dialog Close button overlap: added `pr-12` to `DialogHeader` and moved `Clear today's fields` into the dialog body directly above `Today's readiness & context`, preventing any collision with the top-right `X` close button.
+- Leg Press plate visualizer: simplified plate loading display to render each unique plate denomination as a single disc badge with multiplication syntax (e.g. `[45 disc] × 8 360 lb total`) without long repetitive disc rows.
+- See [v116 update notes](docs/releases/V116-UPDATE-NOTES.md).
+
 ## v115 — published
 
 - Leg Press plate calculator: exercises matching Leg Press now display a plate breakdown calculated directly from total weight loaded (assuming 0 collar weight) using grouped multiplication syntax (e.g. `45 × 7 lb`, `45 × 6 + 25 lb`, and symmetric per-side counts when even).
