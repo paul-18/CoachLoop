@@ -412,7 +412,9 @@ test('v108: import preview lists parts and collapses repeat groups', async () =>
     await until(() => buttonExact('Import a plan') || [...document.querySelectorAll('button')].some(b => b.querySelector('strong')?.textContent === 'Import workout'), 'today actions appear');
     (buttonExact('Import a plan') || [...document.querySelectorAll('button')].find(b => b.querySelector('strong')?.textContent === 'Import workout')).click();
     await until(() => document.querySelector('[aria-label="FITLOG workout text"]'), 'import dialog opens');
-    buttonExact('Load a segments example').click();
+    setValue(dom, document.querySelector('[aria-label="FITLOG workout text"]'), require('../app/interchange/fitlog.ts').exampleFitlogV2());
+    await until(() => buttonExact('Review import'), 'review import appears');
+    buttonExact('Review import').click();
     await until(() => [...document.querySelectorAll('.import-preview-lines li')].map(li => li.textContent).join('|').includes('Repeat 6x|Run 4 min|Walk 1 min'), 'group collapse line in preview');
     assert.match(document.body.textContent, /Run 10 min/);
     assert.equal(document.body.textContent.includes('13 planned segments'), false, 'old summary line is gone');

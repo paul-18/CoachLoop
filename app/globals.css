@@ -254,7 +254,9 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .record-card strong { color: var(--lime); font-size: .86rem; } .record-card > span { grid-column: 2; color: rgba(255,255,255,.56); font-size: .7rem; text-align: right; }
 .settings-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; } .settings-title h2 { font-size: 1.05rem; font-weight: 900; letter-spacing: -.035em; }
 .settings-title p { margin-top: 5px; color: rgba(255,255,255,.56); font-size: .78rem; line-height: 1.5; } .goal-edit { display: grid; grid-template-columns: 1fr auto auto auto; gap: 4px; align-items: center; } .goal-edit > button { min-width: 40px; min-height: 40px; }
-.field-label { color: rgba(255,255,255,.46); font-size: .76rem; font-weight: 780; }
+.field-label { display: block; color: rgba(255,255,255,.46); font-size: .76rem; font-weight: 780; }
+input[type="date"] { text-align: left; color-scheme: dark; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .profile-editor > summary { display: flex; cursor: pointer; list-style: none; align-items: center; justify-content: space-between; gap: 16px; }
 .profile-editor > summary::-webkit-details-marker { display: none; }
 .profile-editor > summary strong, .profile-editor > summary small { display: block; }
@@ -931,7 +933,7 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .stepper-part-plan { flex:1 1 auto; min-width:0; font-weight:700; line-height:1.45; text-wrap:pretty; }
 .stepper-part-status { flex-shrink:0; white-space:nowrap; font-size:.75rem; color:rgba(255,255,255,.55); }
 .stepper-done { min-height:44px; white-space:normal; height:auto; padding-block:8px; }
-.stepper-done-current { min-height:44px; white-space:normal; height:auto; padding-block:10px; font-weight:800; }
+.stepper-done-current { min-height:44px; white-space:normal; height:auto; padding-block:10px; font-weight:650; font-size:.84rem; }
 .stepper-rounds-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; min-width:0; padding:6px 10px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:rgba(0,0,0,.22); }
 .stepper-rounds-count { margin:0; font-weight:800; font-size:.85rem; }
 .stepper-round-actions { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }

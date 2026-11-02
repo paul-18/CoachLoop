@@ -293,6 +293,49 @@ NOTES|Comfortable range only.
 [/FITLOG]`;
 }
 
+export function exampleSafeImportFitlog(unit: Unit = "lb") {
+  const bench = unit === "kg"
+    ? `SET|5|20 kg total||WARMUP
+SET|5|60 kg total|RPE 7
+SET|5|70 kg total|RPE 7
+SET|3|80 kg total|RPE 8`
+    : `SET|5|45 lb total||WARMUP
+SET|5|135 lb total|RPE 7
+SET|5|155 lb total|RPE 7
+SET|3|175 lb total|RPE 8`;
+
+  const legPress = unit === "kg"
+    ? `SET|10|80 kg total|RPE 7
+SET|10|120 kg total|RPE 8
+SET|8|160 kg total|RPE 8`
+    : `SET|10|180 lb total|RPE 7
+SET|10|270 lb total|RPE 8
+SET|8|360 lb total|RPE 8`;
+
+  return `[FITLOG:1]
+WORKOUT|Example session — change it before you start|${localDate()}
+EXERCISE|Barbell Bench Press
+${bench}
+REST|120
+NOTES|One light warm-up, then heavier sets. Change a load if it does not fit you today.
+EXERCISE|Leg Press
+${legPress}
+REST|90
+NOTES|Plate math calculates automatically from total weight.
+CARDIO|Interval run
+TYPE|run
+DURATION|20
+DISTANCE|3.2
+INTERVALS|4 x (3 min run / 1 min walk)
+INTENSITY|Comfortable tempo pace
+NOTES|Brisk walk recovery between run intervals.
+MOBILITY|Easy mobility
+MOVE|Hip flexor stretch|2 x 30 sec
+MOVE|Doorway chest stretch|2 x 30 sec
+NOTES|Comfortable range only.
+[/FITLOG]`;
+}
+
 export function exampleFitlogV2() {
   return `[FITLOG:2]
 WORKOUT|Run/walk intervals|2026-01-15

@@ -2,6 +2,13 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v117 — published
+
+- History export input alignment: eliminated the rightward offset of the `From` and `To` date rectangles in the export dialog. Formatted date inputs into a balanced 2-column mobile grid with block-level labels and native left-aligned date text (`[color-scheme:dark] text-left`), keeping `Exercise` spanning full width below.
+- Import safe example refined: replaced duplicate example actions with a single "Load a safe example" action (removed "Load a segments example"). The sample now showcases Bench Press, Leg Press (demonstrating the new compact plate visualizer), an interval run (`4 x (3 min run / 1 min walk)` with pace and notes), and mobility.
+- Subdued active interval button: softened `.stepper-done-current` font weight from extra-bold 800 to a clean semi-bold 650 with balanced text sizing (`.84rem`), preventing long interval names like `Done: tempo cruise 4 min 1 km` from standing out too aggressively.
+- See [v117 update notes](docs/releases/V117-UPDATE-NOTES.md).
+
 ## v116 — published
 
 - Rest interval options alignment & offset: eliminated the shifted/clipped left-offset popup when tapping the rest interval (e.g. `120s rest`) in strength exercises. Positioned `.exercise-options-row` relative to `CardHeader` spanning `left: 12px; right: 12px; width: auto; max-width: 400px;` so it stays fully inside the card and never clips text on iPhone screens.

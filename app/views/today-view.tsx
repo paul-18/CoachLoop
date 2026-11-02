@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { buildCoachPrompt } from "../interchange/coach-export";
 
 import { type SyncStatus } from "../persistence/cloud-sync";
-import { exampleFitlog, exampleFitlogV2, parseFitlog } from "../interchange/fitlog";
+import { exampleSafeImportFitlog, parseFitlog } from "../interchange/fitlog";
 
 import { formatLoad, formatMeasure } from "../domain/training-metrics";
 import { previewSegmentRows } from "../domain/activity-segments";
@@ -169,7 +169,7 @@ export function ImportWorkoutDialog({
                 <button
                   type="button"
                   onClick={() => {
-                    const sample = exampleFitlog(state.settings.defaultUnit);
+                    const sample = exampleSafeImportFitlog(state.settings.defaultUnit);
                     keepPreview.current = true;
                     onTextChange(sample);
                     setWarningsReviewed(false);
@@ -186,25 +186,6 @@ export function ImportWorkoutDialog({
                   Load a safe example
                 </button>
                 <p className="mt-1 text-sm leading-6 text-white/60">Puts that plan in the box and lists it for review. Change it if it does not fit you. It is not saved until you start or save it.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sample = exampleFitlogV2();
-                    keepPreview.current = true;
-                    onTextChange(sample);
-                    setWarningsReviewed(false);
-                    try {
-                      setPreview(parseFitlog(sample, state.settings.defaultUnit, state.exerciseAliases));
-                      setError("");
-                    } catch (cause) {
-                      setPreview(null);
-                      setError(cause instanceof Error ? cause.message : "This workout could not be read.");
-                    }
-                  }}
-                  className="mt-3 min-h-11 text-left text-sm font-semibold text-[var(--lime)]"
-                >
-                  Load a segments example
-                </button>
               </div>
             </>
           ) : (
