@@ -230,6 +230,18 @@ export function exerciseSetProgress(sets: Array<{ completed: boolean; skipped?: 
   };
 }
 
+/** Matches workoutProgressCopy setPiece format for card headers and summaries. */
+export function exerciseProgressCopy(sets: Array<{ completed: boolean; skipped?: boolean }>): string {
+  const skippedSets = sets.filter(set => set.skipped && !set.completed).length;
+  const countable = sets.filter(set => !set.skipped || set.completed);
+  const done = countable.filter(set => set.completed && !set.skipped).length;
+  if (!sets.length) return "";
+  if (countable.length === 0) {
+    return `0 sets · ${skippedSets} skipped`;
+  }
+  return `${done}/${countable.length} ${countable.length === 1 ? "set" : "sets"}${skippedSets > 0 ? ` · ${skippedSets} skipped` : ""}`;
+}
+
 /** History badge. An explicit skip stays Skipped; a missing flag stays unfinished, not skipped. */
 export function activityHistoryLabel(activity: CardioEntry): string {
   if (activity.skipped) return "Skipped";

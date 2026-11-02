@@ -150,8 +150,8 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
     }
     if (!activityDone) {
       const planned = [
-        activity.plannedDurationMin !== null ? `${activity.plannedDurationMin} min` : "",
-        activity.plannedDistanceKm !== null ? `${activity.plannedDistanceKm} km` : "",
+        activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "",
+        activity.plannedDistanceKm !== null ? `${formatMeasure(activity.plannedDistanceKm)} km` : "",
         activity.intensity,
       ].filter(Boolean).join(" · ");
       lines.push(`- ${workout.status === "planned" ? "PLANNED" : "NOT COMPLETED"}${planned ? `: ${planned}` : ""}`);

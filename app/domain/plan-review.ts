@@ -40,11 +40,11 @@ export function planDifferences(workout: WorkoutSession): string[] {
     const durationIncomplete = activity.segments?.length ? (() => { const measure = segmentMeasure(activity, "duration"); return measure !== null && measure.done > 0 && !measure.fullyRecorded; })() : false;
     const distanceIncomplete = activity.segments?.length ? (() => { const measure = segmentMeasure(activity, "distance"); return measure !== null && measure.done > 0 && !measure.fullyRecorded; })() : false;
     if (plannedDurationMin !== null && performedDuration(activity) !== plannedDurationMin) {
-      planned.push(`${plannedDurationMin} min`);
+      planned.push(`${formatMeasure(plannedDurationMin)} min`);
       actual.push(performedDuration(activity) === null ? (durationIncomplete ? "Not fully recorded" : "— min") : `${formatMeasure(performedDuration(activity)!)} min`);
     }
     if (plannedDistanceKm !== null && (performedDistance(activity) === null || Math.abs(performedDistance(activity)! - plannedDistanceKm) > 0.0001)) {
-      planned.push(`${plannedDistanceKm} km`);
+      planned.push(`${formatMeasure(plannedDistanceKm)} km`);
       actual.push(performedDistance(activity) === null ? (distanceIncomplete ? "Not fully recorded" : "— km") : `${formatMeasure(performedDistance(activity)!)} km`);
     }
     if (planned.length) changes.push(`${activity.name}: ${planned.join(" · ")} → ${actual.join(" · ")}`);

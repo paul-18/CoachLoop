@@ -31,7 +31,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -410,13 +410,10 @@ function ExerciseEditor({
   const allDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed || set.skipped);
   if (allDone && !showCompleted) {
     const summary = compactSetSummary(exercise.sets);
-    return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Review ${exercise.name}`}><span className="completed-block-icon">{exercise.sets.every(s=>s.completed) ? <Check /> : <span>—</span>}</span><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{exercise.sets.filter(s => s.completed).length} {exercise.sets.filter(s => s.completed).length === 1 ? "set" : "sets"} done{exercise.sets.some(s => s.skipped) ? ` · ${exercise.sets.filter(s => s.skipped).length} skipped` : ""}{summary ? ` · ${summary}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
+    return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Review ${exercise.name}`}><span className="completed-block-icon">{exercise.sets.every(s=>s.completed) ? <Check /> : <span>—</span>}</span><span className="completed-block-copy"><strong>{exercise.name}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{summary ? ` · ${summary}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
   }
   if (collapsed && !allDone) {
-    const doneSets = exercise.sets.filter(s => s.completed).length;
-    const activeSets = exercise.sets.filter(s => !s.skipped || s.completed).length;
-    const skippedSets = exercise.sets.filter(s => s.skipped && !s.completed).length;
-    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{doneSets} of {activeSets} {activeSets === 1 ? "set" : "sets"} active{skippedSets > 0 ? ` (${skippedSets} skipped)` : ""}{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
+    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
   }
   return (
     <Card className={`exercise-card gap-0 border-white/8 bg-[#171916] py-0 shadow-none ${allDone ? "is-complete" : ""}`}>
@@ -475,7 +472,11 @@ function ExerciseEditor({
             }) });
           }} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>
           </div></details></div>
-          <div className="mt-1 flex items-center gap-2">{previous ? <p className="previous-result text-sm text-white/55">Last: {previous}</p> : recentHistory.length === 0 ? <p className="previous-result text-sm text-white/55">No previous result</p> : null}{recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="min-h-11 shrink-0 px-3 text-xs text-[var(--lime)]/80">{recentHistory.length === 1 ? "Last session" : `Last ${recentHistory.length} sessions`}</Button>}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="exercise-card-progress rounded-md bg-white/6 px-2 py-0.5 text-xs font-semibold text-white/80">{exerciseProgressCopy(exercise.sets)}</span>
+            {previous ? <p className="previous-result text-xs text-white/55">Last: {previous}</p> : recentHistory.length === 0 ? <p className="previous-result text-xs text-white/55">No previous result</p> : null}
+            {recentHistory.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => setHistoryOpen(true)} className="min-h-11 shrink-0 px-3 text-xs text-[var(--lime)]/80">{recentHistory.length === 1 ? "Last session" : `Last ${recentHistory.length} sessions`}</Button>}
+          </div>
           <Dialog open={historyOpen} onOpenChange={setHistoryOpen}><DialogContent className="max-h-[80dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-md"><DialogHeader><DialogTitle>{exercise.name} history</DialogTitle><DialogDescription className="text-white/60">Recent completed results. Warm-ups are labelled.</DialogDescription></DialogHeader><div className="space-y-3">{recentHistory.map((entry) => <div key={entry.date} className="rounded-xl border border-white/8 bg-black/15 p-3"><p className="mb-1 text-xs font-bold text-white/60">{formatDate(entry.date)}</p>{entry.sets.map((set, index) => <p key={`${index}-${set}`} className="text-sm text-white/78">{set}</p>)}</div>)}</div></DialogContent></Dialog>
 
         </div>
@@ -1132,10 +1133,13 @@ function CardioEditor({
           {efforts.length > 0 && <details className="activity-effort-plan"><summary>Edit prescription</summary><div>{efforts.map((effort, index) => <div key={effort.id} className="activity-effort-plan-row"><span>{index + 1}</span><label className="field-label">Metres<DecimalInput min={0} value={effort.plannedDistanceM} onValueChange={(plannedDistanceM) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDistanceM } : item) })} /></label><label className="field-label">Load<DecimalInput min={0} value={effort.plannedLoad} onValueChange={(plannedLoad) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedLoad } : item) })} /></label><label className="field-label">Seconds<DecimalInput min={0} value={effort.plannedDurationSec} onValueChange={(plannedDurationSec) => update({ efforts: efforts.map((item) => item.id === effort.id ? { ...item, plannedDurationSec } : item) })} /></label><Button type="button" variant="ghost" aria-label={`Remove effort ${index + 1}`} onClick={() => update({ efforts: efforts.filter((item) => item.id !== effort.id), completed: false })}><X /></Button></div>)}</div></details>}
         </div>}
         {style === "routine" && activity.activityType !== "mobility" && <>
-          {activity.activityType === "circuit" && !activity.segments?.length && <div className="routine-rounds">
-            <Button type="button" variant="outline" size="icon" className="rounds-step" aria-label="Remove one round" disabled={(activity.roundsDone ?? 0) === 0} onClick={() => update({ roundsDone: (activity.roundsDone ?? 0) - 1 }, true)}><Minus /><span className="sr-only">Undo round</span></Button>
-            <span className="routine-rounds-count">{activity.roundsDone ?? 0} {(activity.roundsDone ?? 0) === 1 ? "round" : "rounds"} done</span>
-            <Button type="button" variant="outline" size="icon" className="rounds-step rounds-add" aria-label="Done round" onClick={() => { const before = activity.roundsDone ?? 0; update({ roundsDone: before + 1 }, true); toast("Round done", { action: { label: "Undo", onClick: () => update({ roundsDone: before }, true) } }); }}><Check /><span className="sr-only">Done round</span></Button>
+          {activity.activityType === "circuit" && !activity.segments?.length && <div className="routine-rounds-bar space-y-1">
+            <div className="routine-rounds">
+              <Button type="button" variant="outline" size="icon" className="rounds-step" aria-label="Remove one round" disabled={(activity.roundsDone ?? 0) === 0} onClick={() => update({ roundsDone: (activity.roundsDone ?? 0) - 1 }, true)}><Minus /><span className="sr-only">Undo round</span></Button>
+              <span className="routine-rounds-count">{activity.roundsDone ?? 0} {(activity.roundsDone ?? 0) === 1 ? "round" : "rounds"} done</span>
+              <Button type="button" variant="outline" size="icon" className="rounds-step rounds-add" aria-label="Done round" onClick={() => { const before = activity.roundsDone ?? 0; update({ roundsDone: before + 1 }, true); toast((before + 1) === 1 ? "1 round done" : `${before + 1} rounds done`, { action: { label: "Undo", onClick: () => update({ roundsDone: before }, true) } }); }}><Check /><span className="sr-only">Done round</span></Button>
+            </div>
+            <span className="routine-rounds-helper block text-xs text-white/50">{activity.completed ? "Complete" : `${activity.roundsDone ?? 0} ${(activity.roundsDone ?? 0) === 1 ? "round" : "rounds"} logged · Tap Mark complete when finished`}</span>
           </div>}
           <label className="field-label block">{["water_polo", "soccer", "grappling", "yoga"].includes(activity.activityType) ? "What I did" : "What I did / rounds"}<Textarea value={activity.notes} onChange={(event) => update({ notes: event.target.value }, true)} placeholder={activity.activityType === "water_polo" ? "Match, practice, drills, minutes played…" : activity.activityType === "soccer" ? "Match, practice, minutes played…" : activity.activityType === "grappling" ? "Drills, rolling, rounds…" : activity.activityType === "yoga" ? "Flow, class, poses…" : "Rounds, stations, changes…"} className="mt-1 min-h-14 border-white/8 bg-black/20" /></label>
         </>}

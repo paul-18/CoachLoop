@@ -34,6 +34,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const startWorkout = async (workout: WorkoutSession) => {
     const before = liveStateRef.current;
     await commitState(current => startWorkoutState(current, workout));
+    setView("today");
     setWorkoutOpen(true);
     saveRecoveryCopy(before, "before-start");
   };
@@ -116,6 +117,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     historyScrollRef.current = window.scrollY;
     setEditingWorkoutId(id);
     setWorkoutOpen(true);
+    setView("today");
   };
   const leaveEditor = () => {
     const returningToHistory = Boolean(editingWorkoutId);
@@ -182,6 +184,6 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
 
 
-  const resumeWorkout = (id: string) => { void commitState(current => resumeWorkoutState(current, id)).then(() => setWorkoutOpen(true)).catch(saveFailure); };
+  const resumeWorkout = (id: string) => { void commitState(current => resumeWorkoutState(current, id)).then(() => { setView("today"); setWorkoutOpen(true); }).catch(saveFailure); };
   return { workoutOpen, setWorkoutOpen, editingWorkoutId, quickLogActivityId, importOpen, setImportOpen, importDraft, setImportDraft, importListFirst, setImportListFirst, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
 }

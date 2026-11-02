@@ -122,11 +122,11 @@ This release enforces strict consistency across workout tracking, undo/skip oper
 
 ## 4. Verification & Quality Gate Results
 
-All 7 stages of `node scripts/check-release.mjs` passed with zero errors and zero warnings:
+All 7 release-check stages passed with zero test or ESLint failures/warnings (non-blocking Vite bundle-size notice only):
 1. **TypeScript**: `tsc --noEmit` — 0 errors
 2. **ESLint**: `eslint` — 0 warnings, 0 errors
 3. **Test Suite**: `node --import tsx --test` — **394 / 394 tests passed** (0 failures)
-4. **Production Build**: `vite build` — bundle generated cleanly
+4. **Production Build**: `vite build` — bundle generated cleanly (non-blocking chunk minification size notice)
 5. **PWA Generation**: `scripts/build-pwa.mjs` — manifest and service worker generated
 6. **PWA Behavior**: `scripts/check-pwa.mjs` — offline caching and shell verified
 7. **WebKit E2E Smoke**: `playwright test` — mobile phone navigation & workout lifecycle passed

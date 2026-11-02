@@ -315,7 +315,8 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
   .activity-basics { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
 @media (min-width: 1100px) {
-  .desktop-rail { display: flex; } .mobile-header, .mobile-nav { display: none; } .app-main { padding: 0 0 0 242px; }
+  .desktop-rail { display: flex; z-index: 50; } .mobile-header, .mobile-nav { display: none; } .app-main { padding: 0 0 0 242px; }
+  .workout-header, .rest-timer { left: 242px; }
   .page-stack, .today-stack { padding: 54px 42px 72px; } .topline h1 { font-size: 3.5rem; }
 }
 @media (max-width: 640px) {

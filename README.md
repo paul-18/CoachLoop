@@ -164,8 +164,7 @@ FITLOG is the plain-text format the AI uses to hand you a workout. It's wrapped 
 
 ```text
 [FITLOG:3]
-WORKOUT|2026-11-01|Example strength and easy run
-FOCUS|Strength foundation + recovery jog
+WORKOUT|Example strength and easy run|2026-11-01
 
 EXERCISE|Bench press
 SET|6-8|40 kg total|RIR 2
@@ -173,6 +172,7 @@ REST|120
 
 CARDIO|Easy run
 TYPE|run
+MODE|summary
 DURATION|15
 INTENSITY|easy
 [/FITLOG]
@@ -315,8 +315,9 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-The latest published release is **v118** (`main`). Its release gate passed and it is live on GitHub Pages. See [v118 notes](docs/releases/V118-UPDATE-NOTES.md). Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
+The latest published release is **v119** (`main`). Its release gate passed and it is live on GitHub Pages. See [v119 notes](docs/releases/V119-UPDATE-NOTES.md). Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
 
+- **v119**: Synchronized skipped-set count and qualifier on both exercise card and header (lockstep active denominator and skipped badges); segment-free circuit guidance copy (`X rounds logged · Tap Done / Mark complete when finished`) and singular/plural round grammar fix; clean rounding of fractional minutes and distances preventing raw IEEE-754 decimals; honest Progress display omitting `0 km` on unrecorded distances; README FITLOG:3 sample syntax alignment and automated parser test; primary tab navigation hardening when switching tabs with an open workout from empty and populated states. See [v119 update notes](docs/releases/V119-UPDATE-NOTES.md).
 - **v118**: Live counter honesty and undo/skip synchronization (clears "All work complete" and cancels rest timer when sets are marked incomplete; reconciled header and card skipped-set denominators; direct single-tap unskip action); domain aggregation completeness (flags missing effort measurements rather than reporting partial totals; unmeasured circuits display "time not recorded" instead of "0 min"); realistic upper bounds across schema and FITLOG parser (5,000 load/reps/bodyweight, 1,000 km distance, 10,080 min duration); blank workout title auto-sync on keystroke and blur; compact rest timer bar on mobile viewports; FITLOG v3 safe example alignment and truncated block diagnostic error; quick-log Mobility activity; swim interval quick-add; dialog overlay contrast and date dialog z-index hardening. See [v118 update notes](docs/releases/V118-UPDATE-NOTES.md).
 - **v117**: Balanced History export date input layout (block labels, 2-column mobile grid, left-aligned date text); streamlined single "Load a safe example" action featuring Bench Press, Leg Press (with compact plate disc visualizer), and an interval run without segment repeats; subdued active interval action button (`.stepper-done-current`) font weight. See [v117 update notes](docs/releases/V117-UPDATE-NOTES.md).
 - **v116**: Rest interval popout positioning & containment (spans inside card header without leftward offset); restored dialog backdrop gutters (`max-width: calc(100vw - 28px)`); three-dots menu edge alignment; Coach dialog Close button clearance and relocated clear button; compact Leg Press plate visualizer. See [v116 update notes](docs/releases/V116-UPDATE-NOTES.md).

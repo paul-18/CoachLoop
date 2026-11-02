@@ -5,7 +5,6 @@ import { EditorGate } from "./shell/editor-gate";
 import { StorageStatus } from "./shell/storage-status";
 import { AppScreens } from "./shell/app-screens";
 import { AppDialogs } from "./shell/app-dialogs";
-import { WorkoutScreen } from "./shell/workout-screen";
 import { useShellModel } from "./shell/use-shell-model";
 
 export default function CoachLoop() {
@@ -18,9 +17,6 @@ function WorkoutApp() {
   const { ready, loadError, busy } = model.persistence;
   if (!ready || busy || model.updating) {
     return <StorageStatus ready={ready} loadError={loadError} updating={model.updating} />;
-  }
-  if (model.workouts.workoutOpen && model.workouts.displayedWorkout) {
-    return <WorkoutScreen model={model} />;
   }
   return <>
     <AppScreens model={model} />

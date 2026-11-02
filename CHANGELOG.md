@@ -2,6 +2,17 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v119 — published
+
+- Synchronized skipped-set count and qualifier: exercise card headers now mirror the workout header progress format (e.g. `2/2 sets · 1 skipped` or `0/2 sets · 1 skipped`) via `exerciseProgressCopy`, updating in lockstep across skips, unskips, additions, and removals.
+- Segment-free circuit guidance & grammar: added `.routine-rounds-helper` copy (`X rounds logged · Tap Done / Mark complete when finished`) to clarify the finish workflow, and fixed singular/plural grammar across round counters and toasts (`1 round done` / `1 round logged`).
+- Fractional minute rounding: applied `formatMeasure()` to planned duration and distance in plan differences, finish workout summary, and coach export, eliminating raw repeating IEEE-754 decimals (e.g. 40 sec planned interval displays cleanly as `0.67 min`).
+- Progress honesty for unrecorded distances: omitted the `0 km` / `0 mi` prefix in Progress and weekly activity cards when distance was unrecorded, honestly displaying `1 session · 2 min · distance not fully recorded`.
+- Root README FITLOG:3 alignment: corrected field order in root `README.md` to `WORKOUT|name|YYYY-MM-DD` with `MODE|summary` on run blocks, and added an automated parser test ensuring all fenced documentation examples pass validation with 0 errors and 0 warnings.
+- Primary tab navigation hardening: clicking primary navigation tabs (Today, History, Coach, Progress, Settings) in either the desktop rail or mobile bottom bar while a workout editor is open cleanly collapses the active editor into the "WORKOUT IN PROGRESS" state on Today and immediately transitions to the chosen tab, identically in fresh empty profiles and populated logs.
+- Honest QC reporting: updated release-gate reporting to accurately state: "All 7 release-check stages passed with zero test or ESLint failures/warnings (non-blocking Vite bundle-size notice only)".
+- See [v119 update notes](docs/releases/V119-UPDATE-NOTES.md).
+
 ## v118 — published
 
 - Counter honesty & undo synchronization: when any set, segment, or effort is undone ("Mark incomplete") or skipped, the status bar immediately recomputes to clear "All work complete" and cancels any active rest countdown timer, keeping header counters (e.g. 2/3 sets) and status bar 100% synchronized.

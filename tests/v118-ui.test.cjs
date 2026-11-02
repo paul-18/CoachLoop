@@ -74,6 +74,8 @@ test('v118 UI: Mark incomplete on Set 3 clears "All work complete", and direct U
 
     // Verify header shows skipped qualifier
     assert.ok(document.querySelector('.workout-header-title p').textContent.includes('1 skipped'), 'Header reflects skipped set');
+    const cardProgress = document.querySelector('.exercise-card-progress');
+    assert.ok(cardProgress && cardProgress.textContent.includes('1 skipped'), 'Card header reflects skipped set');
 
     // Verify set 1 has Unskip button
     const unskipBtn = document.querySelector('button.set-check[aria-label*="Unskip"]');
@@ -137,6 +139,108 @@ test('v118 UI: Station circuit renders scannable status helper text', async () =
     // Check bottom action button says Mark complete
     const completeBtn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Mark complete'));
     assert.ok(completeBtn, 'Circuit card has explicit Mark complete button');
+  } finally {
+    root.unmount();
+    await wait(30);
+    dom.window.close();
+  }
+});
+
+test('v119 UI: Segment-free circuit renders round count with correct singular/plural grammar and helper text', async () => {
+  const dom = environment();
+  const React = require('react'), { createRoot } = require('react-dom/client');
+  const App = require('../app/workout-app.tsx').default;
+  const storage = require('../app/persistence/training-storage.ts');
+  const { prepareLoadedState } = require('../app/persistence/migrations.ts');
+
+  const state = defaultState();
+  const workout = makeWorkout('lb', 60, 'Garage circuit day');
+  const circuit = makeCardio('circuit');
+  circuit.name = 'Garage circuit';
+  circuit.segments = []; // segment-free routine circuit
+  circuit.roundsDone = 1;
+  workout.cardio = [circuit];
+  workout.blockOrder = [{ type: 'activity', id: circuit.id }];
+  state.workouts = [workout];
+  state.activeWorkoutId = workout.id;
+  await storage.saveTrainingState(prepareLoadedState(state));
+
+  const root = createRoot(document.getElementById('root'));
+  try {
+    root.render(React.createElement(App));
+    await until(() => document.querySelector('.active-workout-card'), 'active workout card is rendered');
+    document.querySelector('.active-workout-card').click();
+    await until(() => document.querySelector('.workout-header'), 'workout editor opens');
+
+    // Open circuit card
+    const card = document.querySelector('[aria-label*="Garage circuit"]');
+    if (card) card.click();
+    await until(() => document.querySelector('.routine-rounds-count'), 'routine rounds counter is rendered');
+
+    // Grammar check: 1 round done (not 1 rounds done)
+    const countText = document.querySelector('.routine-rounds-count').textContent;
+    assert.equal(countText.trim(), '1 round done');
+
+    // Helper text check: 1 round logged · Tap Mark complete when finished
+    const helperText = document.querySelector('.routine-rounds-helper').textContent;
+    assert.ok(helperText.includes('1 round logged · Tap Mark complete when finished'));
+  } finally {
+    root.unmount();
+    await wait(30);
+    dom.window.close();
+  }
+});
+
+test('v119 UI: Primary tab switching while blank workout is open collapses into WORKOUT IN PROGRESS from fresh empty state', async () => {
+  const dom = environment();
+  const React = require('react'), { createRoot } = require('react-dom/client');
+  const App = require('../app/workout-app.tsx').default;
+  const storage = require('../app/persistence/training-storage.ts');
+  const { prepareLoadedState } = require('../app/persistence/migrations.ts');
+
+  const state = defaultState(); // completely empty pristine state
+  await storage.saveTrainingState(prepareLoadedState(state));
+
+  const root = createRoot(document.getElementById('root'));
+  try {
+    root.render(React.createElement(App));
+    await until(() => document.querySelector('.first-steps'), 'welcome screen is rendered');
+
+    // Click "Start blank"
+    const startBlankBtn = [...document.querySelectorAll('button')].find(b => b.textContent === 'Start blank');
+    assert.ok(startBlankBtn, 'Start blank button is rendered');
+    startBlankBtn.click();
+    await wait(50);
+
+    // Click "Blank workout Build as you train"
+    await until(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Blank workout')), 'blank workout button available');
+    const blankWorkoutBtn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Blank workout'));
+    blankWorkoutBtn.click();
+
+    // Verify workout editor is open
+    await until(() => document.querySelector('.workout-header'), 'workout editor opens');
+
+    // Click History tab in desktop rail or mobile nav
+    const historyTab = [...document.querySelectorAll('[role="tab"]')].find(t => t.textContent.includes('History'));
+    assert.ok(historyTab, 'History tab exists');
+    historyTab.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    historyTab.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, button: 0 }));
+    await wait(50);
+
+    // Verify History panel is now active
+    await until(() => document.querySelector('#panel-history[data-state="active"]'), 'History tab opens');
+
+    // Click Today tab
+    const todayTab = [...document.querySelectorAll('[role="tab"]')].find(t => t.textContent.includes('Today'));
+    todayTab.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    todayTab.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, button: 0 }));
+    await wait(50);
+
+    // Verify Today panel is active and shows "WORKOUT IN PROGRESS" card
+    await until(() => document.querySelector('.active-workout-card'), 'Active workout card is visible');
+    const activeCard = document.querySelector('.active-workout-card');
+    assert.ok(activeCard.textContent.includes('WORKOUT IN PROGRESS') || activeCard.textContent.includes('Workout in progress'));
+    assert.ok(activeCard.textContent.includes('Resume'));
   } finally {
     root.unmount();
     await wait(30);

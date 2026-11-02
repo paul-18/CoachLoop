@@ -99,3 +99,33 @@ test("Blank workout workflow: rename, complete sets, mark incomplete, and unskip
 
   expect(pageErrors).toEqual([]);
 });
+
+test("Primary tab switching while blank workout is open collapses into WORKOUT IN PROGRESS and switches tabs cleanly", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  await page.goto("/");
+
+  // Start blank workout from fresh empty profile
+  const navigation = page.locator(".mobile-nav");
+  await expect(navigation).toBeVisible();
+
+  await page.getByRole("button", { name: "Start blank", exact: true }).click();
+  await page.getByRole("button", { name: /Blank workout/ }).click();
+  await expect(page.locator(".workout-header")).toBeVisible();
+
+  // Click through History -> Coach -> Progress -> Settings -> Today while workout is open
+  for (const name of ["History", "Coach", "Progress", "Settings", "Today"]) {
+    const tab = navigation.getByRole("tab", { name, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(`#panel-${name.toLowerCase()}`)).toHaveAttribute("data-state", "active");
+  }
+
+  // Returning to Today shows the Workout in progress card
+  await expect(page.locator(".active-workout-card")).toBeVisible();
+  await expect(page.getByText(/Workout in progress/i)).toBeVisible();
+  await expect(page.locator(".active-workout-card")).toContainText("Resume");
+
+  expect(pageErrors).toEqual([]);
+});
