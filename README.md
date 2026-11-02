@@ -315,8 +315,10 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-The latest published release is **v115** (`main`). Its release gate passed and it is live on GitHub Pages. See [v115 notes](docs/releases/V115-UPDATE-NOTES.md). Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
+The latest published release is **v117** (`main`). Its release gate passed and it is live on GitHub Pages. See [v117 notes](docs/releases/V117-UPDATE-NOTES.md). Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
 
+- **v117**: Balanced History export date input layout (block labels, 2-column mobile grid, left-aligned date text); streamlined single "Load a safe example" action featuring Bench Press, Leg Press (with compact plate disc visualizer), and an interval run without segment repeats; subdued active interval action button (`.stepper-done-current`) font weight. See [v117 update notes](docs/releases/V117-UPDATE-NOTES.md).
+- **v116**: Rest interval popout positioning & containment (spans inside card header without leftward offset); restored dialog backdrop gutters (`max-width: calc(100vw - 28px)`); three-dots menu edge alignment; Coach dialog Close button clearance and relocated clear button; compact Leg Press plate visualizer. See [v116 update notes](docs/releases/V116-UPDATE-NOTES.md).
 - **v115**: Dedicated plate breakdown for Leg Press directly from total weight (`45 × 7 lb`, `45 × 6 + 25 lb`); aligned Import preview cards; expanded Coach history ranges (2, 7, 14, 30, 60 days); iOS horizontal viewport containment on History export; compact Coach Brief Builder dialog. See [v115 update notes](docs/releases/V115-UPDATE-NOTES.md).
 - **v114**: iPhone 17 PWA & Dynamic Island clearance (59px top safe area); touch ergonomics (44px touch targets); station surface luminance shifts. See [v114 update notes](docs/releases/V114-UPDATE-NOTES.md).
 - **v113**: Clean repeat group headings; circuit AMRAP & rounds steppers; compact side-by-side activity basic inputs. See [v113 update notes](docs/releases/V113-UPDATE-NOTES.md).
