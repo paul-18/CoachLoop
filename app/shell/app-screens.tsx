@@ -26,12 +26,16 @@ export function AppScreens({ model }: { model: ShellModel }) {
   const dismissFirstNote = () => applyProjectedUpdate(current => ({ ...current, settings: { ...current.settings, firstWorkoutNote: "dismissed" as const }, settingsUpdatedAt: new Date().toISOString() }));
   const { offlineReady, updateReady, release, checkUpdates } = offline;
   const { logBodyweight, updateSettings, changeActivityType, saveWaist } = progress;
+  const handleTabChange = (targetView: MainView) => {
+    if (workoutOpen) setWorkoutOpen(false);
+    navigateTab(targetView);
+  };
   return (
-      <Tabs value={view} onValueChange={(value) => navigateTab(value as MainView)} className="min-h-dvh bg-[#10120f] text-white">
+      <Tabs value={view} onValueChange={(value) => handleTabChange(value as MainView)} className="min-h-dvh bg-[#10120f] text-white">
         <aside className="desktop-rail">
           <div className="rail-brand"><AppMark /></div>
           <TabsList className="rail-nav h-auto w-full flex-col gap-1 bg-transparent p-0">
-            {navItems.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} id={`desktop-tab-${value}`} aria-controls={`panel-${value}`} value={value} onClick={() => returnTabToTop(value)} className="rail-tab"><Icon />{label}</TabsTrigger>)}
+            {navItems.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} id={`desktop-tab-${value}`} aria-controls={`panel-${value}`} value={value} onClick={() => { if (workoutOpen) setWorkoutOpen(false); returnTabToTop(value); }} className="rail-tab"><Icon />{label}</TabsTrigger>)}
           </TabsList>
         </aside>
 
@@ -52,7 +56,7 @@ export function AppScreens({ model }: { model: ShellModel }) {
         </div>
 
         <TabsList className="mobile-nav">
-          {navItems.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} id={`mobile-tab-${value}`} aria-controls={`panel-${value}`} value={value} onClick={() => returnTabToTop(value)} className="mobile-tab"><Icon /><span>{label}</span></TabsTrigger>)}
+          {navItems.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} id={`mobile-tab-${value}`} aria-controls={`panel-${value}`} value={value} onClick={() => { if (workoutOpen) setWorkoutOpen(false); returnTabToTop(value); }} className="mobile-tab"><Icon /><span>{label}</span></TabsTrigger>)}
         </TabsList>
       </Tabs>
   );

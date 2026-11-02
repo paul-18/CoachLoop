@@ -263,7 +263,7 @@ function SetRow({
         <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("before")}><Plus /> Insert set before</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("after")}><Plus /> Insert set after</DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11" onSelect={onSkip}>{set.skipped ? "Restore skipped set" : "Skip this set"}</DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" onSelect={onSkip}>{set.skipped ? "Unskip set" : "Skip this set"}</DropdownMenuItem>
           {!!increment && set.loadType !== "bodyweight" && <><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(((set.actualWeight ?? set.plannedWeight ?? 0) + increment).toFixed(4)), loadType:"weighted"})}>+ {increment} {set.unit}</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={() => onChange({actualWeight: Number(Math.max(0,(set.actualWeight ?? set.plannedWeight ?? 0)-increment).toFixed(4)), loadType:"weighted"})}>− {increment} {set.unit}</DropdownMenuItem></>}
           {onMatchPrevious && <DropdownMenuItem className="min-h-11" onSelect={onMatchPrevious}><CopyPlus /> Match previous set</DropdownMenuItem>}
           <DropdownMenuItem className="min-h-11" onSelect={() => setNoteOpen(true)}>{set.notes ? "Edit set note" : "Add set note"}</DropdownMenuItem>
@@ -307,9 +307,9 @@ function SetRow({
         type="button"
         size="icon"
         onClick={onToggle}
-        aria-label={set.completed ? `Mark ${context} incomplete` : `Complete ${context}`}
+        aria-label={set.completed ? `Mark ${context} incomplete` : set.skipped ? `Unskip ${context}` : `Complete ${context}`}
         aria-pressed={set.completed}
-        className={set.completed ? "set-check complete" : "set-check"}
+        className={set.completed ? "set-check complete" : set.skipped ? "set-check is-skipped" : "set-check"}
       >
         {set.skipped ? <span aria-label="Skipped">—</span> : <Check />}
       </Button>
@@ -370,6 +370,15 @@ function ExerciseEditor({
   const [showCompleted, setShowCompleted] = useState(false);
   const latestExercise = useRef(exercise);
   useLayoutEffect(() => { latestExercise.current = exercise; }, [exercise]);
+  const handleNameChange = (name: string) => {
+    const updatedAt = new Date().toISOString();
+    const next = { ...latestExercise.current, name, updatedAt };
+    latestExercise.current = next;
+    onChange(next);
+  };
+  const handleNameBlur = () => {
+    onChange({ ...latestExercise.current, updatedAt: new Date().toISOString() });
+  };
   const updateSet = (setId: string, changes: Partial<TrainingSet>) => {
     const updatedAt = new Date().toISOString();
     const current = latestExercise.current;
@@ -405,7 +414,9 @@ function ExerciseEditor({
   }
   if (collapsed && !allDone) {
     const doneSets = exercise.sets.filter(s => s.completed).length;
-    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{doneSets} of {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"} done{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
+    const activeSets = exercise.sets.filter(s => !s.skipped || s.completed).length;
+    const skippedSets = exercise.sets.filter(s => s.skipped && !s.completed).length;
+    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small>{doneSets} of {activeSets} {activeSets === 1 ? "set" : "sets"} active{skippedSets > 0 ? ` (${skippedSets} skipped)` : ""}{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
   }
   return (
     <Card className={`exercise-card gap-0 border-white/8 bg-[#171916] py-0 shadow-none ${allDone ? "is-complete" : ""}`}>
@@ -413,7 +424,8 @@ function ExerciseEditor({
         <div className="min-w-0">
           <div className="exercise-title-line"><Input
             value={exercise.name}
-            onChange={(event) => onChange({ ...exercise, name: event.target.value, updatedAt: new Date().toISOString() })}
+            onChange={(event) => handleNameChange(event.target.value)}
+            onBlur={handleNameBlur}
             aria-label="Exercise name"
             className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-2"
           />
@@ -505,6 +517,10 @@ function ExerciseEditor({
                 // A focused weight field commits on blur just before this click.
                 // Read its committed value, even when React has not rendered yet.
                 const currentSet = latestExercise.current.sets.find((item) => item.id === set.id) ?? set;
+                if (currentSet.skipped) {
+                  updateSet(set.id, { skipped: false, completed: false, completedAsPlanned: false });
+                  return;
+                }
                 const completing = !currentSet.completed;
                 if (completing && !currentSet.actualReps.trim() && !currentSet.plannedReps.trim()) {
                   toast.error("Enter reps before completing this set");
@@ -526,7 +542,13 @@ function ExerciseEditor({
                   actualWeight: values ? values.actualWeight : clearingAcceptedPlan ? null : currentSet.actualWeight,
                 });
                 if (completing && !currentSet.warmup && exercise.restSec) onCompleteSet(set.id, exercise.restSec);
-                if (completing) setShowCompleted(false);
+                if (completing) {
+                  setShowCompleted(false);
+                  const nextIncomplete = latestExercise.current.sets.find((s) => s.id !== set.id && !s.completed && !s.skipped);
+                  if (nextIncomplete) {
+                    queueMicrotask(() => document.getElementById(`reps-${nextIncomplete.id}`)?.focus());
+                  }
+                }
               }}
               onRemove={() => removeSet(set.id)}
             />
@@ -734,7 +756,10 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
       <span className="stepper-dots" role="img" aria-label={`${doneUnits} of ${units.length} ${resolvedWord} done`}>{units.map((unit, index) => <span key={unit.key} className={`stepper-dot ${unitDotClass(unit)} ${index === currentUnitIndex ? "is-current" : ""}`} title={`${unitTitle(unit)}: ${unit.segments.map(segmentPlanText).join(" · ")}`} />)}</span>
     </div>
     {isCircuit && <div className="stepper-rounds-bar">
-      <p className="stepper-rounds-count">{doneUnits} {doneUnits === 1 ? "round" : "rounds"} done</p>
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+        <p className="stepper-rounds-count">{doneUnits} {doneUnits === 1 ? "round" : "rounds"} done</p>
+        <span className="stepper-rounds-helper text-xs text-white/50">{activity.completed ? "Complete" : `${doneUnits} ${doneUnits === 1 ? "round" : "rounds"} logged · Tap Mark complete when finished`}</span>
+      </div>
       {lastDoneRound && <Button type="button" variant="outline" size="icon" className="rounds-step" aria-label="Undo round" onClick={undoRound}><Minus /><span className="sr-only">Undo round</span></Button>}
     </div>}
     {currentUnit && <div className="activity-stepper-current">
@@ -895,7 +920,7 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
         {(["run", "walk", "rest", "other"] as const).map(kind => <button key={kind} type="button" aria-pressed={quickKind === kind} onClick={() => setQuickKind(kind)}>{kind === "other" ? "Other" : kind[0]!.toUpperCase() + kind.slice(1)}</button>)}
       </div>
       <div className="stepper-quick-row">
-        <label className="field-label">Minutes<Input inputMode="decimal" aria-label="Quick-add minutes" value={quickMin} placeholder="5" className="mt-1 h-11 border-white/8 bg-black/20" onChange={event => setQuickMin(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); quickAdd(); } }} /></label>
+        <label className="field-label">Minutes<Input inputMode="decimal" aria-label="Quick-add minutes" value={quickMin} placeholder="—" className="mt-1 h-11 border-white/8 bg-black/20" onChange={event => setQuickMin(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); quickAdd(); } }} /></label>
         <Button type="button" disabled={!quickValid} onClick={quickAdd}>Add</Button>
       </div>
     </div>
@@ -987,7 +1012,7 @@ function CardioEditor({
   });
   const postSessionNoSegments = ["yoga", "grappling", "soccer", "water_polo"].includes(activity.activityType) && !activity.segments?.length;
   const mobilitySessionCard = activity.activityType === "mobility" && style === "routine";
-  const canAddIntervals = ["run", "walk", "hike", "ruck", "bike", "row", "other"].includes(activity.activityType) && style !== "efforts";
+  const canAddIntervals = ["run", "walk", "hike", "ruck", "bike", "row", "swim", "other"].includes(activity.activityType) && style !== "efforts";
   if (!isOpen && !activity.completed) {
     const summary = [activity.activityType === "other" ? "Custom activity" : activity.activityType.replace(/_/g, " "), activity.segments?.length ? segmentCountLabel(activity.segments) : activity.plannedDurationMin !== null ? `${formatMeasure(activity.plannedDurationMin)} min` : "", activity.intensity].filter(Boolean).join(" · ");
     const warning = unusualActivityWarning(activity);
@@ -1070,7 +1095,7 @@ function CardioEditor({
           const currentActivity = activityRef.current;
           const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
           update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
-        }} /> : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> Add intervals</Button>) : null}
+        }} /> : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> {activity.activityType === "swim" ? "Add swim sets" : "Add intervals"}</Button>) : null}
         {activity.activityType === "force" && style !== "efforts" && <Button type="button" variant="outline" onClick={() => update({ loggingStyle: "efforts", efforts: [makeActivityEffort()] })}><Plus /> Add effort</Button>}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
@@ -1155,7 +1180,7 @@ function CardioEditor({
           }}
           className={activity.completed ? "border-[var(--lime)]/25 bg-[var(--lime)]/8 text-[var(--lime)]" : "border-white/10 bg-white/[0.025] text-white"}
         >
-          <Check />{activity.completed ? " Activity complete" : <> Done<span className="sr-only">: {activity.name}</span>{!activity.segments?.length && (activity.plannedDurationMin !== null || activity.plannedDistanceKm !== null) ? <span className="done-meta">{`${activity.plannedDurationMin !== null ? ` ${formatMeasure(activity.plannedDurationMin)} min` : ""}${activity.plannedDistanceKm !== null ? ` ${formatMeasure(activity.plannedDistanceKm)} km` : ""}`}</span> : null}</>}
+          <Check />{activity.completed ? " Activity complete" : activity.activityType === "circuit" && activity.segments?.length ? " Mark complete" : <> Done<span className="sr-only">: {activity.name}</span>{!activity.segments?.length && (activity.plannedDurationMin !== null || activity.plannedDistanceKm !== null) ? <span className="done-meta">{`${activity.plannedDurationMin !== null ? ` ${formatMeasure(activity.plannedDurationMin)} min` : ""}${activity.plannedDistanceKm !== null ? ` ${formatMeasure(activity.plannedDistanceKm)} km` : ""}`}</span> : null}</>}
         </Button>}
         {style === "efforts" && <p className="text-xs text-white/50">Complete each effort above. Unfinished efforts stay incomplete when you finish the workout.</p>}
       </CardContent>
@@ -1333,6 +1358,19 @@ export function WorkoutEditor({
     const next = { ...current, exercises: current.exercises.map((item) => item.id === exercise.id ? exercise : item) };
     latestWorkout.current = next;
     onUpdate(next);
+    if (restFrom?.blockId === exercise.id) {
+      const activeSet = exercise.sets.find((s) => s.id === restFrom.setId);
+      if (!activeSet || !activeSet.completed) {
+        setRestUntil(null);
+        setRestFrom(null);
+      }
+    }
+    if (wasDone && !isNowDone) {
+      setCollapsedBlockIds((ids) => ids.filter((id) => id !== exercise.id));
+      if (restUntil && !nextOpenBlock(next)) {
+        setRestUntil(null);
+      }
+    }
     if (!wasDone && isNowDone) {
       const upcoming = nextOpenBlock(next);
       setCollapsedBlockIds((ids) => [...ids.filter((id) => !(upcoming?.type === "exercise" && id === upcoming.exercise.id) && id !== exercise.id), exercise.id]);
@@ -1346,6 +1384,17 @@ export function WorkoutEditor({
     const next = { ...current, cardio: current.cardio.map(item => item.id === activity.id ? activity : item) };
     latestWorkout.current = next;
     onUpdate(next);
+    if (restFrom?.blockId === activity.id) {
+      if (!activity.completed && (!activity.efforts || !activity.efforts.some(e => e.id === restFrom.setId && e.completed))) {
+        setRestUntil(null);
+        setRestFrom(null);
+      }
+    }
+    if (wasCompleted && !activity.completed) {
+      if (restUntil && !nextOpenBlock(next)) {
+        setRestUntil(null);
+      }
+    }
     if (!wasCompleted && activity.completed && (focusMode || current.exercises.length > 0 || collapsedBlockIds.length > 0)) {
       const upcoming = nextOpenBlock(next);
       if (upcoming?.type === "exercise") {
@@ -1396,9 +1445,10 @@ export function WorkoutEditor({
     const at = sets.findIndex((set) => set.id === setId);
     return `${exerciseName} · ${numbers[at]?.label ?? ""}`;
   };
+  const fallbackTarget = nextBlock ? (nextBlock.type === "exercise" && nextSet ? restLabelFor(nextBlock.exercise.name, nextBlock.exercise.sets, nextSet.id) : nextBlock.type === "activity" ? nextBlock.activity.name : "") : "";
   const nextLabel = !restUntil ? "" : restFrom
-    ? !restTarget ? "" : restTarget.type === "activity" ? restTarget.activity.name : restLabelFor(restTarget.exercise.name, restTarget.exercise.sets, restTarget.set.id)
-    : !nextBlock ? "" : nextBlock.type === "activity" ? nextBlock.activity.name : nextSet ? restLabelFor(nextBlock.exercise.name, nextBlock.exercise.sets, nextSet.id) : "";
+    ? !restTarget ? fallbackTarget : restTarget.type === "activity" ? restTarget.activity.name : restLabelFor(restTarget.exercise.name, restTarget.exercise.sets, restTarget.set.id)
+    : fallbackTarget;
 
   const progress = workoutProgressCopy(workout);
   const reviewWorkout = finishCandidate ?? workout;
@@ -1434,7 +1484,7 @@ export function WorkoutEditor({
   return (
     <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""}`}>
       <header ref={headerRef} className="workout-header">
-        <Button variant="ghost" size="icon" onClick={onBack} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
+        <Button variant="ghost" size="icon" onClick={() => { onUpdate(latestWorkout.current); onBack(); }} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>

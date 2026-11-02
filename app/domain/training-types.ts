@@ -191,7 +191,7 @@ export const QUICK_LOG_OPTIONS = [
   { type: "bike", label: "Bike" }, { type: "ruck", label: "Ruck" },
   { type: "circuit", label: "Circuit" }, { type: "soccer", label: "Soccer" },
   { type: "grappling", label: "Grappling" }, { type: "yoga", label: "Yoga" },
-  { type: "water_polo", label: "Water polo" },
+  { type: "water_polo", label: "Water polo" }, { type: "mobility", label: "Mobility" },
 ] as const;
 export type QuickLogActivityType = (typeof QUICK_LOG_OPTIONS)[number]["type"];
 export const STARTER_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = ["run", "bike", "circuit", "yoga"];

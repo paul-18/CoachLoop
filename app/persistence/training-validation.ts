@@ -6,6 +6,16 @@ import { safeConflictPath } from "./conflict-path";
 const finite = z.number().finite();
 const nullableNumber = finite.nonnegative().nullable();
 const loadNumber = finite.min(0).max(5000).nullable();
+const durationMinNumber = finite.min(0).max(10080).nullable();
+const distanceKmNumber = finite.min(0).max(1000).nullable();
+const distanceMNumber = finite.min(0).max(1000000).nullable();
+const durationSecNumber = finite.min(0).max(604800).nullable();
+const restSecNumber = finite.min(0).max(86400);
+const repsNumber = finite.min(0).max(5000).nullable();
+const roundsNumber = z.number().int().min(0).max(500).optional();
+const bodyweightNumber = finite.positive().max(5000);
+const hrNumber = finite.min(0).max(300).nullable();
+const elevationNumber = finite.min(0).max(100000).nullable();
 const identifier = z.string().min(1);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -26,21 +36,21 @@ const setSchema = z.object({
   updatedAt: timestamp, skipped: z.boolean().optional(),
 }).passthrough();
 const exerciseSchema = z.object({
-  id: identifier, name: z.string(), restSec: finite.nonnegative(), notes: z.string(),
-  coachNotes: z.string(), sets: z.array(setSchema), deletedSetIds: stringArray.optional(),
+  id: identifier, name: z.string(), restSec: restSecNumber, notes: z.string(),
+  coachNotes: z.string(), sets: z.array(setSchema).max(500), deletedSetIds: stringArray.optional(),
   updatedAt: timestamp, substitutedFor: z.string().optional(),
 }).passthrough();
 const moveSchema = z.object({ id: identifier, name: z.string(), prescription: z.string() }).passthrough();
 const effortSchema = z.object({
-  id: identifier, plannedDistanceM: nullableNumber, actualDistanceM: nullableNumber,
-  plannedDurationSec: nullableNumber, actualDurationSec: nullableNumber,
+  id: identifier, plannedDistanceM: distanceMNumber, actualDistanceM: distanceMNumber,
+  plannedDurationSec: durationSecNumber, actualDurationSec: durationSecNumber,
   plannedLoad: loadNumber, actualLoad: loadNumber, completed: z.boolean(),
 }).passthrough();
 const activitySegmentSchema = z.object({
   id: identifier,
   kind: z.enum(["run", "walk", "rest", "other"]),
-  plannedDurationSec: nullableNumber.optional(), actualDurationSec: nullableNumber.optional(),
-  plannedDistanceM: nullableNumber.optional(), actualDistanceM: nullableNumber.optional(),
+  plannedDurationSec: durationSecNumber.optional(), actualDurationSec: durationSecNumber.optional(),
+  plannedDistanceM: distanceMNumber.optional(), actualDistanceM: distanceMNumber.optional(),
   label: z.string().optional(),
   status: z.enum(["completed", "modified", "skipped", "unknown"]),
   groupId: identifier.optional(), iteration: z.number().int().min(1).max(50).optional(),
@@ -50,11 +60,11 @@ const activitySchema = z.object({
   externalSourceId: z.string().optional(),
   activityType: z.enum(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"]),
   loggingStyle: z.enum(["single", "routine", "efforts"]).optional(),
-  efforts: z.array(effortSchema).optional(), segments: z.array(activitySegmentSchema).optional(), roundsDone: z.number().int().min(0).optional(), effortRestSec: finite.nonnegative().optional(), effortLoadUnit: unit.optional(),
-  plannedDurationMin: nullableNumber, actualDurationMin: nullableNumber,
-  plannedDistanceKm: nullableNumber, actualDistanceKm: nullableNumber,
-  ruckLoad: loadNumber, ruckLoadUnit: unit, averageHr: nullableNumber,
-  elevationM: nullableNumber, pace: z.string(), intensity: z.string(), intervals: z.string(),
+  efforts: z.array(effortSchema).optional(), segments: z.array(activitySegmentSchema).optional(), roundsDone: roundsNumber, effortRestSec: restSecNumber.optional(), effortLoadUnit: unit.optional(),
+  plannedDurationMin: durationMinNumber, actualDurationMin: durationMinNumber,
+  plannedDistanceKm: distanceKmNumber, actualDistanceKm: distanceKmNumber,
+  ruckLoad: loadNumber, ruckLoadUnit: unit, averageHr: hrNumber,
+  elevationM: elevationNumber, pace: z.string(), intensity: z.string(), intervals: z.string(),
   mobilityMoves: z.array(moveSchema), effort: z.string(), notes: z.string(),
   coachNotes: z.string(), completed: z.boolean(), completedAsPlanned: z.boolean(),
   skipped: z.boolean().optional(),
@@ -62,7 +72,7 @@ const activitySchema = z.object({
 }).passthrough();
 const segmentSchema = z.object({
   id: identifier, kind: z.enum(["run", "station"]), name: z.string(),
-  distanceM: nullableNumber, reps: nullableNumber, loadKg: nullableNumber,
+  distanceM: distanceMNumber, reps: repsNumber, loadKg: loadNumber,
   loadCount: finite, targetM: nullableNumber, cue: z.string(), splitMs: nullableNumber,
   corrected: z.boolean().optional(),
 });
@@ -96,7 +106,7 @@ const conflictSchema = z.object({
 /** The complete schema used at the cloud boundary and after legacy migration. */
 export const storedStateBoundary = z.object({
   version: z.literal(1), evidenceVersion: z.literal(2).optional(), workouts: z.array(workoutSchema),
-  bodyweightEntries: z.array(z.object({ id: identifier, date, weight: finite.positive(), unit, updatedAt: timestamp })),
+  bodyweightEntries: z.array(z.object({ id: identifier, date, weight: bodyweightNumber, unit, updatedAt: timestamp })),
   benchmarks: z.array(z.object({ id: identifier, name: z.string().min(1), protocol: z.string(), result: z.string(), testedOn: date.nullable(), attempts: z.array(z.object({ id: identifier, date, result: z.string().min(1), protocol: z.string(), updatedAt: timestamp })).optional(), retestDays: finite.int().min(7).max(365).nullable(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   waistEntries: z.array(z.object({ id: identifier, date, cm: finite.positive(), updatedAt: timestamp, deletedAt: timestamp.optional() })).optional(),
   loadIncrements: z.record(z.string(), z.object({ value: finite.nonnegative(), updatedAt: timestamp })).optional(),
@@ -115,8 +125,8 @@ export const storedStateBoundary = z.object({
     weeklyCards: z.array(z.enum(["strength", "run", "ruck", "water_polo", "circuit", "swim", "bike", "row", "walk", "hike", "soccer", "grappling", "yoga", "mobility", "force", "other"])).refine(values => new Set(values).size === values.length).optional(),
     progressSections: z.array(z.enum(["weekly", "coverage", "balance", "bodyweight", "trends", "benchmarks", "activities", "waist", "monthly", "calendar", "records"])).refine(values => new Set(values).size === values.length).optional(),
     bodyDiagram: z.enum(["male", "female"]).optional(),
-    quickLogActivities: z.array(z.enum(["run", "walk", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
-    defaultUnit: unit, defaultRestSec: finite.nonnegative(), barWeightLb: finite.nonnegative(), barWeightKg: finite.nonnegative(),
+    quickLogActivities: z.array(z.enum(["run", "walk", "swim", "bike", "ruck", "circuit", "soccer", "grappling", "yoga", "water_polo", "mobility"])).refine(values => new Set(values).size === values.length, "Quick log choices must be unique").optional(),
+    defaultUnit: unit, defaultRestSec: restSecNumber, barWeightLb: loadNumber.unwrap().nonnegative(), barWeightKg: loadNumber.unwrap().nonnegative(),
     lastBackupAt: timestamp.nullable(), installedHintDismissed: z.boolean(),
     coachCheckIn: checkInSchema, lastCoachBriefAt: timestamp.nullable(),
     welcomeChoice: z.enum(["starter", "blank"]).optional(),

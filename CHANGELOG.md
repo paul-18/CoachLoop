@@ -2,7 +2,27 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v118 — published
+
+- Counter honesty & undo synchronization: when any set, segment, or effort is undone ("Mark incomplete") or skipped, the status bar immediately recomputes to clear "All work complete" and cancels any active rest countdown timer, keeping header counters (e.g. 2/3 sets) and status bar 100% synchronized.
+- Set count reconciliation: reconciled set denominator across workout header and exercise cards when sets are skipped, displaying explicit skipped qualifiers (e.g. `0/2 sets · 1 skipped` in header and `0 of 2 sets active (1 skipped)` on cards).
+- Direct Unskip action: single-tap direct unskip restores skipped sets directly to pending (0 done) in both Review and set row menu without passing through a false "Done" state.
+- Run quick-add minutes cleanup: interval duration input in running session builder uses neutral `—` placeholder and clears cleanly, preventing stale value reversion.
+- Station circuit completion helper: scannable status text (`N rounds logged · Tap Mark complete when finished`) and an explicit `Mark complete` button clarify open-ended station circuit completion.
+- Partial effort aggregation protection: `performedDuration()` and `performedDistance()` return null when any completed effort is missing its duration or distance measurement, guaranteeing partial sums never present as complete totals.
+- Realistic numeric upper bounds: enforced validation limits on imported FITLOG values and stored state (load <= 5000, duration <= 10080 min, distance <= 1000 km, reps <= 5000, sets <= 500).
+- Immediate exercise rename synchronization: renaming an exercise flushes synchronously to the active workout draft on change and blur, ensuring Today's "Next:" summary reflects the new title immediately.
+- Compact mobile rest timer clearance: when rest countdown timer is active on screens <= 640px, header padding compacts and secondary subtitles collapse to preserve clean clearance beneath Dynamic Island.
+- Modal backdrop dimming & nested stacking: dialog backdrops enhanced with `bg-black/80 backdrop-blur-sm` and child dialogs (`WorkoutDateDialog`) use `z-[60]` layering to prevent background chrome collision.
+- Auto-close bodyweight modal: bodyweight logging dialog cleanly closes upon save.
+- Tab navigation resilience & History click isolation: primary navigation tabs reliably switch views and gracefully collapse in-progress workout drafts to the Today card; `e.stopPropagation()` prevents clicks in History card details from bubbling.
+- FITLOG v3 safe example & truncation diagnostic: updated safe import example to canonical `[FITLOG:3]` with `MODE|summary` and added targeted diagnostic errors when AI output cuts off before `[/FITLOG]`.
+- Manual swim intervals & mobility shortcuts: enabled structured interval adding for manual Swim sessions and verified Mobility quick-log shortcut support.
+- See [v118 update notes](docs/releases/V118-UPDATE-NOTES.md).
+
 ## v117 — published
+
+- Mobile export date-filter layout fix: post-release hotfix (`fc760d6b`) containing the History export date-filter inputs within screen bounds on compact mobile viewports without horizontal shift.
 
 - History export input alignment: eliminated the rightward offset of the `From` and `To` date rectangles in the export dialog. Formatted date inputs into a balanced 2-column mobile grid with block-level labels and native left-aligned date text (`[color-scheme:dark] text-left`), keeping `Exercise` spanning full width below.
 - Import safe example refined: replaced duplicate example actions with a single "Load a safe example" action (removed "Load a segments example"). The sample now showcases Bench Press, Leg Press (demonstrating the new compact plate visualizer), an interval run (`4 x (3 min run / 1 min walk)` with pace and notes), and mobility.

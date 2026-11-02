@@ -136,7 +136,9 @@ export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, d
       const minutes = runningDuration ? runningDuration.value === null ? 0 : runningDuration.value / 60 : performedDuration(item) ?? 0;
       const distance = runningDistance ? runningDistance.value === null ? 0 : runningDistance.value / 1000 : performedDistance(item) ?? 0;
       if (segmentDuration && segmentDuration.done && !segmentDuration.fullyRecorded) totals.minutesIncomplete = true;
+      else if (!segmentDuration && performedDuration(item) === null) totals.minutesIncomplete = true;
       if (segmentDistance && segmentDistance.done && !segmentDistance.fullyRecorded) totals.distanceIncomplete = true;
+      else if (!segmentDistance && performedDistance(item) === null) totals.distanceIncomplete = true;
       totals.sessions += 1;
       totals.minutes += minutes;
       totals.distanceKm += distance;

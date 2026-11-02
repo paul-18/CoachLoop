@@ -188,13 +188,17 @@ export function ProgressView({ onUpdateSettings, state, onLogBodyweight, onSaveW
     setBodyweightValue(latestBodyweight ? String(Number(convertWeight(latestBodyweight.weight, latestBodyweight.unit, state.settings.defaultUnit).toFixed(1))) : "");
     setBodyweightOpen(true);
   };
+  const prevPromptOpen = useRef(bodyweightPromptOpen);
+  const latestBodyweightRef = useRef(latestBodyweight);
+  latestBodyweightRef.current = latestBodyweight;
   useEffect(() => {
-    if (bodyweightPromptOpen) {
+    if (bodyweightPromptOpen && !prevPromptOpen.current) {
       setBodyweightDate(localDate()); setBodyweightUnit(state.settings.defaultUnit);
-      setBodyweightValue(latestBodyweight ? String(Number(convertWeight(latestBodyweight.weight, latestBodyweight.unit, state.settings.defaultUnit).toFixed(1))) : "");
+      setBodyweightValue(latestBodyweightRef.current ? String(Number(convertWeight(latestBodyweightRef.current.weight, latestBodyweightRef.current.unit, state.settings.defaultUnit).toFixed(1))) : "");
       setBodyweightOpen(true);
     }
-  }, [bodyweightPromptOpen, state.settings.defaultUnit, latestBodyweight]);
+    prevPromptOpen.current = bodyweightPromptOpen;
+  }, [bodyweightPromptOpen, state.settings.defaultUnit]);
   const closeBodyweightDialog = () => { setBodyweightOpen(false); onBodyweightPromptChange?.(false); };
 
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));

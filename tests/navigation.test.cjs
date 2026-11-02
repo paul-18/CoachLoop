@@ -36,10 +36,10 @@ test('all real tab screens open repeatedly with offline network state and unique
   const historyButton=document.querySelector('.exercise-trend-history-button');assert.equal(historyButton.textContent,'View exercise history');assert.equal(historyButton.getAttribute('aria-label'),`View ${longExerciseName} history`);historyButton.click();await wait(60);assert.ok(document.querySelector('.exercise-history-title').textContent.includes(longExerciseName),'history retains the complete exercise name');
   const close=document.querySelector('[data-slot="dialog-close"]');assert.ok(close);close.click();await wait(60);
   const settings=[...document.querySelectorAll('[role="tab"]')].find(b=>b.textContent==='Settings');settings.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));await wait(40);
-  const before=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(before.at(-1),'water_polo');
-  document.querySelector('[aria-label="Move Water polo earlier"]').click();await wait(80);
-  const after=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(after.at(-2),'water_polo');assert.equal(after.at(-1),'yoga');
-  const saved=await require('../app/persistence/training-storage.ts').loadTrainingState();assert.deepEqual(saved.settings.quickLogActivities.slice(-2),['water_polo','yoga']);
+  const before=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(before.at(-1),'mobility');
+  document.querySelector('[aria-label="Move Mobility earlier"]').click();await wait(80);
+  const after=[...document.querySelectorAll('[data-quick-log]')].map(e=>e.getAttribute('data-quick-log'));assert.equal(after.at(-2),'mobility');assert.equal(after.at(-1),'water_polo');
+  const saved=await require('../app/persistence/training-storage.ts').loadTrainingState();assert.deepEqual(saved.settings.quickLogActivities.slice(-2),['mobility','water_polo']);
   require('sonner').toast('Safe inset QC');await wait(60);
   const toaster=document.querySelector('[data-sonner-toaster]');assert.ok(toaster,'notification is rendered');
   assert.equal(toaster.style.getPropertyValue('--offset-top'),'calc(var(--app-safe-top, 0px) + 16px)');

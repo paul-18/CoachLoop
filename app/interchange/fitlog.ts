@@ -47,7 +47,7 @@ const parsedWorkoutSchema = z.object({
   cardio: z.array(z.object({ name: z.string().min(1) })),
 });
 
-const parseNonNegativeNumber = (value: string, field: string): number | null => {
+const parseNonNegativeNumber = (value: string, field: string, max?: number): number | null => {
   const text = value.trim();
   if (!text) return null;
   if (!/^\d+(?:\.\d+)?$/.test(text)) {
@@ -56,6 +56,9 @@ const parseNonNegativeNumber = (value: string, field: string): number | null => 
   const number = Number(text);
   if (!Number.isFinite(number)) {
     throw new Error(`${field}: number is outside the supported range.`);
+  }
+  if (max !== undefined && number > max) {
+    throw new Error(`${field}: maximum supported value is ${max}.`);
   }
   return number;
 };
@@ -312,7 +315,7 @@ SET|8|160 kg total|RPE 8`
 SET|10|270 lb total|RPE 8
 SET|8|360 lb total|RPE 8`;
 
-  return `[FITLOG:1]
+  return `[FITLOG:3]
 WORKOUT|Example session — change it before you start|${localDate()}
 EXERCISE|Barbell Bench Press
 ${bench}
@@ -324,12 +327,15 @@ REST|90
 NOTES|Plate math calculates automatically from total weight.
 CARDIO|Interval run
 TYPE|run
+MODE|summary
 DURATION|20
 DISTANCE|3.2
 INTERVALS|4 x (3 min run / 1 min walk)
 INTENSITY|Comfortable tempo pace
 NOTES|Brisk walk recovery between run intervals.
-MOBILITY|Easy mobility
+CARDIO|Easy mobility
+TYPE|mobility
+MODE|summary
 MOVE|Hip flexor stretch|2 x 30 sec
 MOVE|Doorway chest stretch|2 x 30 sec
 NOTES|Comfortable range only.
@@ -350,9 +356,13 @@ SEGMENT|run|10 min|
 [/FITLOG]`;
 }
 
-export const parseFitlog = (source: string, defaultUnit: Unit, aliases: Record<string, string>): WorkoutSession => {
+export const parseFitlog = (source: string, defaultUnit: Unit = "lb", aliases: Record<string, string> = {}): WorkoutSession => {
   if (source.length > 250_000) throw new Error("This workout text is too large. Paste one workout at a time.");
-  const firstVersion = normalizedFitlogText(source).match(/\[FITLOG:([^\]]+)\]/i)?.[1];
+  const cleaned = normalizedFitlogText(source);
+  if (/\[FITLOG:[123]\]/i.test(cleaned) && !/\[\/FITLOG\]/i.test(cleaned)) {
+    throw new Error("Incomplete FITLOG block: missing closing [/FITLOG] tag. Your AI response may have been cut off—ask your AI to output the complete block.");
+  }
+  const firstVersion = cleaned.match(/\[FITLOG:([^\]]+)\]/i)?.[1];
   if (firstVersion === "2") return parseFitlogV2(source, defaultUnit, aliases);
   if (firstVersion === "3") return parseFitlogV3(source, defaultUnit, aliases);
   return parseFitlogV1(source, defaultUnit, aliases);
@@ -454,6 +464,9 @@ const parseFitlogV1 = (
         if (!validRepTarget(reps)) throw new Error("SET: enter a rep target with positive whole reps or an increasing range, such as 6 or 6-8.");
         const repRange = /^(\d+)\s*-\s*(\d+)$/.exec(reps);
         if (repRange && (Number(repRange[1]) < 1 || Number(repRange[2]) < Number(repRange[1]))) throw new Error("SET: use an increasing positive rep range, such as 6-8.");
+        const highRep = repRange ? Number(repRange[2]) : Number(reps);
+        if (highRep > 5000) throw new Error("SET: reps must not exceed 5000.");
+        if (currentExercise.sets.length >= 500) throw new Error("EXERCISE: maximum supported sets is 500.");
         if (parts.length > 4 || (parts[3] && !/^warm\s*up$/i.test(parts[3]))) throw new Error("SET: use reps|load|RPE or RIR|optional WARMUP. Put instructions on a NOTES line.");
         const weightText = parts[1] || "";
         const effort = parts[2] || "";
@@ -499,6 +512,7 @@ const parseFitlogV1 = (
         const block = currentExercise ?? currentCardio!;
         const seconds = parseRestSeconds(value);
         if (seconds === null || !Number.isFinite(seconds)) throw new Error("REST: enter a finite rest target, such as 60, 2 min or 1:30; omit the line if unspecified.");
+        if (seconds > 86400) throw new Error("REST: maximum supported rest is 86400 seconds (24 hours).");
         if (blockRest.has(block.id) && blockRest.get(block.id) !== seconds) throw new Error("REST: conflicting values in one block. This format stores one rest target per exercise/activity, not per set or effort. Use one REST line; explain any exceptions in NOTES.");
         blockRest.set(block.id, seconds);
         if (currentExercise) currentExercise.restSec = seconds;
@@ -510,6 +524,12 @@ const parseFitlogV1 = (
         if ((parts[0] && !distance) || (parts[1] && !load) || (parts[2] && !seconds) || parts.length > 3 || (!distance && !load && !seconds)) {
           throw new Error("EFFORT: use metres, load with lb/kg, and optional seconds, such as EFFORT|20 m|90 lb|10 sec. Leave unused columns blank.");
         }
+        const distNum = distance ? Number(distance[1]) : null;
+        if (distNum !== null && distNum > 1000000) throw new Error("EFFORT: maximum supported distance is 1000000 m.");
+        const loadNum = load ? Number(load[1]) : null;
+        if (loadNum !== null && loadNum > 5000) throw new Error("EFFORT: maximum supported load is 5000 lb/kg.");
+        const secNum = seconds ? Number(seconds[1]) : null;
+        if (secNum !== null && secNum > 604800) throw new Error("EFFORT: maximum supported duration is 604800 seconds (7 days).");
         const unit = load ? /^kg$/i.test(load[2]) ? "kg" : "lb" : null;
         if (unit && currentCardio.efforts?.some(e => e.plannedLoad !== null) && currentCardio.effortLoadUnit !== unit) {
           throw new Error("EFFORT: use the same load unit for every effort in an activity.");
@@ -517,9 +537,9 @@ const parseFitlogV1 = (
         if (unit) currentCardio.effortLoadUnit = unit;
         currentCardio.loggingStyle = "efforts";
         currentCardio.efforts = [...(currentCardio.efforts ?? []), {
-          id: uid("effort"), plannedDistanceM: distance ? Number(distance[1]) : null,
-          actualDistanceM: null, plannedLoad: load ? Number(load[1]) : null,
-          actualLoad: null, plannedDurationSec: seconds ? Number(seconds[1]) : null,
+          id: uid("effort"), plannedDistanceM: distNum,
+          actualDistanceM: null, plannedLoad: loadNum,
+          actualLoad: null, plannedDurationSec: secNum,
           actualDurationSec: null, completed: false,
         }];
       } else if (command === "CARDIO") {
@@ -543,21 +563,23 @@ const parseFitlogV1 = (
         if (inferred) inferred.explicit = true;
         currentCardio.loggingStyle = makeCardio(currentCardio.activityType).loggingStyle;
       } else if (command === "DURATION" && currentCardio) {
-        currentCardio.plannedDurationMin = parseNonNegativeNumber(value, "DURATION");
+        currentCardio.plannedDurationMin = parseNonNegativeNumber(value, "DURATION", 10080);
       } else if (command === "DISTANCE" && currentCardio) {
-        currentCardio.plannedDistanceKm = parseNonNegativeNumber(value, "DISTANCE");
+        currentCardio.plannedDistanceKm = parseNonNegativeNumber(value, "DISTANCE", 1000);
       } else if (command === "RUCKLOAD" && currentCardio) {
         if (currentCardio.activityType !== "ruck" && currentCardio.activityType !== "other") throw new Error("RUCKLOAD is only valid for a ruck activity");
         const load = value ? ruckLoadPattern.exec(value) : null;
         if (value && !load) throw new Error("RUCKLOAD: use a non-negative number with lb or kg, such as 45 lb.");
-        currentCardio.ruckLoad = load ? Number(load[1]) : null;
+        const ruckLoadNum = load ? Number(load[1]) : null;
+        if (ruckLoadNum !== null && ruckLoadNum > 5000) throw new Error("RUCKLOAD: maximum supported load is 5000 lb/kg.");
+        currentCardio.ruckLoad = ruckLoadNum;
         currentCardio.ruckLoadUnit = load ? /^kg$/i.test(load[2]) ? "kg" : "lb" : defaultUnit;
         currentCardio.activityType = "ruck";
       } else if (command === "HR" && currentCardio) {
-        const target = parseNonNegativeNumber(value, "HR");
+        const target = parseNonNegativeNumber(value, "HR", 300);
         if (target !== null) appendCoachNote(currentCardio, `Target average HR: ${target} bpm.`);
       } else if (command === "ELEVATION" && currentCardio) {
-        const target = parseNonNegativeNumber(value, "ELEVATION");
+        const target = parseNonNegativeNumber(value, "ELEVATION", 100000);
         if (target !== null) appendCoachNote(currentCardio, `Target total ascent: ${target} m.`);
       } else if (command === "PACE" && currentCardio) {
         if (value) appendCoachNote(currentCardio, `Target pace: ${value}.`);

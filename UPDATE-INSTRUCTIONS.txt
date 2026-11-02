@@ -1,6 +1,6 @@
 COACH LOOP — APPLYING AN AI-PROVIDED UPDATE
 
-Current published release: v117 (`app/app-release.ts` on `main`). Check the
+Current published release: v118 (`app/app-release.ts` on `main`). Check the
 selected release's notes, QC and exact
 baseline before applying it; do not use this file as a version-specific recipe.
 

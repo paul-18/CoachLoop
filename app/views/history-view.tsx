@@ -249,14 +249,14 @@ export function HistoryView({
                   {isOpen ? <ChevronUp className="size-4 text-white/60" /> : <ChevronDown className="size-4 text-white/60" />}
                 </button>
                 {isOpen && (
-                  <div className="mt-5 border-t border-white/7 pt-5">
+                  <div className="mt-5 border-t border-white/7 pt-5" onClick={(e) => e.stopPropagation()}>
                     {workout.status === "skipped" ? (
                       <div className="rounded-xl border border-amber-300/10 bg-amber-300/[0.035] p-4 text-sm leading-6 text-white/58">
                         <strong className="text-amber-200/80">Reason recorded</strong>
                         <p className="mt-1">{workout.skipReason || "No reason recorded."}</p>
                       </div>
                     ) : <HistoryWorkoutDetails workout={workout} unit={state.settings.defaultUnit} history={state.workouts} />}
-                    <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="mt-5 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                       {workout.status === "skipped" ? (
                         <Button size="sm" variant="outline" onClick={() => onReplan(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Replan</Button>
                       ) : (

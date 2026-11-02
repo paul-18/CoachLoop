@@ -80,8 +80,8 @@ export function activityTotals(rows:ReturnType<typeof activityRows>) {
     const distance = a.segments?.length ? segmentMeasure(a, "distance") : null;
     return {minutes:sum.minutes+(performedDuration(a)??0),distance:sum.distance+(performedDistance(a)??0),
       ascent:sum.ascent+(a.elevationM??0),ruckKgKm:sum.ruckKgKm+(a.activityType==='ruck' && a.ruckLoad!==null ? convertWeight(a.ruckLoad,a.ruckLoadUnit,'kg')*(performedDistance(a)??0):0),
-      minutesIncomplete: sum.minutesIncomplete || (duration !== null && duration.done > 0 && !duration.fullyRecorded),
-      distanceIncomplete: sum.distanceIncomplete || (distance !== null && distance.done > 0 && !distance.fullyRecorded)};
+      minutesIncomplete: sum.minutesIncomplete || (duration !== null && duration.done > 0 && !duration.fullyRecorded) || (duration === null && performedDuration(a) === null),
+      distanceIncomplete: sum.distanceIncomplete || (distance !== null && distance.done > 0 && !distance.fullyRecorded) || (distance === null && performedDistance(a) === null)};
   },{minutes:0,distance:0,ascent:0,ruckKgKm:0,minutesIncomplete:false,distanceIncomplete:false});
 }
 export const validMeasurementDate = (date:string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date+'T12:00:00Z')) && new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date;

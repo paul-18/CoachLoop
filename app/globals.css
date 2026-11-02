@@ -1016,6 +1016,25 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 
 .workout-shell { --live-header-height:calc(72px + var(--app-safe-top) + var(--workout-header-clearance)); --workout-content-offset:var(--measured-header-height, var(--live-header-height)); }
 .workout-header { height:var(--live-header-height); min-height:var(--live-header-height); padding-top:calc(10px + var(--app-safe-top) + var(--workout-header-clearance)); }
+@media (max-width: 640px) {
+  .workout-shell.has-rest-timer {
+    --live-header-height: calc(56px + var(--app-safe-top));
+    --live-rest-height: 48px;
+  }
+  .workout-shell.has-rest-timer .workout-header {
+    height: var(--live-header-height);
+    min-height: var(--live-header-height);
+    padding: calc(6px + var(--app-safe-top)) 10px 6px;
+    gap: 6px;
+  }
+  .workout-shell.has-rest-timer .workout-header-title p {
+    display: none;
+  }
+  .workout-shell.has-rest-timer .rest-timer {
+    min-height: 48px;
+    padding: 4px 12px;
+  }
+}
 html[data-app-standalone="true"] body::before {
   content:""; position:fixed; inset:0 0 auto; height:var(--app-safe-top);
   background:#10120f; z-index:49; pointer-events:none;

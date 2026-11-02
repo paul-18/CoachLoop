@@ -4,14 +4,32 @@ import { segmentCounts, segmentHasTypedActual, segmentMeasure } from "./activity
 export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.skipped && (activity.segments?.length
   ? segmentCounts(activity.segments).done > 0
   : activity.completed || !!activity.efforts?.some((e) => e.completed) || (activity.roundsDone ?? 0) > 0);
-export const performedDuration = (activity: CardioEntry) =>
-  activity.segments?.length
-    ? (() => { const result = segmentMeasure(activity, "duration"); return result?.fullyRecorded ? result.value === null ? null : result.value / 60 : null; })()
-    : activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDurationSec === null ? sum : (sum ?? 0) + e.actualDurationSec / 60, null) : activity.actualDurationMin;
-export const performedDistance = (activity: CardioEntry) =>
-  activity.segments?.length
-    ? (() => { const result = segmentMeasure(activity, "distance"); return result?.fullyRecorded ? result.value === null ? null : result.value / 1000 : null; })()
-    : activity.efforts?.length ? activity.efforts.filter((e) => e.completed).reduce<number | null>((sum, e) => e.actualDistanceM === null ? sum : (sum ?? 0) + e.actualDistanceM / 1000, null) : activity.actualDistanceKm;
+export const performedDuration = (activity: CardioEntry) => {
+  if (activity.segments?.length) {
+    const result = segmentMeasure(activity, "duration");
+    return result?.fullyRecorded ? (result.value === null ? null : result.value / 60) : null;
+  }
+  if (activity.efforts?.length) {
+    const completedEfforts = activity.efforts.filter((e) => e.completed);
+    if (!completedEfforts.length) return null;
+    if (completedEfforts.some((e) => e.actualDurationSec === null)) return null;
+    return completedEfforts.reduce((sum, e) => sum + e.actualDurationSec! / 60, 0);
+  }
+  return activity.actualDurationMin;
+};
+export const performedDistance = (activity: CardioEntry) => {
+  if (activity.segments?.length) {
+    const result = segmentMeasure(activity, "distance");
+    return result?.fullyRecorded ? (result.value === null ? null : result.value / 1000) : null;
+  }
+  if (activity.efforts?.length) {
+    const completedEfforts = activity.efforts.filter((e) => e.completed);
+    if (!completedEfforts.length) return null;
+    if (completedEfforts.some((e) => e.actualDistanceM === null)) return null;
+    return completedEfforts.reduce((sum, e) => sum + e.actualDistanceM! / 1000, 0);
+  }
+  return activity.actualDistanceKm;
+};
 
 /** Print a measured total. Does not change stored metres, seconds or sums. */
 export function formatMeasure(value: number, maxDecimals = 2): string {
@@ -162,6 +180,8 @@ const openActivities = (workout: WorkoutSession) => workout.cardio.filter(activi
 
 /** The same counts for the workout header and the finish dialog. Skipped work is left out. */
 export function workoutProgressCopy(workout: WorkoutSession): string {
+  const allSets = workout.exercises.flatMap(exercise => exercise.sets);
+  const skippedSets = allSets.filter(set => set.skipped && !set.completed).length;
   const sets = countableSets(workout);
   const doneSets = sets.filter(set => set.completed && !set.skipped).length;
   const activities = openActivities(workout);
@@ -176,7 +196,12 @@ export function workoutProgressCopy(workout: WorkoutSession): string {
     const counts = segmentCounts(activity.segments ?? []);
     return `${activity.name} ${piece(counts.done, counts.total, "interval", "intervals")}`;
   });
-  const counts = [piece(doneSets, sets.length, "set", "sets"), piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities"), ...partProgress].filter(Boolean);
+  const setPiece = sets.length
+    ? `${doneSets}/${sets.length} ${sets.length === 1 ? "set" : "sets"}${skippedSets > 0 ? ` · ${skippedSets} skipped` : ""}`
+    : skippedSets > 0
+    ? `0 sets · ${skippedSets} skipped`
+    : "";
+  const counts = [setPiece, piece(doneEfforts, efforts.length, "effort", "efforts"), piece(doneSingles, singles.length, "activity", "activities"), ...partProgress].filter(Boolean);
   return counts.join(" · ");
 }
 
