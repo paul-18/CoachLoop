@@ -181,7 +181,7 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
   return lines.join("\n");
 };
 
-export type QuickTrainingRange = "last" | "today" | "two-days";
+export type QuickTrainingRange = "last" | "today" | "two-days" | "seven-days" | "fourteen-days" | "thirty-days" | "sixty-days";
 
 /** A factual chat update without profile, goals, schedule, or a new workout request. */
 export const buildQuickTrainingExtract = (
@@ -192,14 +192,21 @@ export const buildQuickTrainingExtract = (
   const completed = state.workouts
     .filter((workout) => workout.status === "completed" && workout.date <= today)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.completedAt ?? a.createdAt).localeCompare(b.completedAt ?? b.createdAt));
+  const daysAgo = range === "today" ? 0
+    : range === "two-days" ? 1
+    : range === "seven-days" ? 6
+    : range === "fourteen-days" ? 13
+    : range === "thirty-days" ? 29
+    : range === "sixty-days" ? 59
+    : null;
   const workouts = range === "last"
     ? completed.slice(-1)
-    : completed.filter((workout) => workout.date >= (range === "today" ? today : localDateDaysEarlier(1, today)));
+    : completed.filter((workout) => workout.date >= (daysAgo === 0 ? today : localDateDaysEarlier(daysAgo!, today)));
   const heading = range === "last"
     ? "MOST RECENT COMPLETED WORKOUT"
     : range === "today"
       ? `COMPLETED WORKOUTS — ${today}`
-      : `COMPLETED WORKOUTS — ${localDateDaysEarlier(1, today)} TO ${today}`;
+      : `COMPLETED WORKOUTS — ${localDateDaysEarlier(daysAgo!, today)} TO ${today}`;
   return `${heading}\n${workouts.length ? workouts.map((workout) => workoutToText(workout, false)).join("\n\n") : "No completed workouts recorded in this period."}`;
 };
 

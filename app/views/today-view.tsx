@@ -437,15 +437,18 @@ export function CoachDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-3xl">
-        <DialogHeader className="border-b border-white/8 p-6 pb-5 text-left">
-          <DialogTitle className="text-xl font-black tracking-[-0.035em]">Build your coach brief</DialogTitle>
-          <DialogDescription className="leading-6 text-white/48">
-            Choose whether your AI already knows your background. Your recorded history and FITLOG instructions are added automatically.
+      <DialogContent className="max-h-[90dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
+        <DialogHeader className="border-b border-white/8 p-4 pb-3 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="text-lg font-black tracking-[-0.035em]">Build your coach brief</DialogTitle>
+            <Button type="button" variant="outline" size="sm" onClick={clearToday} className="h-7 px-2 text-xs text-white/70 hover:text-white">Clear today’s fields</Button>
+          </div>
+          <DialogDescription className="text-xs leading-5 text-white/48">
+            Choose whether your AI already knows your background. Recorded history and FITLOG instructions are added automatically.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 p-6 sm:grid-cols-2">
-          <div className="coach-mode-picker sm:col-span-2" aria-label="Chat context">
+        <div className="grid min-w-0 grid-cols-2 gap-3 p-4">
+          <div className="coach-mode-picker col-span-2" aria-label="Chat context">
             <button type="button" aria-pressed={options.mode === "continue"} className={options.mode === "continue" ? "active" : ""} onClick={() => field("mode", "continue")}>
               <Redo2 />
               <span><strong>Continue existing chat</strong><small>Recent log and today’s readiness</small></span>
@@ -455,41 +458,31 @@ export function CoachDialog({
               <span><strong>Start a new chat</strong><small>Full athlete profile plus recent log</small></span>
             </button>
           </div>
-          <label className="field-label">
+          <label className="field-label col-span-2">
             Training history
             <NativeSelect
               value={options.days}
               onChange={(event) => setOptions((current) => ({ ...current, days: Number(event.target.value) as CoachOptions["days"], since: null, sinceAt: null }))}
-              className="mt-2 w-full border-white/10 bg-black/20 text-white"
+              className="mt-1.5 w-full border-white/10 bg-black/20 text-white"
             >
               <NativeSelectOption value="0">Latest completed session</NativeSelectOption>
               <NativeSelectOption value="1">Last 1 day</NativeSelectOption>
+              <NativeSelectOption value="2">Last 2 days</NativeSelectOption>
               <NativeSelectOption value="7">Last 7 days</NativeSelectOption>
               <NativeSelectOption value="14">Last 14 days</NativeSelectOption>
               <NativeSelectOption value="30">Last 30 days</NativeSelectOption>
+              <NativeSelectOption value="60">Last 60 days</NativeSelectOption>
             </NativeSelect>
-            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-2 text-xs font-bold text-[var(--lime)]" : "mt-2 text-xs font-semibold text-white/60 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
+            {state.settings.lastCoachBriefAt && <button type="button" onClick={() => setOptions((current) => ({ ...current, since: state.settings.lastCoachBriefAt ? localDate(new Date(state.settings.lastCoachBriefAt)) : null, sinceAt: state.settings.lastCoachBriefAt }))} className={options.since ? "mt-1.5 text-xs font-bold text-[var(--lime)]" : "mt-1.5 text-xs font-semibold text-white/60 hover:text-white/70"}>Use only sessions since your last brief ({formatDate(localDate(new Date(state.settings.lastCoachBriefAt)))})</button>}
           </label>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
-            <p className="text-xs leading-5 text-white/55">Readiness and PT are remembered today after Copy or Mark sent. Clear them for a fresh check-in.</p>
-            <Button type="button" variant="outline" onClick={clearToday}>Clear today’s fields</Button>
-          </div>
           <label className="field-label">
             Energy (1–10)
             <Input
               inputMode="decimal"
               value={options.energy}
+              placeholder="7"
               onChange={(event) => field("energy", event.target.value)}
-              className="mt-2 border-white/10 bg-black/20"
-            />
-          </label>
-          <label className="field-label">
-            Soreness
-            <Input
-              value={options.soreness}
-              onChange={(event) => field("soreness", event.target.value)}
-              placeholder="Low, legs 5/10…"
-              className="mt-2 border-white/10 bg-black/20"
+              className="mt-1.5 border-white/10 bg-black/20"
             />
           </label>
           <label className="field-label">
@@ -497,8 +490,17 @@ export function CoachDialog({
             <Input
               value={options.sleep}
               onChange={(event) => field("sleep", event.target.value)}
-              placeholder="6.5 hours, interrupted…"
-              className="mt-2 border-white/10 bg-black/20"
+              placeholder="7 hrs, good…"
+              className="mt-1.5 border-white/10 bg-black/20"
+            />
+          </label>
+          <label className="field-label">
+            Soreness
+            <Input
+              value={options.soreness}
+              onChange={(event) => field("soreness", event.target.value)}
+              placeholder="Low, legs 4/10…"
+              className="mt-1.5 border-white/10 bg-black/20"
             />
           </label>
           <label className="field-label">
@@ -506,35 +508,35 @@ export function CoachDialog({
             <Input
               value={options.restrictions}
               onChange={(event) => field("restrictions", event.target.value)}
-              placeholder="No running, shoulder sore…"
-              className="mt-2 border-white/10 bg-black/20"
+              placeholder="None, shoulder 3/10…"
+              className="mt-1.5 border-white/10 bg-black/20"
             />
           </label>
-          <label className="field-label min-w-0 sm:col-span-2">
+          <label className="field-label min-w-0 col-span-2">
             Mandatory PT / next 48 hours
             <Input
               value={options.schedule}
               onChange={(event) => field("schedule", event.target.value)}
               placeholder="Circuit this morning; 50 lb ruck tomorrow…"
-              className="mt-2 min-w-0 max-w-full border-white/10 bg-black/20"
+              className="mt-1.5 min-w-0 max-w-full border-white/10 bg-black/20"
             />
           </label>
-          <label className="field-label min-w-0 sm:col-span-2">
+          <label className="field-label min-w-0 col-span-2">
             Anything to emphasize?
-            <Textarea value={options.emphasis ?? ""} onChange={(event) => field("emphasis", event.target.value)} placeholder="What matters for this request? Changes since your last chat, what you want to focus on, or anything your AI should consider…" className="mt-2 min-h-28 border-white/10 bg-black/20" />
-            <span className="mt-2 block text-xs font-normal leading-5 text-white/55">Included in this brief only. Not remembered after closing or added to your profile.</span>
+            <Textarea value={options.emphasis ?? ""} onChange={(event) => field("emphasis", event.target.value)} placeholder="What matters for this request? Changes since your last chat, what you want to focus on…" className="mt-1.5 min-h-20 border-white/10 bg-black/20" />
+            <span className="mt-1 block text-xs font-normal leading-4 text-white/45">Included in this brief only. Not remembered after closing or added to your profile.</span>
           </label>
-          <details className="sm:col-span-2 rounded-xl border border-white/8 bg-black/15 p-4">
-            <summary className="cursor-pointer text-sm font-bold text-white/70">Optional request details</summary>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="field-label">Time available<Input value={options.timeAvailable} onChange={(event) => field("timeAvailable", event.target.value)} placeholder="60 minutes" className="mt-2 border-white/10 bg-black/20" /></label>
-              <label className="field-label">Equipment<Input value={options.equipment} onChange={(event) => field("equipment", event.target.value)} placeholder="Full gym" className="mt-2 border-white/10 bg-black/20" /></label>
-              <label className="field-label sm:col-span-2">What should your AI do?<Textarea value={options.request} onChange={(event) => field("request", event.target.value)} placeholder="Recommend my next workout based on my recent training, recovery, and goals." className="mt-2 min-h-20 border-white/10 bg-black/20" /></label>
+          <details className="col-span-2 rounded-xl border border-white/8 bg-black/15 p-3">
+            <summary className="cursor-pointer text-xs font-bold text-white/70">Optional request details</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="field-label">Time available<Input value={options.timeAvailable} onChange={(event) => field("timeAvailable", event.target.value)} placeholder="60 minutes" className="mt-1.5 border-white/10 bg-black/20" /></label>
+              <label className="field-label">Equipment<Input value={options.equipment} onChange={(event) => field("equipment", event.target.value)} placeholder="Full gym" className="mt-1.5 border-white/10 bg-black/20" /></label>
+              <label className="field-label sm:col-span-2">What should your AI do?<Textarea value={options.request} onChange={(event) => field("request", event.target.value)} placeholder="Recommend my next workout based on my recent training, recovery, and goals." className="mt-1.5 min-h-16 border-white/10 bg-black/20" /></label>
             </div>
           </details>
-          <details className="sm:col-span-2 rounded-xl border border-white/8 bg-black/15 p-4">
-            <summary className="cursor-pointer text-sm font-bold text-white/70">Preview copied text</summary>
-            <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap text-xs leading-5 text-white/60">{prompt}</pre>
+          <details className="col-span-2 rounded-xl border border-white/8 bg-black/15 p-3">
+            <summary className="cursor-pointer text-xs font-bold text-white/70">Preview copied text</summary>
+            <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-5 text-white/60">{prompt}</pre>
           </details>
         </div>
         <DialogFooter className="border-t border-white/8 p-5">

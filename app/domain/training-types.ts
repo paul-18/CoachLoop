@@ -272,7 +272,7 @@ export interface TrainingState {
 
 export interface CoachOptions {
   mode: "new" | "continue";
-  days: 0 | 1 | 7 | 14 | 30;
+  days: 0 | 1 | 2 | 7 | 14 | 30 | 60;
   since?: string | null;
   /** Precise sent time used to include corrections to sessions whose training date is older than the visible cutoff. */
   sinceAt?: string | null;

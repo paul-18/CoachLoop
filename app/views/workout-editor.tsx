@@ -120,6 +120,18 @@ const isBarbellExercise = (name: string) => {
   return /barbell|bench press|deadlift|back squat|front squat|overhead press|military press/.test(value);
 };
 
+const isLegPress = (name: string) => /leg press/i.test(name);
+
+function formatGroupedPlates(plates: number[]): string {
+  const counts = new Map<number, number>();
+  for (const p of plates) counts.set(p, (counts.get(p) ?? 0) + 1);
+  const parts: string[] = [];
+  counts.forEach((count, plate) => {
+    parts.push(count > 1 ? `${plate} × ${count}` : `${plate}`);
+  });
+  return parts.join(" + ");
+}
+
 const plateColors: Record<string, string> = {
   "45": "#4f83ff",
   "35": "#ffcf4a",
@@ -136,13 +148,50 @@ function PlateVisualizer({
   total,
   unit,
   barWeight,
+  isLegPress = false,
 }: {
   total: number | null;
   unit: Unit;
   barWeight: number;
+  isLegPress?: boolean;
 }) {
-  if (total === null || !Number.isFinite(total) || total > 5000 || !Number.isFinite(barWeight) || barWeight < 0 || total < barWeight) return null;
+  if (total === null || !Number.isFinite(total) || total > 5000 || total <= 0 || !Number.isFinite(barWeight) || barWeight < 0 || (!isLegPress && total < barWeight)) return null;
   const available = unit === "lb" ? [45, 35, 25, 10, 5, 2.5, 1.25] : [25, 20, 15, 10, 5, 2.5, 1.25];
+
+  if (isLegPress) {
+    let remaining = total;
+    const plates: number[] = [];
+    for (const plate of available) {
+      const count = Math.min(32 - plates.length, Math.floor((remaining + 0.001) / plate));
+      for (let i = 0; i < count; i++) plates.push(plate);
+      remaining -= count * plate;
+    }
+    const grouped = formatGroupedPlates(plates);
+    const canSplitSymmetric = plates.length > 1 && plates.every((p) => plates.filter(x => x === p).length % 2 === 0);
+    const perSidePlates = canSplitSymmetric ? plates.filter((_, idx) => idx % 2 === 0) : null;
+    const perSideText = perSidePlates ? ` (${formatGroupedPlates(perSidePlates)} per side)` : "";
+
+    return (
+      <div className="plate-visualizer" aria-label={`Leg press plate loading for ${total} ${unit}`}>
+        <span className="plate-bar" />
+        {plates.slice(0, 16).map((plate, index) => (
+          <span
+            key={`${plate}-${index}`}
+            className="plate-disc"
+            style={{ backgroundColor: plateColors[String(plate)] ?? "#888f82" }}
+          >
+            {plate}
+          </span>
+        ))}
+        {plates.length > 16 && <span className="text-[10px] text-white/50">+{plates.length - 16}</span>}
+        <span className="plate-copy">
+          {plates.length ? `${grouped} ${unit}${perSideText}` : `0 ${unit}`}
+          {remaining > 0.01 ? ` · ${remaining.toFixed(2).replace(/\.00$/, "")} ${unit} unfilled` : ""}
+        </span>
+      </div>
+    );
+  }
+
   let remaining = Math.max(0, (total - barWeight) / 2);
   const plates: number[] = [];
   for (const plate of available) {
@@ -150,6 +199,7 @@ function PlateVisualizer({
     for (let i = 0; i < count; i++) plates.push(plate);
     remaining -= count * plate;
   }
+  const grouped = formatGroupedPlates(plates);
 
   return (
     <div className="plate-visualizer" aria-label={`Barbell loading for ${total} ${unit}`}>
@@ -164,7 +214,7 @@ function PlateVisualizer({
         </span>
       ))}
       <span className="plate-copy">
-        {plates.length ? `${plates.join(" + ")} ${unit} per side` : `Empty ${barWeight} ${unit} bar`}
+        {plates.length ? `${grouped} ${unit} per side` : `Empty ${barWeight} ${unit} bar`}
         {remaining > 0.01 ? ` · ${remaining.toFixed(2).replace(/\.00$/, "")} ${unit} unfilled` : ""}
       </span>
     </div>
@@ -481,11 +531,12 @@ function ExerciseEditor({
               }}
               onRemove={() => removeSet(set.id)}
             />
-            {set.id === nextSetId && set.loadType === "weighted" && set.weightMode === "total" && isBarbellExercise(exercise.name) && (
+            {set.id === nextSetId && set.loadType === "weighted" && set.weightMode === "total" && (isBarbellExercise(exercise.name) || isLegPress(exercise.name)) && (
               <PlateVisualizer
                 total={set.completedAsPlanned ? set.plannedWeight : set.actualWeight ?? set.plannedWeight}
                 unit={set.unit}
-                barWeight={set.unit === "lb" ? barWeightLb : barWeightKg}
+                barWeight={isLegPress(exercise.name) ? 0 : (set.unit === "lb" ? barWeightLb : barWeightKg)}
+                isLegPress={isLegPress(exercise.name)}
               />
             )}
           </div>

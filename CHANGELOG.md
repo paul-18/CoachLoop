@@ -2,6 +2,15 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v115 — published
+
+- Leg Press plate calculator: exercises matching Leg Press now display a plate breakdown calculated directly from total weight loaded (assuming 0 collar weight) using grouped multiplication syntax (e.g. `45 × 7 lb`, `45 × 6 + 25 lb`, and symmetric per-side counts when even).
+- Import preview alignment & spacing: eliminated awkward nested margins (`.preview-nested`); styled repeat items with a lime border accent flush with card margins; placed the Category selector inline with activity titles to keep lower cards visible.
+- Expanded Coach training ranges: added 2, 7, 14, 30, and 60 days to Quick update in Coach view, and added 2 and 60 days to training history options in Coach brief builder (for both existing and new chats).
+- History export containment: locked horizontal overflow across `html`, `body`, and dialogs (`overflow-x: hidden; touch-action: pan-y`) so opening or viewing export text cannot shift or wobble the screen on iPhone.
+- Compact Coach Brief Builder: condensed dialog headers, grouped readiness into a 2-column mobile grid, and reduced vertical height.
+- See [v115 update notes](docs/releases/V115-UPDATE-NOTES.md).
+
 ## v114 — published
 
 - iPhone 17 PWA & Dynamic Island: updated safe-area top fallback from 56px to 59px for iPhone 14 Pro/15/16 Pro/17 Dynamic Island dimension; added `-webkit-touch-callout: none` and `user-select: none` across workout cards and navigation to prevent accidental gym selection.
