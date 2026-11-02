@@ -66,7 +66,7 @@ It covers strength workouts, cardio, sports, conditioning, and mobility.
 1. **Open** the app: **[paul-18.github.io/CoachLoop](https://paul-18.github.io/CoachLoop/)**
 2. **Set up** your coach profile and ranked goals ([details](#first-time-setup)).
 3. Go to **Coach → Build coach brief → Start a new chat → Copy full context**.
-4. **Paste** the brief into your AI and ask for your next workout as a single `[FITLOG:1] ... [/FITLOG]` block.
+4. **Paste** the brief into your AI and ask for your next workout as a single `[FITLOG:3] ... [/FITLOG]` block.
 5. **Import** the block in **Today → Import workout**, review the preview, and train.
 
 You can start with an empty log. Tell the AI what you know about your training and let history build over time.
@@ -135,7 +135,7 @@ Already have a backup? Restore it with **Settings → Restore backup**.
 3. Add today's energy, sleep, soreness, restrictions, and upcoming activity. Use **Optional request details** for available time, equipment, and what you want planned.
 4. Tap **Copy full context**.
 5. Paste it into a new conversation in your AI of choice.
-6. Discuss your goals, then ask for your next workout as **one** `[FITLOG:1] ... [/FITLOG]` block, following the instructions in the brief.
+6. Discuss your goals, then ask for your next workout as **one** `[FITLOG:3] ... [/FITLOG]` block, following the instructions in the brief.
 
 ---
 
@@ -154,7 +154,7 @@ Ask your AI → import the plan → log what you actually do → review → send
 ### Brief shortcuts
 
 - **Mark sent** records that you shared a brief (it doesn't send anything). Choose the “since last brief” option to include newer sessions and later corrections.
-- For a shorter update, copy your **last workout**, **today's training**, or the **last two days**.
+- For a shorter update, copy your **last workout**, **today's training**, or **last 2, 7, 14, 30, or 60 days**.
 - **Copy format** shares only the FITLOG instructions.
 - **Anything to emphasize?** adds a note to this brief only, for any AI you choose. It is not remembered after closing or added to your profile. **Clear today’s fields** clears readiness, PT, restrictions and optional request details, including the remembered same-day check-in; your profile, goals and history stay intact.
 
@@ -163,11 +163,14 @@ Ask your AI → import the plan → log what you actually do → review → send
 FITLOG is the plain-text format the AI uses to hand you a workout. It's wrapped in one block:
 
 ```text
-[FITLOG:1]
-WORKOUT|Example strength and easy run|2026-10-03
+[FITLOG:3]
+WORKOUT|2026-11-01|Example strength and easy run
+FOCUS|Strength foundation + recovery jog
+
 EXERCISE|Bench press
 SET|6-8|40 kg total|RIR 2
 REST|120
+
 CARDIO|Easy run
 TYPE|run
 DURATION|15
@@ -191,6 +194,7 @@ If an import fails, see [troubleshooting](#faq-and-troubleshooting).
 ### Training
 
 - **Strength logging**: sets, reps, loads, RPE/RIR, warm-ups, notes, and rest timing. Tap a set’s number/W menu to **Insert set before** or **Insert set after**, including extra warm-ups between existing sets. A new set inherits the selected set’s targets and warm-up type, starts unfinished, and can be edited independently. Planned work stays separate from completed results.
+- **Plate visualizer**: barbell exercises calculate plate breakdown per side (e.g. `45 × 3 lb per side`). Exercises matching **Leg Press** calculate plate loading directly from total weight loaded with zero collar weight (e.g. `45 × 7 lb`, `45 × 6 + 25 lb`, or `45 × 14 lb (45 × 7 per side)`).
 - **Activities and mobility**: running, rucking, swimming, cycling, rowing, walking, hiking, circuits, FORCE, soccer, grappling, yoga, water polo, and more. Mobility plans can go movement by movement.
 - **Readable intervals**: semicolon-separated run instructions display as stages.
 - **HYROX simulation** *(optional)*: run-and-station timer with division selection.
@@ -311,13 +315,13 @@ Start a new chat with **Start a new chat → Copy full context**.
 
 ## Updates
 
-The latest published release is **v105** (`main` commit `b8f169139f09e412872f65e70126197382c2c9ac`). Its release gate passed and it is live on GitHub Pages. See [v105 notes](docs/releases/V105-UPDATE-NOTES.md) and [v105 QC](docs/releases/V105-QC.md). The previous [v104 notes](docs/releases/V104-UPDATE-NOTES.md) and [v104 QC](docs/releases/V104-QC.md) remain in the archive.
+The latest published release is **v115** (`main`). Its release gate passed and it is live on GitHub Pages. See [v115 notes](docs/releases/V115-UPDATE-NOTES.md). Earlier release details are in [CHANGELOG.md](CHANGELOG.md) and the [release archive](docs/README.md).
 
-v105 fixes note and effort retention in the second finish review, keeps completion changes provisional until Save, aligns unfinished-activity count and detail, and updates two UI messages.
-
-v102 warns before saving an impossible distance and duration, aligns History counts with the workout header, and shows a skipped activity as Skipped. The first saved-workout note also appears on History. First-run choices are Explore a sample log, Preview one workout, and Set up my log. Not now dismisses the coaching prompt without marking the profile done. See [v102 notes](docs/releases/V102-UPDATE-NOTES.md) and [v102 checks](docs/releases/V102-QC.md).
-
-v101 aligns workout counts, lets you skip an activity without the rest timer pointing at it, and keeps the first-run screen to two choices plus Restore backup. A kilogram log gets a 100 kg bench goal. See [v101 notes](docs/releases/V101-UPDATE-NOTES.md) and [iPhone QC](docs/releases/V101-QC.md).
+- **v115**: Dedicated plate breakdown for Leg Press directly from total weight (`45 × 7 lb`, `45 × 6 + 25 lb`); aligned Import preview cards; expanded Coach history ranges (2, 7, 14, 30, 60 days); iOS horizontal viewport containment on History export; compact Coach Brief Builder dialog. See [v115 update notes](docs/releases/V115-UPDATE-NOTES.md).
+- **v114**: iPhone 17 PWA & Dynamic Island clearance (59px top safe area); touch ergonomics (44px touch targets); station surface luminance shifts. See [v114 update notes](docs/releases/V114-UPDATE-NOTES.md).
+- **v113**: Clean repeat group headings; circuit AMRAP & rounds steppers; compact side-by-side activity basic inputs. See [v113 update notes](docs/releases/V113-UPDATE-NOTES.md).
+- **v112**: Coach FITLOG format disclosure fix; card visual surface consistency; separate round station rows. See [v112 update notes](docs/releases/V112-UPDATE-NOTES.md).
+- **v111**: Plain-language interval/round/set sweep; quick-add stepper rows; circuit rounds counter. See [v111 update notes](docs/releases/V111-UPDATE-NOTES.md).
 
 For future ZIP updates, upload the ZIP directly into Codespace beside package.json, rather than committing it through GitHub. Follow [the reusable upload procedure](UPDATE-INSTRUCTIONS.txt) and the package's exact baseline, file list and deletions. Existing historical ZIPs are not removed from Git history by deleting today's file.
 
