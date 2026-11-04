@@ -43,6 +43,23 @@ test("v117: export history inputs are block-aligned with left-aligned date value
   assert.match(css, /input\[type="date"\]\s*\{\s*text-align:\s*left;/);
 });
 
+test("v119 maintenance: completing a set does not auto-focus the next reps field", () => {
+  const editor = fs.readFileSync(path.join(root, "app/views/workout-editor.tsx"), "utf8");
+  assert.ok(editor.includes('document.getElementById(`reps-${set.id}`)?.focus()'), "validation still focuses the current reps field when confirmation is required");
+  assert.ok(!editor.includes("nextIncomplete"), "completion must not move focus to the next set and open the mobile keyboard");
+  assert.ok(!editor.includes("queueMicrotask(() => document.getElementById"), "completion must not schedule an automatic input focus");
+});
+
+test("v119 maintenance: native date inputs and their labels are shrinkable and fill their containers", () => {
+  const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
+  assert.match(css, /\.field-label\s*\{[^}]*min-width:\s*0;/);
+  assert.match(css, /input\[type="date"\]\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0;/);
+
+  const dateDialog = fs.readFileSync(path.join(root, "app/views/workout-date-dialog.tsx"), "utf8");
+  assert.ok(dateDialog.includes('className="field-label block min-w-0"'));
+  assert.ok(dateDialog.includes("block w-full min-w-0 max-w-full box-border"));
+});
+
 test("v117: stepper done current button has subdued font weight", () => {
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
   assert.match(css, /\.stepper-done-current\s*\{[^}]*font-weight:\s*650;/);
