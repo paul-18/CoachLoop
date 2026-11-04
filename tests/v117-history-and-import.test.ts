@@ -64,3 +64,23 @@ test("v117: stepper done current button has subdued font weight", () => {
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
   assert.match(css, /\.stepper-done-current\s*\{[^}]*font-weight:\s*650;/);
 });
+
+
+test("v119 maintenance: PT schedule archives past events and ended training periods", () => {
+  const settings = fs.readFileSync(path.join(root, "app/views/settings-view.tsx"), "utf8");
+  assert.ok(settings.includes('entry.date >= scheduleToday'));
+  assert.ok(settings.includes('entry.date < scheduleToday'));
+  assert.ok(settings.includes('phase.end >= scheduleToday'));
+  assert.ok(settings.includes('phase.end < scheduleToday'));
+  assert.ok(settings.includes('Archived events · {archivedEvents.length}'));
+  assert.ok(settings.includes('Archived training periods · {archivedPhases.length}'));
+});
+
+test("v119 maintenance: PT schedule date fields use shrinkable mobile grid tracks", () => {
+  const settings = fs.readFileSync(path.join(root, "app/views/settings-view.tsx"), "utf8");
+  assert.ok(settings.includes('className="schedule-form-grid mt-2 grid'));
+  assert.ok(settings.includes('className="schedule-form-grid periods mt-2 grid'));
+  const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
+  assert.match(css, /\.schedule-form-grid\\s*\\{[^}]*grid-template-columns:\\s*minmax\\(0,1fr\\)/);
+  assert.match(css, /\.schedule-form-grid input\\[type="date"\\]\\s*\\{[^}]*min-inline-size:\\s*0/);
+});
