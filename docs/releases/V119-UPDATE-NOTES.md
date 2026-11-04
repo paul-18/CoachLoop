@@ -80,7 +80,15 @@ Release `v119` is a targeted polish and alignment release closing specific resid
 
 ---
 
-## 4. Verification & Quality Gate Results
+## 4. Post-release Maintenance (same v119 version)
+
+- **Strength-set completion focus:** Removed automatic focus transfer to the next unfinished reps field after tapping Done. Exact planned reps (for example, 8) still complete as prescribed without opening the keyboard. Rep ranges (for example, 8–10) still require an entered result and focus the current reps field when validation asks for confirmation.
+- **Date input containment:** Made shared field labels shrinkable and native date inputs explicitly block-level, full-width, and zero-minimum-width. Applied the same explicit sizing constraints to the workout-date dialog so date fields remain inside their parent on narrow iPhone layouts.
+- Added regression checks for both behaviours. The app release identifier remains `v119`; this is a maintenance update, not a version bump.
+
+---
+
+## 5. Verification & Quality Gate Results
 
 All 7 release-check stages passed with zero test or ESLint failures/warnings (non-blocking Vite bundle-size notice only):
 1. **TypeScript**: `tsc --noEmit` — 0 errors
