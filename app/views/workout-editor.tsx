@@ -544,11 +544,9 @@ function ExerciseEditor({
                 });
                 if (completing && !currentSet.warmup && exercise.restSec) onCompleteSet(set.id, exercise.restSec);
                 if (completing) {
+                  // Do not move focus to the next set: on mobile this opens the keyboard
+                  // after every Done tap. Only validation errors focus the current reps field.
                   setShowCompleted(false);
-                  const nextIncomplete = latestExercise.current.sets.find((s) => s.id !== set.id && !s.completed && !s.skipped);
-                  if (nextIncomplete) {
-                    queueMicrotask(() => document.getElementById(`reps-${nextIncomplete.id}`)?.focus());
-                  }
                 }
               }}
               onRemove={() => removeSet(set.id)}
