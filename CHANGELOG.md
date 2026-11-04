@@ -4,6 +4,8 @@ Release-specific design notes and QC live under [`docs/releases/`](docs/README.m
 
 ## v119 — published
 
+- **Post-release maintenance:** Removed automatic next-set reps focus after Done (the keyboard now opens only when validation focuses the current reps field for a rep-range confirmation); constrained all native date inputs and field labels to their parent width, including the workout-date dialog. Added regression checks. Version remains v119.
+
 - Synchronized skipped-set count and qualifier: exercise card headers now mirror the workout header progress format (e.g. `2/2 sets · 1 skipped` or `0/2 sets · 1 skipped`) via `exerciseProgressCopy`, updating in lockstep across skips, unskips, additions, and removals.
 - Segment-free circuit guidance & grammar: added `.routine-rounds-helper` copy (`X rounds logged · Tap Done / Mark complete when finished`) to clarify the finish workflow, and fixed singular/plural grammar across round counters and toasts (`1 round done` / `1 round logged`).
 - Fractional minute rounding: applied `formatMeasure()` to planned duration and distance in plan differences, finish workout summary, and coach export, eliminating raw repeating IEEE-754 decimals (e.g. 40 sec planned interval displays cleanly as `0.67 min`).
