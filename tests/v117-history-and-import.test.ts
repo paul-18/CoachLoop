@@ -81,6 +81,6 @@ test("v119 maintenance: PT schedule date fields use shrinkable mobile grid track
   assert.ok(settings.includes('className="schedule-form-grid mt-2 grid'));
   assert.ok(settings.includes('className="schedule-form-grid periods mt-2 grid'));
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
-  assert.match(css, /\.schedule-form-grid\\s*\\{[^}]*grid-template-columns:\\s*minmax\\(0,1fr\\)/);
-  assert.match(css, /\.schedule-form-grid input\\[type="date"\\]\\s*\\{[^}]*min-inline-size:\\s*0/);
+  assert.ok(css.includes(".schedule-form-grid { width:100%; min-width:0; max-width:100%; grid-template-columns:minmax(0,1fr); }"));
+  assert.ok(css.includes(".schedule-form-grid input[type=\"date\"] { min-inline-size:0;"));
 });
