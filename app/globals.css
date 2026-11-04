@@ -1085,3 +1085,19 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
 .page-stack { overflow-x: hidden; }
 [role="dialog"] { max-width: calc(100vw - 28px); margin-inline: auto; }
 [role="dialog"] pre { overflow-x: hidden; touch-action: pan-y; }
+
+
+/* v119 follow-up: native date controls inside schedule grids must shrink with
+   their track on narrow iPhone viewports instead of imposing an intrinsic width. */
+.schedule-form-grid { width:100%; min-width:0; max-width:100%; grid-template-columns:minmax(0,1fr); }
+.schedule-form-grid > * { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
+.schedule-form-grid input { width:100%; min-width:0; max-width:100%; box-sizing:border-box; font-size:16px; }
+.schedule-form-grid input[type="date"] { min-inline-size:0; max-inline-size:100%; inline-size:100%; }
+.schedule-form-grid button { width:100%; }
+.profile-editor { min-width:0; max-width:100%; }
+.profile-editor > div { min-width:0; max-width:100%; }
+@media (min-width:640px) {
+  .schedule-form-grid { grid-template-columns:minmax(145px,.7fr) minmax(0,1fr) auto; }
+  .schedule-form-grid.periods { grid-template-columns:minmax(130px,.7fr) minmax(130px,.7fr) minmax(0,1fr) auto; }
+  .schedule-form-grid button { width:auto; }
+}
