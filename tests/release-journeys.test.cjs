@@ -150,7 +150,7 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     const exported = parseBackup(await downloads.at(-1).text());
     assert.deepEqual(exported.goals, backup.goals); assert.equal(exported.coachProfile, backup.coachProfile);
     assert.deepEqual(exported.bodyweightEntries, backup.bodyweightEntries); assert.equal(exported.workouts.length, 1);
-    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v120', goals: ['Future priority'] }));
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v121', goals: ['Future priority'] }));
     await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review for replace');
     await until(() => document.querySelector('select[aria-label="Restore method"]'), 'restore method select appears for replace');
     const replaceMethod = document.querySelector('select[aria-label="Restore method"]');
