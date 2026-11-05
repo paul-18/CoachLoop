@@ -2,6 +2,11 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
+## v120 — release candidate
+
+- Fixed iOS Safari / Home Screen PWA native date-field overflow by disabling the problematic WebKit appearance sizing path, retaining the native `type=date` picker, restoring border-box width constraints, and reserving a line-height for the date value. Reset WebKit's internal date-edit padding. Added regression assertions and bumped `APP_RELEASE` to v120.
+- Release gate: GitHub Pages workflow results pending. See [v120 update notes](docs/releases/V120-UPDATE-NOTES.md).
+
 ## v119 — published
 
 - **Post-release maintenance:** Removed automatic next-set reps focus after Done (the keyboard now opens only when validation focuses the current reps field for a rep-range confirmation); constrained all native date inputs and field labels to their parent width, including the workout-date dialog. Added regression checks. Version remains v119.
