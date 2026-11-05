@@ -97,10 +97,10 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
       assert.equal(document.querySelector('[role="dialog"]'), null, 'bad backup never reaches restore confirmation');
       assert.deepEqual((await storage.loadTrainingState()).goals, current.goals);
     }
-    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v120' }));
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v121' }));
     await until(() => document.querySelector('[role="dialog"]'), 'newer backup opens review');
     const futureWarning = document.querySelector('[role="dialog"]').textContent;
-    assert.ok(futureWarning.includes('This backup was written by Coach Loop v120, newer than this release (v119). Some newer details may not appear here.'));
+    assert.ok(futureWarning.includes('This backup was written by Coach Loop v121, newer than this release (v120). Some newer details may not appear here.'));
     assert.equal(button('Merge backup').disabled, true, 'restore is blocked until acknowledgment');
     const acknowledgment = document.querySelector('[role="dialog"] [role="checkbox"]');
     assert.ok(acknowledgment, 'newer backup has an accessible acknowledgment control');
@@ -109,9 +109,9 @@ test('Settings rejects bad backups, previews/cancels restore, merges newer goals
     button('Merge backup').click();
     await until(async () => (await storage.loadTrainingState()).workouts.length === 41, 'acknowledged restore applies');
     await until(() => button('Download full backup'), 'UI returns after acknowledged restore');
-    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v119.2' }));
+    await upload(JSON.stringify({ ...backup, writtenByRelease: 'v120.2' }));
     await until(() => document.querySelector('[role="dialog"]'), 'dotted newer backup opens review');
-    assert.ok(document.querySelector('[role="dialog"]').textContent.includes('This backup was written by Coach Loop v119.2, newer than this release (v119). Some newer details may not appear here.'));
+    assert.ok(document.querySelector('[role="dialog"]').textContent.includes('This backup was written by Coach Loop v120.2, newer than this release (v120). Some newer details may not appear here.'));
     const dottedAcknowledgment = document.querySelector('[role="dialog"] [role="checkbox"]');
     assert.ok(dottedAcknowledgment, 'dotted newer backup has an accessible acknowledgment control');
     dottedAcknowledgment.click();
