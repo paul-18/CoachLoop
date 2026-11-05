@@ -8,8 +8,8 @@ import { exampleSafeImportFitlog, parseFitlog } from "../app/interchange/fitlog"
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("v119: APP_RELEASE is v119", () => {
-  assert.equal(APP_RELEASE, "v119");
+test("v120: APP_RELEASE is v120", () => {
+  assert.equal(APP_RELEASE, "v120");
 });
 
 test("v117: safe import example showcases leg press and interval run without segments", () => {
@@ -40,7 +40,11 @@ test("v117: export history inputs are block-aligned with left-aligned date value
 
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
   assert.match(css, /\.field-label\s*\{\s*display:\s*block;/);
-  assert.match(css, /input\[type="date"\]\s*\{\s*text-align:\s*left;/);
+  assert.match(css, /input\[type="date"\]\s*\{[^}]*-webkit-appearance:\s*none;/);
+  assert.match(css, /input\[type="date"\]\s*\{[^}]*appearance:\s*none;/);
+  assert.match(css, /input\[type="date"\]\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0;/);
+  assert.match(css, /input\[type="date"\]::-webkit-date-and-time-value\s*\{[^}]*min-height:\s*1lh;/);
+  assert.match(css, /input\[type="date"\]::-webkit-datetime-edit[^}]*padding:\s*0;/);
 });
 
 test("v119 maintenance: completing a set does not auto-focus the next reps field", () => {
@@ -83,4 +87,12 @@ test("v119 maintenance: PT schedule date fields use shrinkable mobile grid track
   const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
   assert.ok(css.includes(".schedule-form-grid { width:100%; min-width:0; max-width:100%; grid-template-columns:minmax(0,1fr); }"));
   assert.ok(css.includes(".schedule-form-grid input[type=\"date\"] { min-inline-size:0;"));
+});
+
+
+test("v120: native date inputs opt out of iOS intrinsic sizing without removing the native picker type", () => {
+  const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
+  assert.match(css, /input\[type="date"\]\s*\{[^}]*-webkit-appearance:\s*none;[^}]*appearance:\s*none;/);
+  assert.match(css, /input\[type="date"\]::-webkit-date-and-time-value\s*\{[^}]*text-align:\s*left;[^}]*min-height:\s*1\.2em;[^}]*min-height:\s*1lh;/);
+  assert.match(css, /input\[type="date"\]::-webkit-calendar-picker-indicator/);
 });
