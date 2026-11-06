@@ -407,6 +407,16 @@ function ExerciseEditor({
     });
   };
   const setNumbers = setDisplayNumbers(exercise.sets);
+  const setupRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (setupRef.current?.open && !setupRef.current.contains(event.target as Node)) {
+        setupRef.current.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
   const allDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed || set.skipped);
   if (allDone && !showCompleted) {
     const summary = compactSetSummary(exercise.sets);
@@ -426,7 +436,7 @@ function ExerciseEditor({
             aria-label="Exercise name"
             className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.035em] shadow-none focus-visible:ring-2"
           />
-                    <details className="exercise-setup"><summary aria-label={`Rest interval and load settings; ${exercise.restSec} seconds`}><strong>{exercise.restSec}s</strong><small>rest</small><ChevronDown /></summary><div className="exercise-options-row">
+                    <details ref={setupRef} className="exercise-setup"><summary aria-label={`Rest interval and load settings; ${exercise.restSec} seconds`}><strong>{exercise.restSec}s</strong><small>rest</small><ChevronDown /></summary><div className="exercise-options-row">
           <label className="block text-xs font-bold text-white/55">
             Load for remaining sets
             <NativeSelect
@@ -1057,7 +1067,16 @@ function CardioEditor({
         </div>}
         <details className="activity-details"><summary>{activity.activityType === "mobility" ? "Activity options" : "More details"}{activity.intensity ? ` · ${activity.intensity}` : ""}</summary>
           <div className="activity-option-grid"><label className="field-label">Effort / 10 · optional<Input inputMode="decimal" value={activity.effort} placeholder="—" onChange={(event) => update({ effort: event.target.value }, true)} /></label>
-            <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => update({ activityType: event.target.value as CardioEntry["activityType"], loggingStyle: undefined })} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20 capitalize">{(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type.replace("_", " ")}</NativeSelectOption>)}</NativeSelect></label>
+            <label className="field-label">Type<NativeSelect value={activity.activityType} onChange={(event) => {
+              const nextType = event.target.value as CardioEntry["activityType"];
+              const defaultPrevName = makeCardio(activity.activityType).name;
+              const shouldRename = !activity.name.trim() || activity.name === "Custom activity" || activity.name === defaultPrevName;
+              update({
+                activityType: nextType,
+                loggingStyle: undefined,
+                ...(shouldRename ? { name: makeCardio(nextType).name } : {}),
+              });
+            }} aria-label="Activity type" className="mt-1 w-full border-white/8 bg-black/20">{(["run", "swim", "water_polo", "bike", "row", "walk", "hike", "ruck", "mobility", "circuit", "force", "soccer", "grappling", "yoga", "other"] as const).map((type) => <NativeSelectOption key={type} value={type}>{type === "other" ? "Custom activity" : type === "force" ? "Sled / FORCE" : type === "water_polo" ? "Water Polo" : type.charAt(0).toUpperCase() + type.slice(1)}</NativeSelectOption>)}</NativeSelect></label>
             {activity.activityType === "ruck" && <label className="field-label">Pack unit<NativeSelect value={activity.ruckLoadUnit} onChange={(event) => update({ ruckLoadUnit: event.target.value as Unit, ruckLoad: activity.ruckLoad === null ? null : Number(convertWeight(activity.ruckLoad, activity.ruckLoadUnit, event.target.value as Unit).toFixed(4)) }, true)} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label>}
             {style === "efforts" && <><label className="field-label">Effort load unit<NativeSelect value={activity.effortLoadUnit ?? "lb"} onChange={(event) => {
               const from = activity.effortLoadUnit ?? "lb";
@@ -1065,9 +1084,9 @@ function CardioEditor({
               const convert = (value: number | null) => value === null ? null : Number(convertWeight(value, from, to).toFixed(3));
               update({ effortLoadUnit: to, efforts: efforts.map((item) => ({ ...item, plannedLoad: convert(item.plannedLoad), actualLoad: convert(item.actualLoad) })) });
             }} className="mt-1 w-full border-white/8 bg-black/20"><NativeSelectOption value="lb">lb</NativeSelectOption><NativeSelectOption value="kg">kg</NativeSelectOption></NativeSelect></label><label className="field-label">Rest · seconds<DecimalInput min={0} max={3600} value={activity.effortRestSec ?? 0} onValueChange={(effortRestSec) => update({ effortRestSec: effortRestSec ?? 0 })} /></label></>}
-            {style === "single" && <label className="field-label">Intensity<Input value={activity.intensity} onChange={(event) => update({ intensity: event.target.value }, true)} placeholder="Easy" className="mt-1 border-white/8 bg-black/20" /></label>}
+            {style === "single" && <label className="field-label">Intensity<Input value={activity.intensity} onChange={(event) => update({ intensity: event.target.value }, true)} placeholder="e.g. Easy" className="mt-1 border-white/8 bg-black/20" /></label>}
             {showPerformanceDetails && <>
-              {activity.activityType !== "bike" && <label className="field-label">Pace<Input value={activity.pace} onChange={(event) => update({ pace: event.target.value }, true)} placeholder={activity.activityType === "swim" || activity.activityType === "row" ? "2:00/100 m" : "5:30/km"} className="mt-1 border-white/8 bg-black/20" /></label>}
+              {activity.activityType !== "bike" && <label className="field-label">Pace<Input value={activity.pace} onChange={(event) => update({ pace: event.target.value }, true)} placeholder={activity.activityType === "swim" || activity.activityType === "row" ? "e.g. 2:00/100 m" : "e.g. 5:30/km"} className="mt-1 border-white/8 bg-black/20" /></label>}
               <label className="field-label">Average HR<DecimalInput min={0} max={300} value={activity.averageHr} onValueChange={(averageHr) => update({ averageHr }, true)} placeholder="bpm" className="mt-1 border-white/8 bg-black/20" /></label>
               {(activity.activityType === "run" || activity.activityType === "ruck" || activity.activityType === "hike" || activity.activityType === "walk") && <label className="field-label">Total ascent (m)<DecimalInput min={0} max={10000} value={activity.elevationM} onValueChange={(elevationM) => update({ elevationM }, true)} placeholder="Elevation gained" className="mt-1 border-white/8 bg-black/20" /></label>}
             </>}
@@ -1484,7 +1503,7 @@ export function WorkoutEditor({
   };
 
   return (
-    <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""}`}>
+    <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""} ${demoMode ? "in-demo" : ""}`}>
       <header ref={headerRef} className="workout-header">
         <Button variant="ghost" size="icon" onClick={() => { onUpdate(latestWorkout.current); onBack(); }} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
@@ -1586,7 +1605,7 @@ export function WorkoutEditor({
           <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); if (!open) { setFinishCandidate(null); acknowledgedActuals.current = null; } if (!open && finishFromMenu.current) queueMicrotask(() => { workoutOptionsRef.current?.focus(); finishFromMenu.current = false; }); }}>
             <Button onClick={() => openFinish(false)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
-              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} sets explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} ${skippedSets === 1 ? "set" : "sets"} explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
               {unusual && <p role="status" className="activity-warning">{unusual}</p>}
               {reviewWorkout.cardio.flatMap(activity => { const mismatch = segmentMismatch(activity); return mismatch ? [{ activity, mismatch }] : []; }).map(({ activity, mismatch }) => <p key={activity.id} role="note" className="activity-warning">{activity.name}: {mismatch.message}</p>)}
               <div className="finish-review">

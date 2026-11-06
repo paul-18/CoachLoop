@@ -462,7 +462,7 @@ export function CoachDialog({
             <Input
               inputMode="decimal"
               value={options.energy}
-              placeholder="7"
+              placeholder="1–10"
               onChange={(event) => field("energy", event.target.value)}
               className="mt-1.5 border-white/10 bg-black/20"
             />
@@ -760,7 +760,7 @@ export function TodayView({
 
       {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
 
-      {!active && todayEntries.length > 0 && <button type="button" className="today-logged" onClick={onHistory}><span className="truncate">Logged today: {todayEntries.map((workout) => workout.name).join(" · ")}</span><ChevronRight aria-hidden="true" /></button>}
+      {!active && todayEntries.length > 0 && <button type="button" className="today-logged" onClick={onHistory}><span className="truncate">Logged today: {todayEntries.length <= 2 ? todayEntries.map((workout) => workout.name).join(" · ") : `${todayEntries.length} workouts (${todayEntries[0].name} + ${todayEntries.length - 1} more)`}</span><ChevronRight aria-hidden="true" /></button>}
 
     </div>
   );

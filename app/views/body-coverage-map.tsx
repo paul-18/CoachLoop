@@ -59,6 +59,7 @@ export function BodyCoverageMap({ coverage, selected, onSelect, bodyDiagram = "m
     const female = diagram.id.startsWith("female");
     const isFront = diagram.id === "female-front";
     const bodyClip = `${mapId}-${diagram.id}-body`;
+    const seenMuscles = new Set<string>();
     return <g key={label}>
       <text x={x + 82} y="13" textAnchor="middle">{label}</text>
       <svg x={x} y="18" width="164" height="246" viewBox={diagram.viewBox} aria-label={`${label.toLowerCase()} muscle groups`}>
@@ -73,14 +74,21 @@ export function BodyCoverageMap({ coverage, selected, onSelect, bodyDiagram = "m
           const muscle = mapping[path.group];
           const entry = muscle && byMuscle.get(muscle);
           const fill = muscle ? coverageColor(entry ?? { muscle, effectiveSets: 0, days: 0 }) : "#303438";
+          const isFirstForMuscle = Boolean(muscle && !seenMuscles.has(muscle));
+          if (isFirstForMuscle) seenMuscles.add(muscle!);
           return <g key={`muscle-${index}`}>
-            {[undefined, ...(path.side === "LEFT" ? [mirror] : [])].map((transform, side) => <path key={side} d={path.d} transform={transform} fill={fill}
-              className={muscle ? `anatomy-muscle${selected === muscle ? " selected" : ""}` : "anatomy-neutral"}
-              onClick={muscle ? () => onSelect(muscle) : undefined}
-              onKeyDown={muscle ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(muscle); } } : undefined}
-              role={muscle ? "button" : undefined} tabIndex={muscle ? 0 : undefined}
-              aria-pressed={muscle ? selected === muscle : undefined}
-              aria-label={muscle ? `Show ${muscle} coverage` : undefined} />)}
+            {[undefined, ...(path.side === "LEFT" ? [mirror] : [])].map((transform, side) => {
+              const isAccessible = isFirstForMuscle && side === 0;
+              return <path key={side} d={path.d} transform={transform} fill={fill}
+                className={muscle ? `anatomy-muscle${selected === muscle ? " selected" : ""}` : "anatomy-neutral"}
+                onClick={muscle ? () => onSelect(muscle) : undefined}
+                onKeyDown={muscle && isAccessible ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(muscle); } } : undefined}
+                role={muscle && isAccessible ? "button" : undefined}
+                tabIndex={muscle && isAccessible ? 0 : undefined}
+                aria-pressed={muscle && isAccessible ? selected === muscle : undefined}
+                aria-label={muscle && isAccessible ? `Show ${muscle} coverage` : undefined}
+                aria-hidden={!isAccessible ? "true" : undefined} />;
+            })}
           </g>;
         })}
         </g>

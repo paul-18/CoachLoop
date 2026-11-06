@@ -51,7 +51,7 @@ test("marking_activity_complete_preserves_actual_results_in_history", () => {
   const markup = renderToStaticMarkup(createElement(HistoryView, {
     state, onEdit: () => {}, onRepeat: () => {}, onReplan: () => {}, onDelete: () => {},
   }));
-  assert.match(markup, /8\.50 km/);
+  assert.match(markup, /8\.5 km/);
   assert.match(markup, /41 cardio min/);
   assert.doesNotMatch(summarizeWorkout(state.workouts[0]), /No work recorded/);
 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FileCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MAX_BACKUP_BYTES } from "../persistence/backup-tools";
@@ -27,7 +28,7 @@ export function BackupVerification() {
     } finally { if (id === request.current) setReading(false); }
   };
   return <>
-    <Button ref={trigger} variant="outline" className="mt-3 min-h-11" disabled={reading} onClick={() => input.current?.click()}><FileCheck /> Verify saved backup</Button>
+    <Button ref={trigger} variant="outline" className="mt-3 min-h-11" disabled={reading} onClick={() => { toast("Opening file chooser…"); input.current?.click(); }}><FileCheck /> Verify saved backup</Button>
     <input ref={input} type="file" accept="application/json,.json" aria-label="Choose saved backup to verify" className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void inspect(file); }} />
     <Dialog open={open} onOpenChange={value => { setOpen(value); if (!value) { request.current++; setReading(false); } }}>
       <DialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#151713] text-white sm:max-w-lg">

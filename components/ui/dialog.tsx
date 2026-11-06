@@ -73,6 +73,22 @@ function DialogContent({
           returnFocus.current = active instanceof HTMLElement && active !== document.body ? active : null;
           onOpenAutoFocus?.(event);
         }}
+        onPointerDownOutside={event => {
+          const isDateOrTime = document.activeElement instanceof HTMLInputElement && (document.activeElement.type === "date" || document.activeElement.type === "time");
+          if (isDateOrTime || (event.target instanceof HTMLElement && event.target.closest('input[type="date"], input[type="time"]'))) {
+            event.preventDefault();
+            return;
+          }
+          props.onPointerDownOutside?.(event);
+        }}
+        onInteractOutside={event => {
+          const isDateOrTime = document.activeElement instanceof HTMLInputElement && (document.activeElement.type === "date" || document.activeElement.type === "time");
+          if (isDateOrTime || (event.target instanceof HTMLElement && event.target.closest('input[type="date"], input[type="time"]'))) {
+            event.preventDefault();
+            return;
+          }
+          props.onInteractOutside?.(event);
+        }}
         onCloseAutoFocus={event => {
           onCloseAutoFocus?.(event);
           const target = returnFocus.current;

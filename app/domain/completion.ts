@@ -5,6 +5,7 @@ export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.ski
   ? segmentCounts(activity.segments).done > 0
   : activity.completed || !!activity.efforts?.some((e) => e.completed) || (activity.roundsDone ?? 0) > 0);
 export const performedDuration = (activity: CardioEntry) => {
+  if (activity.actualDurationMin !== null) return activity.actualDurationMin;
   if (activity.segments?.length) {
     const result = segmentMeasure(activity, "duration");
     return result?.fullyRecorded ? (result.value === null ? null : result.value / 60) : null;
@@ -15,9 +16,10 @@ export const performedDuration = (activity: CardioEntry) => {
     if (completedEfforts.some((e) => e.actualDurationSec === null)) return null;
     return completedEfforts.reduce((sum, e) => sum + e.actualDurationSec! / 60, 0);
   }
-  return activity.actualDurationMin;
+  return null;
 };
 export const performedDistance = (activity: CardioEntry) => {
+  if (activity.actualDistanceKm !== null) return activity.actualDistanceKm;
   if (activity.segments?.length) {
     const result = segmentMeasure(activity, "distance");
     return result?.fullyRecorded ? (result.value === null ? null : result.value / 1000) : null;
@@ -28,7 +30,7 @@ export const performedDistance = (activity: CardioEntry) => {
     if (completedEfforts.some((e) => e.actualDistanceM === null)) return null;
     return completedEfforts.reduce((sum, e) => sum + e.actualDistanceM! / 1000, 0);
   }
-  return activity.actualDistanceKm;
+  return null;
 };
 
 /** Print a measured total. Does not change stored metres, seconds or sums. */
@@ -68,6 +70,7 @@ export const parseExactReps = (value: string) => {
  * records remain readable; an invalid new edit becomes an incomplete draft. */
 export function setEvidenceError(set: TrainingSet): string | null {
   if (!/^[1-9]\d*$/.test(set.actualReps.trim())) return "Enter actual reps as a positive whole number";
+  if (set.actualWeight !== null && (set.actualWeight < 0 || set.actualWeight > 5000 || Number.isNaN(set.actualWeight))) return "Actual load must be between 0 and 5,000";
   if (set.rpe.trim() && set.rir.trim()) return "Use either RPE or RIR, not both";
   const effort = (text: string, min: number, max: number) => !text.trim() || (/^\d+(?:\.\d+)?$/.test(text.trim()) && Number(text) >= min && Number(text) <= max);
   if (!effort(set.rpe, 1, 10)) return "Actual RPE must be a number from 1 to 10";

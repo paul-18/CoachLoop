@@ -226,10 +226,8 @@ export function completeActivity(activity: CardioEntry): CardioEntry {
     ...next,
     completed: true,
     completedAsPlanned: allAsPrescribed,
-    ...(!hasSegments ? {
-      actualDurationMin: activity.actualDurationMin ?? activity.plannedDurationMin,
-      actualDistanceKm: activity.actualDistanceKm ?? activity.plannedDistanceKm,
-    } : {}),
+    actualDurationMin: activity.actualDurationMin ?? activity.plannedDurationMin,
+    actualDistanceKm: activity.actualDistanceKm ?? activity.plannedDistanceKm,
   };
 }
 

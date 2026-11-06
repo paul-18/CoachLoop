@@ -1,4 +1,4 @@
-import { uid, type TrainingState } from "../domain/training-types";
+import { uid, type TrainingState, type WorkoutSession } from "../domain/training-types";
 import { mergeRestoredState } from "./cloud-sync";
 import { validateSyncedState } from "./training-validation";
 import { prepareLoadedState } from "./migrations";
@@ -70,9 +70,19 @@ export function recoverDeleted(current: TrainingState, backup: TrainingState): T
   copy.activeWorkoutId = null;
   return copy;
 }
+const cleanDeleted = (w: WorkoutSession): WorkoutSession => ({
+  ...w,
+  deletedExerciseIds: w.deletedExerciseIds?.length ? w.deletedExerciseIds : undefined,
+  deletedActivityIds: w.deletedActivityIds?.length ? w.deletedActivityIds : undefined,
+  exercises: w.exercises.map(e => ({
+    ...e,
+    deletedSetIds: e.deletedSetIds?.length ? e.deletedSetIds : undefined,
+  })),
+});
+
 export function backupChanges(current: TrainingState, merged: TrainingState) {
   return {
-    changed: merged.workouts.filter(w => { const prior = current.workouts.find(p => p.id === w.id); return prior && JSON.stringify(prior) !== JSON.stringify(w); }).length,
+    changed: merged.workouts.filter(w => { const prior = current.workouts.find(p => p.id === w.id); return prior && JSON.stringify(cleanDeleted(prior)) !== JSON.stringify(cleanDeleted(w)); }).length,
     sections: (["settings", "goals", "coachProfile", "bodyweightEntries", "waistEntries", "benchmarks", "exerciseAliases", "exerciseMuscleOverrides", "scheduleContext"] as const).filter(key => JSON.stringify(current[key]) !== JSON.stringify(merged[key])),
   };
 }

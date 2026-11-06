@@ -161,8 +161,8 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
   if (sets) pieces.push(`${sets} completed set${sets === 1 ? "" : "s"}`);
   const durationIncomplete = activities.some(activity => { const measure = activity.segments?.length ? segmentMeasure(activity, "duration") : null; return measure !== null && measure.done > 0 && !measure.fullyRecorded; });
   const distanceIncomplete = activities.some(activity => { const measure = activity.segments?.length ? segmentMeasure(activity, "distance") : null; return measure !== null && measure.done > 0 && !measure.fullyRecorded; });
-  if (duration) pieces.push(`${duration.toFixed(duration % 1 ? 1 : 0)} cardio min${durationIncomplete ? " · not fully recorded" : ""}`);
-  if (distance) pieces.push(`${distance.toFixed(distance % 1 ? 2 : 0)} km${distanceIncomplete ? " · not fully recorded" : ""}`);
+  if (duration) pieces.push(`${formatMeasure(duration)} cardio min${durationIncomplete ? " · not fully recorded" : ""}`);
+  if (distance) pieces.push(`${formatMeasure(distance)} km${distanceIncomplete ? " · not fully recorded" : ""}`);
   if (activities.length && !duration && !distance) {
     pieces.push(`${activities.length} activit${activities.length === 1 ? "y" : "ies"}${durationIncomplete || distanceIncomplete ? " · not fully recorded" : ""}`);
   }
@@ -198,6 +198,16 @@ export const summarizeWorkout = (workout: WorkoutSession) => {
       return facts.join(" · ");
     }
     pieces.push(note);
+  }
+  if (!pieces.length) {
+    const skippedSets = workout.exercises.reduce((sum, e) => sum + e.sets.filter(s => s.skipped && !s.completed).length, 0);
+    const skippedActivities = workout.cardio.filter(c => c.skipped).length;
+    if (skippedSets > 0 || skippedActivities > 0) {
+      const parts = [];
+      if (skippedSets > 0) parts.push(`${skippedSets} ${skippedSets === 1 ? "set" : "sets"} skipped`);
+      if (skippedActivities > 0) parts.push(`${skippedActivities} ${skippedActivities === 1 ? "activity" : "activities"} skipped`);
+      return parts.join(" · ");
+    }
   }
   return pieces.join(" · ") || "No work recorded";
 };

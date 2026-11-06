@@ -229,9 +229,9 @@ SET reps must be ONLY a positive whole number or increasing range (10 or 8-10). 
 Activities: CARDIO|name; TYPE|run/ruck/bike/swim/water_polo/row/walk/hike/circuit/mobility/force/soccer/grappling/yoga/other; exactly one MODE|summary or MODE|segments per activity; optional DURATION|minutes, DISTANCE|km, INTENSITY|description. Mixed run/walk requires an explicit TYPE line, normally TYPE|run. Summary runs: INTERVALS|6 x (3 min run / 1 min walk), using this single stage format and ASCII x. Segmented runs: MODE|segments with REPEAT. Segments: SEGMENT|kind|duration|distance|optional label, kind run/walk/rest/other, duration blank or with unit/clock, distance blank or with m/km, label never | or newlines; the 4-field form still parses. REPEAT|N ... ENDREPEAT, N from 2 to 50, no nesting, at most 100 expanded segments; one iteration is one round, set, or pattern repetition. Circuits: REPEAT rounds with labeled stations, kind rest for rests, blank duration for rep stations, session time in DURATION. AMRAP has no fixed rounds: MODE|summary with DURATION and NOTES, never REPEAT with an invented round count. Swim: REPEAT sets, distances in m. Ruck: RUCKLOAD|weight lb/kg. Repeated drags/carries/sprints: EFFORT|20 m|90 lb|10 sec, one line per effort; blank unused columns; same load unit; one REST|seconds per activity (whole-block target, not per-effort rest). Mobility: MOVE|name|prescription using N x .../side or N x ... sec, never SEGMENT lines. Yoga, grappling, soccer, and water polo are post-session only: MODE|summary with DURATION and NOTES, never SEGMENT lines.
 Omit unspecified targets instead of inventing them. Put short NOTES directly below their exercise/activity; no workout-level NOTES. Targets and coach cues never become actual results until accepted during logging.`;
 
-export function exampleFitlogV3() {
+export function exampleFitlogV3(date = localDate()) {
   return `[FITLOG:3]
-WORKOUT|Squats and an easy run|2026-01-15
+WORKOUT|Squats and an easy run|${date}
 EXERCISE|Barbell Back Squat
 SET|5|135 lb total||WARMUP
 SET|5|185 lb total|RPE 7

@@ -106,15 +106,15 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
         const item = block.activity;
         const duration = item.skipped ? null : hasCompletedActivityWork(item) ? performedDuration(item) : item.actualDurationMin !== null ? item.actualDurationMin : item.plannedDurationMin;
         const distance = item.skipped ? null : hasCompletedActivityWork(item) ? performedDistance(item) : item.actualDistanceKm !== null ? item.actualDistanceKm : item.plannedDistanceKm;
-        const durationLabel = item.skipped ? "Not recorded" : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "duration"), "duration") : duration !== null ? `${formatMeasure(duration)} min` : "Not recorded";
-        const distanceLabel = item.skipped ? "Not recorded" : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "distance"), "distance") : distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : "Not recorded";
+        const durationLabel = item.skipped ? "Not recorded" : duration !== null ? `${formatMeasure(duration)} min` : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "duration"), "duration") : "Not recorded";
+        const distanceLabel = item.skipped ? "Not recorded" : distance !== null ? `${item.activityType === "swim" || item.activityType === "row" ? `${formatMeasure(distance * 1000)} m` : `${formatMeasure(distance)} km`}` : item.segments?.length ? formatSegmentMeasure(segmentMeasure(item, "distance"), "distance") : "Not recorded";
         const mismatch = segmentMismatch(item);
         return (
           <section key={item.id} className={`history-exercise ${item.completed && !item.skipped ? "" : "history-activity-incomplete"}`}>
             <div className="history-detail-heading"><div><h3>{item.name}</h3><p>{item.activityType}</p></div><Badge variant="outline" className={item.skipped ? "border-amber-300/15 text-amber-200/65" : item.completed ? "border-sky-300/15 text-sky-200/55" : "border-amber-300/15 text-amber-200/65"}>{activityHistoryLabel(item)}</Badge></div>
             {item.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{item.coachNotes}</p></details>}
             {item.segments?.length ? <div className="history-segments"><p className="text-sm text-white/65">{segmentCountLabel(item.segments)}</p><div className="mt-2 space-y-1">{compactSegments(item).map(row => <p key={row.key} className="text-xs text-white/55">{row.label}</p>)}</div></div> : null}
-            {item.segments?.length && item.activityType === "run" ? <div className="mt-2 space-y-1"><p className="text-xs text-white/55">Running only: {formatSegmentMeasure(segmentMeasure(item, "duration", "run"), "duration")} · {formatSegmentMeasure(segmentMeasure(item, "distance", "run"), "distance")}</p><p className="text-xs text-white/55">Walking only: {formatSegmentMeasure(segmentMeasure(item, "duration", "walk"), "duration")} · {formatSegmentMeasure(segmentMeasure(item, "distance", "walk"), "distance")}</p></div> : null}
+            {item.segments?.length && item.activityType === "run" ? <div className="mt-2 space-y-1">{item.segments.some(s => s.kind === "run") && <p className="text-xs text-white/55">Running only: {formatSegmentMeasure(segmentMeasure(item, "duration", "run"), "duration")} · {formatSegmentMeasure(segmentMeasure(item, "distance", "run"), "distance")}</p>}{item.segments.some(s => s.kind === "walk") && <p className="text-xs text-white/55">Walking only: {formatSegmentMeasure(segmentMeasure(item, "duration", "walk"), "duration")} · {formatSegmentMeasure(segmentMeasure(item, "distance", "walk"), "distance")}</p>}</div> : null}
             {mismatch && <p role="note" className="mt-2 rounded-lg border border-amber-300/25 p-2 text-xs text-amber-100">{mismatch.message}</p>}
             {item.activityType === "mobility" && item.mobilityMoves.length > 0 && <div className="mobility-list mt-3">{item.mobilityMoves.map((move) => <div key={move.id}><span>{move.name}</span><strong>{move.prescription}</strong></div>)}</div>}
             {!item.skipped && (item.efforts?.length ?? 0) > 0 && <div className="history-efforts">{item.efforts!.map((effort, index) => <div key={effort.id}><span>Effort {index + 1}{effort.completed ? "" : " · not done"}</span><strong>{[effort.actualDistanceM !== null ? effort.actualDistanceM : effort.plannedDistanceM, effort.actualLoad !== null ? effort.actualLoad : effort.plannedLoad, effort.actualDurationSec !== null ? effort.actualDurationSec : effort.plannedDurationSec].map((value, i) => value === null ? "" : `${value} ${["m", item.effortLoadUnit ?? "lb", "sec"][i]}`).filter(Boolean).join(" · ") || "No measurement"}</strong></div>)}</div>}
@@ -175,9 +175,19 @@ export function HistoryView({
   const [exportExercise, setExportExercise] = useState("");
   const exportText = useMemo(() => exportOpen ? exportCompletedHistory(state, { from: exportFrom, to: exportTo, exercise: exportExercise }) : "", [exportOpen, state, exportFrom, exportTo, exportExercise]);
   const exportExercises = useMemo(() => exportOpen ? [...new Set(state.workouts.filter((workout) => workout.status === "completed").flatMap((workout) => workout.exercises.filter((exercise) => exercise.sets.some((set) => set.completed)).map((exercise) => exercise.name.trim())))].sort((a, b) => a.localeCompare(b)) : [], [state.workouts, exportOpen]);
+  const isWorkoutFullySkipped = (workout: WorkoutSession) =>
+    workout.status === "skipped" ||
+    ((workout.exercises.some((e) => e.sets.some((s) => s.skipped)) || workout.cardio.some((c) => c.skipped)) &&
+      !workout.exercises.some((e) => e.sets.some((s) => s.completed)) &&
+      !workout.cardio.some((c) => c.completed || c.efforts?.some((e) => e.completed)));
   const workouts = useMemo(() => [...state.workouts]
     .filter((workout) => workout.status === "completed" || workout.status === "skipped")
-    .filter((workout) => statusFilter === "all" || workout.status === statusFilter)
+    .filter((workout) => {
+      if (statusFilter === "all") return true;
+      if (statusFilter === "skipped") return isWorkoutFullySkipped(workout);
+      if (statusFilter === "completed") return workout.status === "completed" && !isWorkoutFullySkipped(workout);
+      return true;
+    })
     .filter((workout) => {
       const haystack = `${workout.name} ${workout.skipReason} ${workout.exercises.map((exercise) => exercise.name).join(" ")} ${workout.cardio.map((item) => item.name).join(" ")}`.toLowerCase();
       return haystack.includes(search.toLowerCase());
@@ -216,7 +226,7 @@ export function HistoryView({
   return (
     <div className="page-stack">
       {state.settings.firstWorkoutNote === "show" && <FirstWorkoutNote onDismiss={onDismissFirstNote} />}
-      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={demoActive || !state.workouts.some((workout) => workout.status === "completed")} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
+      <section className="topline"><h1>History</h1><DropdownMenu><DropdownMenuTrigger asChild><Button ref={historyOptionsRef} size="icon" variant="ghost" aria-label="History options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white"><DropdownMenuItem disabled={demoActive || !state.workouts.some((workout) => workout.status === "completed")} title={demoActive ? "Export history is off in demo mode" : !state.workouts.some((workout) => workout.status === "completed") ? "Log at least one completed workout to export" : undefined} onSelect={() => setExportOpen(true)}><Download /> Export history</DropdownMenuItem></DropdownMenuContent></DropdownMenu></section>
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => { event.preventDefault(); historyOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto overflow-x-hidden max-w-[calc(100vw-2rem)] border-white/10 bg-[#151713] text-white sm:max-w-lg">
           <DialogHeader><DialogTitle>Completed training history</DialogTitle><DialogDescription className="text-white/48">Every completed set and activity, grouped by date. No skipped plans or notes. This text is for reading and saving; a backup file from Settings is needed to restore the log.</DialogDescription></DialogHeader>
@@ -242,7 +252,7 @@ export function HistoryView({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-extrabold tracking-[-0.02em] text-white">{workout.name}</p>
-                      {workout.status === "skipped" && <Badge variant="outline" className="border-amber-300/20 text-amber-200/70">Skipped</Badge>}
+                      {(workout.status === "skipped" || isWorkoutFullySkipped(workout)) && <Badge variant="outline" className="border-amber-300/20 text-amber-200/70">Skipped</Badge>}
                     </div>
                     <p className="mt-1 text-sm text-white/60">{formatDate(workout.date)} · {workout.status === "skipped" ? workout.skipReason || "No reason recorded" : summarizeWorkout(workout)}</p>
                   </div>
@@ -265,7 +275,7 @@ export function HistoryView({
                           <Button size="sm" variant="outline" onClick={() => onRepeat(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Repeat</Button>
                         </>
                       )}
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem disabled={demoActive} onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem disabled={demoActive} onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                       <AlertDialog open={deleteId === workout.id} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
                         <AlertDialogContent onCloseAutoFocus={(event) => { event.preventDefault(); deleteButtons.current.get(workout.id)?.focus(); }} className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/60">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>

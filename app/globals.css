@@ -289,14 +289,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .profile-editor > summary svg { width: 18px; height: 18px; color: rgba(255,255,255,.56); transition: transform .18s ease; }
 .profile-editor[open] > summary svg { transform: rotate(180deg); }
 
+input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opacity: 1; }
+
 .workout-shell { --live-header-height: 72px; --live-rest-height: 0px; min-height: 100dvh; background: radial-gradient(circle at 55% -20%,rgba(var(--theme-accent-rgb),.055),transparent 26rem),#10120f; color: #fff; }
 .workout-shell.has-rest-timer { --live-rest-height: 60px; }
 .workout-header { position: fixed; inset: 0 0 auto; z-index: 40; display: flex; align-items: center; gap: 12px; min-height: 72px; border-bottom: 1px solid rgba(255,255,255,.065); background: rgba(16,18,15,.95); padding: max(12px,var(--app-safe-top)) 14px 12px; backdrop-filter: blur(22px); }
+.workout-shell.in-demo .workout-header { top: 52px; }
 .workout-header-title { min-width: 0; overflow: hidden; }
 .workout-header-title h1, .workout-header-title p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-header-actions { flex-shrink: 0; }
 .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 16px); }
+.workout-shell.in-demo .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 68px); }
 .rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; left: 0; z-index: 39; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--live-rest-height); border-bottom: 1px solid rgba(var(--theme-accent-rgb),.1); background: rgba(21,24,19,.96); padding: 10px max(14px,calc((100vw - 896px)/2)); box-shadow: 0 10px 30px rgba(0,0,0,.22); backdrop-filter: blur(20px); }
+.workout-shell.in-demo .rest-timer { top: calc(var(--workout-content-offset) + 52px); }
 .exercise-card [data-slot="card-header"] { grid-template-columns: minmax(0,1fr) auto; }
 .activity-card.is-complete { border-color: rgba(var(--theme-accent-rgb),.30); background: linear-gradient(125deg, rgba(var(--theme-accent-rgb),.09), rgba(23,25,22,.96) 45%); box-shadow: inset 4px 0 0 var(--lime); }
 .activity-card.is-complete [data-slot="card-header"] { border-bottom-color: rgba(var(--theme-accent-rgb),.14); }

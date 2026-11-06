@@ -26,7 +26,7 @@ const pickNewestSection = <T>(local: T, remote: T, localUpdatedAt?: string, remo
 const mergeExercise = (left: ExerciseBlock, right: ExerciseBlock): ExerciseBlock => {
   const newer = right.updatedAt >= left.updatedAt ? right : left;
   const deletedSetIds = [...new Set([...(left.deletedSetIds ?? []), ...(right.deletedSetIds ?? [])])];
-  return { ...newer, deletedSetIds, sets: mergeById<TrainingSet>(left.sets, right.sets).filter((set) => !deletedSetIds.includes(set.id)) };
+  return { ...newer, ...(deletedSetIds.length ? { deletedSetIds } : {}), sets: mergeById<TrainingSet>(left.sets, right.sets).filter((set) => !deletedSetIds.includes(set.id)) };
 };
 
 const mergeWorkout = (left: WorkoutSession, right: WorkoutSession): WorkoutSession => {
@@ -40,8 +40,8 @@ const mergeWorkout = (left: WorkoutSession, right: WorkoutSession): WorkoutSessi
   }
   const merged = {
     ...newer,
-    deletedExerciseIds,
-    deletedActivityIds,
+    ...(deletedExerciseIds.length ? { deletedExerciseIds } : {}),
+    ...(deletedActivityIds.length ? { deletedActivityIds } : {}),
     exercises: [...exercises.values()].filter((exercise) => !deletedExerciseIds.includes(exercise.id)),
     cardio: mergeById<CardioEntry>(left.cardio, right.cardio).filter((activity) => !deletedActivityIds.includes(activity.id)),
   };

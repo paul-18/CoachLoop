@@ -10,14 +10,19 @@ export function reviewRestore(base: TrainingState, backup: TrainingState, mode: 
 }
 
 const display = (value: unknown) => value === undefined ? "not set" : JSON.stringify(value);
+const isEquivalent = (a: unknown, b: unknown) => {
+  if (display(a) === display(b)) return true;
+  if ((a === undefined && Array.isArray(b) && b.length === 0) || (b === undefined && Array.isArray(a) && a.length === 0)) return true;
+  return false;
+};
 const fields = (before: object, after: object, prefix: string) => {
   const left = before as Record<string, unknown>, right = after as Record<string, unknown>;
   return [...new Set([...Object.keys(left), ...Object.keys(right)])]
-    .filter(key => key !== "updatedAt" && key !== "id" && display(left[key]) !== display(right[key]))
+    .filter(key => key !== "updatedAt" && key !== "id" && !isEquivalent(left[key], right[key]))
     .map(key => `${prefix}${key}: ${display(left[key])} → ${display(right[key])}`);
 };
 
-function workoutDifferences(before: WorkoutSession, after: WorkoutSession) {
+export function workoutDifferences(before: WorkoutSession, after: WorkoutSession) {
   const { exercises: le, cardio: lc, ...lh } = before;
   const { exercises: re, cardio: rc, ...rh } = after;
   const changes = fields(lh, rh, "Workout · ");
