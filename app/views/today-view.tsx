@@ -595,6 +595,8 @@ export function TodayView({
   onOpenCoachingPreferences,
   onDismissFirstNote,
   syncStatus,
+  updateReady = false,
+  onOpenUpdate,
 }: {
   existingWorkoutRequest?: string | null;
   onExistingWorkoutOpened?: () => void;
@@ -618,6 +620,8 @@ export function TodayView({
   onOpenCoachingPreferences?: () => void;
   onDismissFirstNote?: () => void;
   syncStatus: SyncStatus;
+  updateReady?: boolean;
+  onOpenUpdate?: () => void;
 }) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   useEffect(() => {
@@ -649,7 +653,21 @@ export function TodayView({
         <div>
           <h1 className="today-date">{new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</h1>
         </div>
-        <span className="text-xs text-white/50" aria-label={`Published app version ${APP_RELEASE}`}>{APP_RELEASE}</span>
+        {updateReady ? (
+          <button
+            type="button"
+            onClick={onOpenUpdate}
+            className="today-version-update"
+            aria-label={`Published app version ${APP_RELEASE} — update available`}
+            title="New update available — open Settings"
+          >
+            <span className="today-version-dot" aria-hidden="true" />
+            <span>{APP_RELEASE}</span>
+            <span className="today-version-tag">Update</span>
+          </button>
+        ) : (
+          <span className="text-xs text-white/50" aria-label={`Published app version ${APP_RELEASE}`}>{APP_RELEASE}</span>
+        )}
         {(syncStatus === "offline" || syncStatus === "error") && <span className="data-pill sync-exception"><CloudOff />{syncCopy[syncStatus]}</span>}
       </section>
 

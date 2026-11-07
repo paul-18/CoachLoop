@@ -1,16 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createUpdateCoordinator } from "./update-coordinator";
 
+export type UpdateCheckResult = "up-to-date" | "update-ready";
+
 export function useOfflineStatus() {
   const [offlineReady, setOfflineReady] = useState<"checking" | "ready" | "failed">("checking");
   const [updateReady, setUpdateReady] = useState(false);
   const [release, setRelease] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState("");
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const refreshRef = useRef<(() => boolean) | null>(null);
   const coordinator = useRef<ReturnType<typeof createUpdateCoordinator> | null>(null);
-  const checkUpdates = useCallback(async () => {
-    if (!registrationRef.current) throw new Error("Offline installation is not ready yet. Open online and try again.");
-    await registrationRef.current.update();
+  const checkUpdates = useCallback(async (): Promise<UpdateCheckResult> => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      throw new Error("Update check failed; try again while online.");
+    }
+    const registration = registrationRef.current;
+    if (!registration) throw new Error("Offline installation is not ready yet. Open online and try again.");
+    await registration.update();
+    const installing = registration.installing;
+    if (installing && installing.state === "installing") {
+      await new Promise<void>(resolve => {
+        const timer = setTimeout(() => { installing.removeEventListener("statechange", onChange); resolve(); }, 5_000);
+        const onChange = () => {
+          if (installing.state !== "installing") {
+            clearTimeout(timer);
+            installing.removeEventListener("statechange", onChange);
+            resolve();
+          }
+        };
+        installing.addEventListener("statechange", onChange);
+      });
+    }
+    const hasUpdate = refreshRef.current ? refreshRef.current() : Boolean(registration.waiting || coordinator.current?.hasPending());
+    return hasUpdate ? "update-ready" : "up-to-date";
   }, []);
   const applyUpdate = useCallback(async (save: () => Promise<void>, safe: () => boolean = () => false) => {
     if (!coordinator.current) throw new Error("Updates are not available in this window yet");
@@ -46,10 +69,13 @@ export function useOfflineStatus() {
       } finally { if (timeout) clearTimeout(timeout); channel.port1.close(); channel.port2.close(); }
     };
     const refresh = () => {
-      if (!registration || disposed) return;
-      setUpdateReady((!!registration.waiting && !!navigator.serviceWorker.controller) || !!coordinator.current?.hasPending());
+      if (!registration || disposed) return false;
+      const pending = (!!registration.waiting && !!navigator.serviceWorker.controller) || !!coordinator.current?.hasPending();
+      setUpdateReady(pending);
       void checkOfflineReady(registration).then(result => { if (!disposed) { setOfflineReady(result.ready ? "ready" : "failed"); setRelease(result.release); } }).catch(() => { if (!disposed) setOfflineReady("failed"); });
+      return pending;
     };
+    refreshRef.current = refresh;
     const onState = () => { if (["installed", "activated"].includes(observedWorker?.state ?? "")) refresh(); };
     const onUpdate = () => { observedWorker?.removeEventListener("statechange", onState); observedWorker = registration?.installing ?? null; observedWorker?.addEventListener("statechange", onState); };
     const foreground = () => {
@@ -71,6 +97,7 @@ export function useOfflineStatus() {
     document.addEventListener("visibilitychange", foreground); window.addEventListener("online", foreground);
     return () => {
       coordinator.current?.dispose(); coordinator.current = null;
+      refreshRef.current = null;
       disposed = true; window.removeEventListener("load", register); window.removeEventListener("online", foreground); document.removeEventListener("visibilitychange", foreground);
       navigator.serviceWorker.removeEventListener("controllerchange", refresh); registration?.removeEventListener("updatefound", onUpdate); observedWorker?.removeEventListener("statechange", onState);
     };

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <rect width="1280" height="800" fill="#10120f"/>
+  <rect x="0" y="0" width="242" height="800" fill="#121410"/>
+  <rect x="28" y="32" width="40" height="40" rx="12" fill="#c6ff4a"/>
+  <text x="80" y="58" fill="#f5f7ef" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="800">Coach Loop</text>
+  <rect x="290" y="48" width="940" height="120" rx="24" fill="#171916" stroke="#c6ff4a" stroke-opacity="0.22"/>
+  <text x="326" y="98" fill="#f5f7ef" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900">Today · Strength, Cardio &amp; AI Coaching</text>
+  <text x="326" y="132" fill="#92988a" font-family="system-ui, -apple-system, sans-serif" font-size="16">Log sets, intervals, and export structured briefs for your AI chat.</text>
+  <rect x="290" y="196" width="456" height="240" rx="22" fill="#171916" stroke="#ffffff" stroke-opacity="0.08"/>
+  <rect x="774" y="196" width="456" height="240" rx="22" fill="#171916" stroke="#ffffff" stroke-opacity="0.08"/>
+</svg>

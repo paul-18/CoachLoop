@@ -1,7 +1,10 @@
 {
   "name": "Coach Loop",
   "short_name": "Coach Loop",
-  "description": "Offline-first strength, cardio, and ChatGPT workout tracking.",
+  "description": "Offline-first strength, cardio, and AI chat workout tracking.",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["fitness", "health", "sports"],
   "id": "./",
   "start_url": "./",
   "scope": "./",
@@ -14,5 +17,37 @@
     { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshot-narrow.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Live workout logging on phone"
+    },
+    {
+      "src": "./screenshot-wide.svg",
+      "sizes": "1280x800",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "Training dashboard and AI coach brief"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log workout",
+      "short_name": "Log workout",
+      "description": "Open Today to start or resume a workout",
+      "url": "./?view=today",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "History",
+      "short_name": "History",
+      "description": "Review completed workouts and export logs",
+      "url": "./?view=history",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

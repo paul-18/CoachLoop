@@ -76,8 +76,8 @@ export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_0
         notice("Restart requested. Waiting for activation and a final successful save; keep editors closed.");
         channel.port1.onmessage = event => {
           if (event.data?.applied === false && intent === current) {
-            notice(event.data.reason ?? "Update refused. Close the other Coach Loop window and retry here.");
-            clear(current); reject(new Error(event.data.reason ?? "Update was refused by another open window"));
+            notice(event.data.reason ?? "Coach Loop is also open in Safari or the Home Screen app. Close the other copy and retry here.");
+            clear(current); reject(new Error(event.data.reason ?? "Coach Loop is also open in Safari or the Home Screen app. Close the other copy before updating."));
           }
         };
         try { worker.postMessage({ type: "COACH_LOOP_APPLY_UPDATE" }, [channel.port2]); }

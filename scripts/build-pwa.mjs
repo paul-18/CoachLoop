@@ -65,7 +65,7 @@ self.addEventListener("message", event => {
   if (event.data?.type === "COACH_LOOP_APPLY_UPDATE") event.waitUntil((async () => {
     const windows = (await self.clients.matchAll({ type: "window", includeUncontrolled: true }))
       .filter(client => new URL(client.url).pathname.startsWith(ROOT.pathname));
-    if (windows.length > 1) { event.ports[0]?.postMessage({ applied: false, reason: "Close the other Coach Loop window before updating" }); return; }
+    if (windows.length > 1) { event.ports[0]?.postMessage({ applied: false, reason: "Coach Loop is also open in Safari or the Home Screen app. Close the other copy before updating." }); return; }
     event.ports[0]?.postMessage({ applied: true });
     await self.skipWaiting();
   })());

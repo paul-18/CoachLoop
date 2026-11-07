@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#10120f"/>
+  <rect x="20" y="64" width="350" height="88" rx="20" fill="#171916" stroke="#c6ff4a" stroke-opacity="0.25"/>
+  <circle cx="46" cy="108" r="6" fill="#c6ff4a"/>
+  <text x="64" y="102" fill="#f5f7ef" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="800">Coach Loop · Today</text>
+  <text x="64" y="126" fill="#92988a" font-family="system-ui, -apple-system, sans-serif" font-size="13">Offline-first strength &amp; cardio log</text>
+  <rect x="20" y="172" width="350" height="140" rx="20" fill="#171916" stroke="#ffffff" stroke-opacity="0.08"/>
+  <text x="40" y="208" fill="#c6ff4a" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800">BARBELL BENCH PRESS</text>
+  <text x="40" y="238" fill="#f5f7ef" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700">3/3 sets · 185 lb × 5 @ RPE 8</text>
+  <rect x="40" y="256" width="310" height="36" rx="10" fill="#c6ff4a"/>
+  <text x="195" y="279" text-anchor="middle" fill="#11140d" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="800">Finish workout</text>
+</svg>

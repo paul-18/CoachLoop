@@ -60,9 +60,10 @@ for(const path of ['icon-192.png','manifest.webmanifest','favicon.svg']){
 }
 assetOverride=null;online=true;
 // Applying an update never takes over a second open app window.
-let reply;windows=2;await run('message',{data:{type:'COACH_LOOP_APPLY_UPDATE'},ports:[{postMessage(v){reply=v;}}]});assert.equal(reply.applied,false);assert.equal(skipped,false);
+let reply;windows=2;await run('message',{data:{type:'COACH_LOOP_APPLY_UPDATE'},ports:[{postMessage(v){reply=v;}}]});assert.equal(reply.applied,false);assert.match(reply.reason,/Safari or the Home Screen app/);assert.equal(skipped,false);
 windows=1;await run('message',{data:{type:'COACH_LOOP_APPLY_UPDATE'},ports:[{postMessage(v){reply=v;}}]});assert.equal(reply.applied,true);assert.equal(skipped,true);
-const manifest=JSON.parse(await readFile(dist+'manifest.webmanifest','utf8'));assert.equal(new URL(manifest.start_url,root).href,root.href);assert.equal(new URL(manifest.scope,root).href,root.href);for(const icon of manifest.icons)await access(dist+new URL(icon.src,root).pathname.slice(root.pathname.length));
+const manifest=JSON.parse(await readFile(dist+'manifest.webmanifest','utf8'));assert.equal(new URL(manifest.start_url,root).href,root.href);assert.equal(new URL(manifest.scope,root).href,root.href);assert.equal(manifest.lang,'en');assert.equal(manifest.dir,'ltr');assert.ok(Array.isArray(manifest.categories)&&manifest.categories.includes('fitness'));assert.match(manifest.description,/AI chat/);assert.doesNotMatch(manifest.description,/ChatGPT/);for(const icon of manifest.icons)await access(dist+new URL(icon.src,root).pathname.slice(root.pathname.length));assert.ok(Array.isArray(manifest.screenshots)&&manifest.screenshots.some(s=>s.form_factor==='narrow')&&manifest.screenshots.some(s=>s.form_factor==='wide'));for(const shot of manifest.screenshots)await access(dist+new URL(shot.src,root).pathname.slice(root.pathname.length));assert.ok(Array.isArray(manifest.shortcuts)&&manifest.shortcuts.length>=2);
+const builtHtml=await readFile(dist+'index.html','utf8');assert.match(builtHtml,/name="mobile-web-app-capable"\s+content="yes"/);assert.match(builtHtml,/name="apple-mobile-web-app-capable"\s+content="yes"/);
 // A partial/mixed deployment must not install a worker that claims offline readiness.
 const savedEntries = new Map(stores.get(current));corruptPrecache=true;
 await assert.rejects(run('install'), /expected hashes/);assert.equal(stores.has(current),false);
