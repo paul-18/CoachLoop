@@ -1,4 +1,5 @@
 import type { TrainingState, WorkoutSession } from "../domain/training-types";
+import { setDisplayNumbers } from "../domain/completion";
 import { restoredState, type RestoreMode } from "./backup-tools";
 
 export interface ReviewedRestore { base: TrainingState; next: TrainingState }
@@ -30,11 +31,15 @@ export function workoutDifferences(before: WorkoutSession, after: WorkoutSession
     const left = le.find(e => e.id === id), right = re.find(e => e.id === id);
     if (!left || !right) { changes.push(`${(left ?? right)!.name}: ${left ? "removed" : "added"} · ${display((left ?? right)!.sets)}`); continue; }
     const { sets: ls, ...lb } = left, { sets: rs, ...rb } = right;
+    const leftNums = setDisplayNumbers(ls), rightNums = setDisplayNumbers(rs);
     changes.push(...fields(lb, rb, `${right.name} · `));
     for (const setId of new Set([...ls, ...rs].map(s => s.id))) {
       const l = ls.find(s => s.id === setId), r = rs.find(s => s.id === setId);
-      const index = (r ? rs : ls).findIndex(s => s.id === setId) + 1;
-      const label = `${right.name}, set ${index} · `;
+      const targetSets = r ? rs : ls;
+      const targetNums = r ? rightNums : leftNums;
+      const idx = targetSets.findIndex(s => s.id === setId);
+      const setLabel = targetNums[idx]?.short ?? String(idx + 1);
+      const label = `${right.name}, set ${setLabel} · `;
       if (!l || !r) changes.push(`${label}${l ? "removed" : "added"}: ${display(l ?? r)}`);
       else changes.push(...fields(l, r, label));
     }

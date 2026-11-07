@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Copy, Download, History, MoreHorizontal, Redo2, SquarePen, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Download, History, MoreHorizontal, Redo2, Save, SquarePen, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -30,7 +30,8 @@ import { localDate, type TrainingState, type Unit, type WorkoutSession } from ".
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
 import { FirstWorkoutNote } from "./first-workout-note";
 
-import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress, setDisplayNumbers } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress, setDisplayNumbers, supersetLabels } from "../domain/completion";
+import { workoutPersonalRecords } from "../domain/personal-records";
 import { formatSegmentMeasure, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 
 import { WorkoutVolume } from "./workout-editor";
@@ -69,18 +70,21 @@ function compactSegments(activity: WorkoutSession["cardio"][number]) {
   });
 }
 
-function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSession; unit: Unit; history: WorkoutSession[] }) {
-  if (workout.hyrox) return <><HyroxResults workout={workout} unit={unit} history={history} />{workout.notes && <p className="hyrox-muted">Your notes: {workout.notes}</p>}</>;
+function HistoryWorkoutDetails({ workout, unit, state }: { workout: WorkoutSession; unit: Unit; state: TrainingState }) {
+  const prs = useMemo(() => workoutPersonalRecords(state, workout), [state, workout]);
+  const supersets = useMemo(() => supersetLabels(workout), [workout]);
+  if (workout.hyrox) return <><HyroxResults workout={workout} unit={unit} history={state.workouts} />{workout.notes && <p className="hyrox-muted">Your notes: {workout.notes}</p>}</>;
   return (
     <div className="history-details">
       {orderedWorkoutBlocks(workout).map((block) => {
         if (block.type === "exercise") {
           const exercise = block.exercise;
           const progress = exerciseSetProgress(exercise.sets);
+          const supersetLabel = supersets.get(exercise.id);
           return (
             <details key={exercise.id} className="history-exercise" open={exercise.sets.length <= 6 ? true : undefined}>
               <summary className="history-detail-heading">
-                <div><h3>{exercise.name}</h3>{exercise.notes && <p>Your note: {exercise.notes}</p>}</div>
+                <div><h3>{supersetLabel && <span className="superset-badge mr-1.5">{supersetLabel}</span>}{exercise.name}</h3>{exercise.notes && <p>Your note: {exercise.notes}</p>}</div>
                 <span className="flex shrink-0 items-center gap-2"><Badge variant="outline" className="border-white/9 text-white/48">{progress.skippedOnly ? "Skipped" : `${progress.done}/${progress.total} ${progress.total === 1 ? "set" : "sets"}`}</Badge><ChevronDown className="history-chevron" /></span>
               </summary>
               {exercise.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{exercise.coachNotes}</p></details>}
@@ -91,10 +95,11 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
                     return exercise.sets.map((set, index) => {
                       const weight = set.completed ? performedWeight(set) : set.plannedWeight;
                       const reps = set.completed ? performedReps(set) : set.plannedReps;
+                      const pr = prs.get(set.id);
                       return (
                         <div key={set.id} className={`history-set-compact ${set.completed ? "" : "incomplete"}`}>
                           <span className="history-set-index">{numbers[index]?.short ?? index + 1}</span>
-                          <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}</strong>
+                          <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}{pr && <span className="set-pr-badge ml-1.5" title={pr.summary}>PR</span>}</strong>
                           <small>{set.completed ? set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : "" : set.skipped ? "Skipped" : "Not done"}</small>
                           {set.notes && <p className="history-set-note">{set.notes}</p>}
                         </div>
@@ -151,6 +156,7 @@ export function HistoryView({
   onEdit,
   onRepeat,
   onReplan,
+  onSaveTemplate,
   onDelete,
   onDismissFirstNote,
   demoActive = false,
@@ -161,6 +167,7 @@ export function HistoryView({
   onEdit: (id: string) => void;
   onRepeat: (id: string) => void;
   onReplan: (id: string) => void;
+  onSaveTemplate?: (id: string) => void;
   onDelete: (id: string) => void;
   onDismissFirstNote?: () => void;
   demoActive?: boolean;
@@ -268,7 +275,7 @@ export function HistoryView({
                         <strong className="text-amber-200/80">Reason recorded</strong>
                         <p className="mt-1">{workout.skipReason || "No reason recorded."}</p>
                       </div>
-                    ) : <HistoryWorkoutDetails workout={workout} unit={state.settings.defaultUnit} history={state.workouts} />}
+                    ) : <HistoryWorkoutDetails workout={workout} unit={state.settings.defaultUnit} state={state} />}
                     <div className="mt-5 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                       {workout.status === "skipped" ? (
                         <Button size="sm" variant="outline" onClick={() => onReplan(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Replan</Button>
@@ -283,7 +290,7 @@ export function HistoryView({
                           <Button size="sm" variant="outline" onClick={() => onRepeat(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Repeat</Button>
                         </>
                       )}
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}<DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+                      <DropdownMenu><DropdownMenuTrigger asChild><Button ref={node => { if (node) deleteButtons.current.set(workout.id, node); else deleteButtons.current.delete(workout.id); }} size="icon" variant="ghost" aria-label={`More options for ${workout.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{workout.status === "completed" && <DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={async () => { if (await copyText(workoutToText(workout))) toast.success("Workout copied"); else toast.error("Could not copy this workout."); }}><Copy /> Copy workout</DropdownMenuItem>}{onSaveTemplate && <DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={() => onSaveTemplate(workout.id)}><Save /> Save as template</DropdownMenuItem>}<DropdownMenuItem disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onSelect={() => setDeleteId(workout.id)} className="text-red-200"><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
                       <AlertDialog open={deleteId === workout.id} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
                         <AlertDialogContent onCloseAutoFocus={(event) => { event.preventDefault(); deleteButtons.current.get(workout.id)?.focus(); }} className="border-white/10 bg-[#171916] text-white"><AlertDialogHeader><AlertDialogTitle>Delete this workout?</AlertDialogTitle><AlertDialogDescription className="text-white/60">It will be removed from history and future coach exports.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="border-white/10 bg-transparent text-white">Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => onDelete(workout.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>

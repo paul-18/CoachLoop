@@ -38,7 +38,7 @@ const setSchema = z.object({
 const exerciseSchema = z.object({
   id: identifier, name: z.string(), restSec: restSecNumber, notes: z.string(),
   coachNotes: z.string(), sets: z.array(setSchema).max(500), deletedSetIds: stringArray.optional(),
-  updatedAt: timestamp, substitutedFor: z.string().optional(),
+  updatedAt: timestamp, substitutedFor: z.string().optional(), supersetId: identifier.optional(),
 }).passthrough();
 const moveSchema = z.object({ id: identifier, name: z.string(), prescription: z.string() }).passthrough();
 const effortSchema = z.object({
@@ -94,7 +94,7 @@ const workoutSchema = z.object({
   notes: z.string(), sessionRpe: z.string(),
   source: z.enum(["manual", "fitlog", "repeat", "history"]),
   importWarnings: stringArray.optional(), importFingerprint: z.string().optional(),
-  originKey: z.string().optional(), starterSeed: z.boolean().optional(), updatedAt: timestamp.optional(), hyrox: hyroxSchema.optional(),
+  originKey: z.string().optional(), starterSeed: z.boolean().optional(), isTemplate: z.boolean().optional(), updatedAt: timestamp.optional(), hyrox: hyroxSchema.optional(),
 }).passthrough();
 const checkInSchema = z.object({ date: z.string(), energy: z.string(), sleep: z.string(), soreness: z.string(), restrictions: z.string(), schedule: z.string() });
 const conflictSchema = z.object({
@@ -122,6 +122,7 @@ export const storedStateBoundary = z.object({
   }),
   settings: z.object({
     colorTheme: z.enum(COLOR_THEMES.map(theme => theme.id) as [ColorTheme, ...ColorTheme[]]).optional(),
+    portraitLock: z.boolean().optional(),
     weeklyCards: z.array(z.enum(["strength", "run", "ruck", "water_polo", "circuit", "swim", "bike", "row", "walk", "hike", "soccer", "grappling", "yoga", "mobility", "force", "other"])).refine(values => new Set(values).size === values.length).optional(),
     progressSections: z.array(z.enum(["weekly", "coverage", "balance", "bodyweight", "trends", "benchmarks", "activities", "waist", "monthly", "calendar", "records"])).refine(values => new Set(values).size === values.length).optional(),
     bodyDiagram: z.enum(["male", "female"]).optional(),

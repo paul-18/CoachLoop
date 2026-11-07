@@ -1,4 +1,4 @@
-import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, hasTrainingEvidence } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, hasTrainingEvidence, setDisplayNumbers, supersetLabels } from "../domain/completion";
 import { formatSegmentMeasure, hasSegmentPrescription, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 import { hyroxExport } from "../domain/hyrox";
 import { FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER } from "./fitlog";
@@ -34,6 +34,7 @@ const plannedSetLine = (set: TrainingSet) => {
 };
 
 const compactSetLines = (sets: TrainingSet[], includePlanned: boolean, plannedWorkout: boolean) => {
+  const numbers = setDisplayNumbers(sets);
   const entries = sets.map((set, index) => {
     let text: string;
     if (plannedWorkout) {
@@ -52,12 +53,18 @@ const compactSetLines = (sets: TrainingSet[], includePlanned: boolean, plannedWo
       text = includePlanned && !actualMatchesPlan ? `actual ${performed}; planned ${planned}` : performed;
     }
     if (set.notes) text += `; note: ${set.notes}`;
-    return { index: index + 1, text, groupable: !set.notes };
+    const displayNum = numbers[index]?.short ?? String(index + 1);
+    return { index: displayNum, warmup: Boolean(set.warmup), text, groupable: !set.notes };
   });
   const lines: string[] = [];
   for (let index = 0; index < entries.length;) {
     let end = index;
-    while (entries[index].groupable && entries[end + 1]?.groupable && entries[end + 1].text === entries[index].text) end += 1;
+    while (
+      entries[index].groupable
+      && entries[end + 1]?.groupable
+      && entries[end + 1].warmup === entries[index].warmup
+      && entries[end + 1].text === entries[index].text
+    ) end += 1;
     const label = end > index ? `Sets ${entries[index].index}–${entries[end].index}` : `Set ${entries[index].index}`;
     lines.push(`- ${label}: ${entries[index].text}`);
     index = end + 1;
@@ -69,6 +76,7 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
   const lines = [`${workout.date} — ${workout.name}`];
   if (workout.status === "completed" && !hasTrainingEvidence(workout)) lines.push("Saved session · no completed working training evidence recorded (excluded from training-day counts).");
   if (workout.hyrox) return [...lines, ...hyroxExport(workout, true), ...(workout.notes ? [`Your notes: ${workout.notes}`] : [])].join("\n");
+  const supersets = supersetLabels(workout);
   const exerciseById = new Map(workout.exercises.map((item) => [item.id, item]));
   const activityById = new Map(workout.cardio.map((item) => [item.id, item]));
   const seen = new Set<string>();
@@ -81,7 +89,8 @@ export const workoutToText = (workout: WorkoutSession, includePlanned = true) =>
     if (block.type === "exercise") {
       const exercise = exerciseById.get(block.id);
       if (!exercise) return;
-      lines.push(`\n${exercise.name}${exercise.substitutedFor ? ` (substituted for ${exercise.substitutedFor})` : ""}:`);
+      const supersetLabel = supersets.get(exercise.id);
+      lines.push(`\n${supersetLabel ? `[${supersetLabel}] ` : ""}${exercise.name}${exercise.substitutedFor ? ` (substituted for ${exercise.substitutedFor})` : ""}:`);
       lines.push(...compactSetLines(exercise.sets, includePlanned, workout.status === "planned"));
       if (exercise.notes) lines.push(`  Your notes: ${exercise.notes}`);
       return;
@@ -240,7 +249,7 @@ export const buildCoachPrompt = (
     )
     .sort((a, b) => a.date.localeCompare(b.date));
   const planned = state.workouts
-    .filter((workout) => workout.status === "planned")
+    .filter((workout) => workout.status === "planned" && !workout.isTemplate)
     .sort((a, b) => a.date.localeCompare(b.date));
   const active = state.activeWorkoutId
     ? state.workouts.find((workout) => workout.id === state.activeWorkoutId && workout.status === "active")

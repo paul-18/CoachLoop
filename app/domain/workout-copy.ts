@@ -6,6 +6,12 @@ import { performedReps, performedWeight, performedDuration, performedDistance, r
 export function repeatWorkoutDraft(original: WorkoutSession): WorkoutSession {
     const exerciseIds = new Map(original.exercises.map((exercise) => [exercise.id, uid("exercise")]));
     const activityIds = new Map(original.cardio.map((activity) => [activity.id, uid("cardio")]));
+    const supersetIds = new Map<string, string>();
+    for (const exercise of original.exercises) {
+      if (exercise.supersetId && !supersetIds.has(exercise.supersetId)) {
+        supersetIds.set(exercise.supersetId, uid("superset"));
+      }
+    }
     const repeated: WorkoutSession = {
       ...structuredClone(original),
       id: uid("workout"),
@@ -13,6 +19,8 @@ export function repeatWorkoutDraft(original: WorkoutSession): WorkoutSession {
       originKey: undefined,
       importFingerprint: undefined,
       importWarnings: undefined,
+      starterSeed: undefined,
+      isTemplate: undefined,
       date: localDate(),
       createdAt: new Date().toISOString(),
       startedAt: new Date().toISOString(),
@@ -24,7 +32,7 @@ export function repeatWorkoutDraft(original: WorkoutSession): WorkoutSession {
       notes: "",
       sessionRpe: "",
       updatedAt: new Date().toISOString(),
-      exercises: original.exercises.map((exercise) => ({ ...structuredClone(exercise), id: exerciseIds.get(exercise.id)!, updatedAt: new Date().toISOString(), notes: "", sets: exercise.sets.map((set) => ({ ...set, id: uid("set"), plannedReps: set.completed ? performedReps(set) || set.plannedReps : set.plannedReps, plannedWeight: set.completed ? performedWeight(set) : set.plannedWeight, actualReps: "", actualWeight: null, rpe: "", rir: "", completed: false, skipped: false, completedAsPlanned: false, notes: "", updatedAt: new Date().toISOString() })) })),
+      exercises: original.exercises.map((exercise) => ({ ...structuredClone(exercise), id: exerciseIds.get(exercise.id)!, ...(exercise.supersetId ? { supersetId: supersetIds.get(exercise.supersetId) } : {}), updatedAt: new Date().toISOString(), notes: "", sets: exercise.sets.map((set) => ({ ...set, id: uid("set"), plannedReps: set.completed ? performedReps(set) || set.plannedReps : set.plannedReps, plannedWeight: set.completed ? performedWeight(set) : set.plannedWeight, actualReps: "", actualWeight: null, rpe: "", rir: "", completed: false, skipped: false, completedAsPlanned: false, notes: "", updatedAt: new Date().toISOString() })) })),
       cardio: original.cardio.map((item) => ({ ...structuredClone(item), id: activityIds.get(item.id)!, plannedDurationMin: item.completed ? (roundedMeasure(performedDuration(item)) ?? item.plannedDurationMin) : item.plannedDurationMin, plannedDistanceKm: item.completed ? (roundedMeasure(performedDistance(item)) ?? item.plannedDistanceKm) : item.plannedDistanceKm, efforts: (item.efforts ?? []).map((entry) => ({ ...entry, id: uid("effort"), plannedDistanceM: entry.completed ? (entry.actualDistanceM ?? entry.plannedDistanceM) : entry.plannedDistanceM, plannedDurationSec: entry.completed ? (entry.actualDurationSec ?? entry.plannedDurationSec) : entry.plannedDurationSec, plannedLoad: entry.completed ? (entry.actualLoad ?? entry.plannedLoad) : entry.plannedLoad, actualDistanceM: null, actualDurationSec: null, actualLoad: null, completed: false })), segments: (item.segments ?? []).map((segment) => ({ ...segment, id: uid("segment"), plannedDurationSec: (segment.status === "completed" || segment.status === "modified") && segment.actualDurationSec !== null ? segment.actualDurationSec : segment.plannedDurationSec, plannedDistanceM: (segment.status === "completed" || segment.status === "modified") && segment.actualDistanceM !== null ? segment.actualDistanceM : segment.plannedDistanceM, actualDurationSec: null, actualDistanceM: null, status: "unknown" as const })), roundsDone: undefined, actualDurationMin: null, actualDistanceKm: null, averageHr: null, elevationM: null, pace: "", effort: "", completed: false, skipped: false, completedAsPlanned: false, notes: "", updatedAt: new Date().toISOString() })),
       blockOrder: normalizedBlockOrder(original).map((block) => ({ type: block.type, id: block.type === "exercise" ? exerciseIds.get(block.id)! : activityIds.get(block.id)! })),
     };
@@ -35,12 +43,20 @@ export function repeatWorkoutDraft(original: WorkoutSession): WorkoutSession {
 export function replanWorkoutDraft(original: WorkoutSession): WorkoutSession {
     const exerciseIds = new Map(original.exercises.map((exercise) => [exercise.id, uid("exercise")]));
     const activityIds = new Map(original.cardio.map((activity) => [activity.id, uid("cardio")]));
+    const supersetIds = new Map<string, string>();
+    for (const exercise of original.exercises) {
+      if (exercise.supersetId && !supersetIds.has(exercise.supersetId)) {
+        supersetIds.set(exercise.supersetId, uid("superset"));
+      }
+    }
     const replanned: WorkoutSession = {
       ...structuredClone(original),
       id: uid("workout"),
       originKey: undefined,
       importFingerprint: undefined,
       importWarnings: undefined,
+      starterSeed: undefined,
+      isTemplate: undefined,
       deletedExerciseIds: undefined,
       deletedActivityIds: undefined,
       date: localDate(),
@@ -57,6 +73,7 @@ export function replanWorkoutDraft(original: WorkoutSession): WorkoutSession {
       exercises: original.exercises.map((item) => ({
         ...structuredClone(item),
         id: exerciseIds.get(item.id)!,
+        ...(item.supersetId ? { supersetId: supersetIds.get(item.supersetId) } : {}),
         deletedSetIds: undefined,
         notes: "",
         sets: item.sets.map((set) => ({ ...set, id: uid("set"), actualReps: "", actualWeight: null, rpe: "", rir: "", completed: false, skipped: false, completedAsPlanned: false, notes: "" })),
@@ -65,4 +82,21 @@ export function replanWorkoutDraft(original: WorkoutSession): WorkoutSession {
       blockOrder: normalizedBlockOrder(original).map((block) => ({ type: block.type, id: block.type === "exercise" ? exerciseIds.get(block.id)! : activityIds.get(block.id)! })),
     };
   return replanned;
+}
+
+/** Creates a reusable template workout draft that preserves prescriptions and supersets without actual results. */
+export function templateWorkoutDraft(original: WorkoutSession): WorkoutSession {
+  const base = original.status === "completed" ? repeatWorkoutDraft(original) : replanWorkoutDraft(original);
+  return {
+    ...base,
+    id: uid("template"),
+    status: "planned",
+    startedAt: null,
+    completedAt: null,
+    skippedAt: null,
+    skipReason: "",
+    isTemplate: true,
+    starterSeed: undefined,
+    updatedAt: new Date().toISOString(),
+  };
 }

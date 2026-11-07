@@ -17,8 +17,8 @@ import { defaultState } from "../app/domain/training-types";
 import { parseFitlog, exampleSafeImportFitlog } from "../app/interchange/fitlog";
 import { storedStateBoundary } from "../app/persistence/training-validation";
 
-test("v121: APP_RELEASE is v121", () => {
-  assert.equal(APP_RELEASE, "v121");
+test("v122: APP_RELEASE is v122", () => {
+  assert.equal(APP_RELEASE, "v122");
 });
 
 test("v118 (P1): performedDuration and performedDistance return null when any completed effort is missing measurements", () => {

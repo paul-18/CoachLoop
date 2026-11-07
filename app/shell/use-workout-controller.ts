@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { validMeasurementDate } from "../domain/training-workflow";
 import { reschedulePlannedWorkout } from "../domain/plan-review";
 import { selectedActiveWorkout, startWorkoutState, resumeWorkoutState, finishWorkoutState, discardWorkoutState } from "../domain/workout-transitions";
-import { repeatWorkoutDraft, replanWorkoutDraft } from "../domain/workout-copy";
+import { repeatWorkoutDraft, replanWorkoutDraft, templateWorkoutDraft } from "../domain/workout-copy";
 import { makeHyroxWorkout } from "../domain/hyrox";
 import { makeCardio, makeWorkout, type CardioEntry, type WorkoutSession } from "../domain/training-types";
 import { formatDate, type MainView } from "../views/shared";
@@ -57,7 +57,31 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
   const startPlannedWorkout = (id: string) => {
     const workout = liveStateRef.current.workouts.find((item) => item.id === id && item.status === "planned");
-    if (workout) void startWorkout(workout).catch(saveFailure);
+    if (!workout) return;
+    if (workout.isTemplate) {
+      if (liveStateRef.current.activeWorkoutId) {
+        toast.error("Finish the active workout first");
+        return;
+      }
+      const copy = workout.hyrox
+        ? makeHyroxWorkout(workout.hyrox.division, workout.hyrox.segments, workout.hyrox.setupLabel)
+        : repeatWorkoutDraft(workout);
+      void startWorkout(copy).catch(saveFailure);
+      return;
+    }
+    void startWorkout(workout).catch(saveFailure);
+  };
+
+  const saveAsTemplate = (idOrWorkout: string | WorkoutSession) => {
+    if (demoActive) { toast.error("Exit demo before saving a template"); return; }
+    const source = typeof idOrWorkout === "string"
+      ? liveStateRef.current.workouts.find((item) => item.id === idOrWorkout)
+      : idOrWorkout;
+    if (!source) return;
+    const template = templateWorkoutDraft(source);
+    void commitState((current) => ({ ...current, workouts: [template, ...current.workouts] }))
+      .then(() => toast.success("Saved to workout templates"))
+      .catch(saveFailure);
   };
 
   const reschedulePlan = (id: string, date: string) => {
@@ -185,5 +209,5 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
 
 
   const resumeWorkout = (id: string) => { void commitState(current => resumeWorkoutState(current, id)).then(() => { setView("today"); setWorkoutOpen(true); }).catch(saveFailure); };
-  return { workoutOpen, setWorkoutOpen, editingWorkoutId, quickLogActivityId, importOpen, setImportOpen, importDraft, setImportDraft, importListFirst, setImportListFirst, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
+  return { workoutOpen, setWorkoutOpen, editingWorkoutId, quickLogActivityId, importOpen, setImportOpen, importDraft, setImportDraft, importListFirst, setImportListFirst, hyroxOpen, setHyroxOpen, coachOpen, setCoachOpen, lastImportId, setLastImportId, skipWorkout, setSkipWorkoutId, activeWorkout, activeChoices, displayedWorkout, putWorkout, startWorkout, savePlannedWorkout, startPlannedWorkout, saveAsTemplate, reschedulePlan, skipPlannedWorkout, startBlank, quickCardio, finishEditor, discardWorkout, editWorkout, leaveEditor, repeatWorkout, replanWorkout, deleteWorkout, resumeWorkout };
 }

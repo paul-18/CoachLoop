@@ -1,4 +1,5 @@
-import { makeExercise, makeSet, type WorkoutSession, type TrainingState, type TrainingSet, type Unit } from './training-types';
+import { makeExercise, makeSet, uid, type WorkoutSession, type TrainingState, type TrainingSet, type Unit } from './training-types';
+import { normalizedBlockOrder } from "./block-order";
 import { segmentMeasure } from "./activity-segments";
 import { hasCompletedActivityWork } from "./completion";
 import { exerciseIdentity, performedDistance, performedDuration, convertWeight } from './training-metrics';
@@ -64,6 +65,45 @@ export function substituteExercise(workout: WorkoutSession, id: string, name: st
   if (!order.some(b => b.id === id)) order.push({type:'exercise', id});
   order.splice(order.findIndex(b => b.id === id)+1, 0, {type:'exercise', id:replacement.id});
   return {...workout, exercises, blockOrder:order, updatedAt:now};
+}
+
+/** Pair an exercise with the next exercise in blockOrder as a superset, or unlink an exercise from its superset. */
+export function linkSupersetWithNext(workout: WorkoutSession, exerciseId: string): WorkoutSession {
+  const order = normalizedBlockOrder(workout).filter(b => b.type === "exercise");
+  const idx = order.findIndex(b => b.id === exerciseId);
+  const nextBlock = idx >= 0 ? order[idx + 1] : undefined;
+  if (!nextBlock) return workout;
+  const current = workout.exercises.find(e => e.id === exerciseId);
+  const nextEx = workout.exercises.find(e => e.id === nextBlock.id);
+  if (!current || !nextEx) return workout;
+  const now = new Date().toISOString();
+  const groupId = current.supersetId ?? nextEx.supersetId ?? uid("superset");
+  return {
+    ...workout,
+    updatedAt: now,
+    exercises: workout.exercises.map(e => (e.id === current.id || e.id === nextEx.id) ? { ...e, supersetId: groupId, updatedAt: now } : e),
+  };
+}
+
+export function unlinkSuperset(workout: WorkoutSession, exerciseId: string): WorkoutSession {
+  const target = workout.exercises.find(e => e.id === exerciseId);
+  if (!target?.supersetId) return workout;
+  const groupId = target.supersetId;
+  const remainingInGroup = workout.exercises.filter(e => e.id !== exerciseId && e.supersetId === groupId);
+  const cleanAll = remainingInGroup.length < 2;
+  const now = new Date().toISOString();
+  return {
+    ...workout,
+    updatedAt: now,
+    exercises: workout.exercises.map(e => {
+      if (e.id === exerciseId || (cleanAll && e.supersetId === groupId)) {
+        const copy = { ...e, updatedAt: now };
+        delete copy.supersetId;
+        return copy;
+      }
+      return e;
+    }),
+  };
 }
 export function incrementKey(name: string, unit: Unit, mode: string, aliases: TrainingState['exerciseAliases']) {
   return `${exerciseIdentity(name, aliases)}|${unit}|${mode}`;

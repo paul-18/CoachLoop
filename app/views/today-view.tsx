@@ -32,7 +32,7 @@ import { pendingRetests } from "../domain/benchmarks";
 import { trainingWeekStreak } from "../domain/training-streak";
 
 import { localDate, currentCoachCheckIn, STARTER_QUICK_LOG_ACTIVITIES, type CardioEntry, type CoachOptions, type TrainingState, type WorkoutSession } from "../domain/training-types";
-import { nextOpenBlock, setDisplayNumbers } from "../domain/completion";
+import { nextOpenBlock, setDisplayNumbers, supersetLabels } from "../domain/completion";
 import { goalsAreStarter } from "./goal-examples";
 import { welcomePending } from "./first-steps";
 import { blankStartReversible, coachingPromptVisible, starterRemovable, starterRemovalDescription } from "./starter-plan";
@@ -506,7 +506,7 @@ export function CoachDialog({
           <label className="field-label min-w-0 col-span-2">
             Anything to emphasize?
             <Textarea value={options.emphasis ?? ""} onChange={(event) => field("emphasis", event.target.value)} placeholder="What matters for this request? Changes since your last chat, what you want to focus on…" className="mt-1.5 min-h-20 border-white/10 bg-black/20" />
-            <span className="mt-1 block text-xs font-normal leading-4 text-white/45">Included in this brief only. Not remembered after closing or added to your profile.</span>
+            <span className="mt-1 block text-xs font-normal leading-4 text-white/55">Included in this brief only. Not remembered after closing or added to your profile.</span>
           </label>
           <details className="col-span-2 rounded-xl border border-white/8 bg-black/15 p-3">
             <summary className="cursor-pointer text-xs font-bold text-white/70">Optional request details</summary>
@@ -550,25 +550,26 @@ export function CoachDialog({
   );
 }
 
-export function PlanPreviewExercise({ exercise }: { exercise: WorkoutSession["exercises"][number] }) {
+export function PlanPreviewExercise({ exercise, supersetLabel }: { exercise: WorkoutSession["exercises"][number]; supersetLabel?: string }) {
   const numbers = setDisplayNumbers(exercise.sets);
   return <section className="plan-preview-block">
-    <h3>{exercise.name}</h3><p className="text-sm text-white/60">{exercise.sets.length} sets · {exercise.restSec}s rest</p>
+    <h3>{supersetLabel && <span className="superset-badge mr-1.5">{supersetLabel}</span>}{exercise.name}</h3><p className="text-sm text-white/60">{exercise.sets.length} sets · {exercise.restSec}s rest</p>
     <ol>{exercise.sets.map((set, index) => <li key={set.id}><span>{numbers[index].label}</span><strong>{formatLoad(set.loadType, set.plannedWeight, set.unit, set.weightMode)} × {set.plannedReps || "—"}{set.plannedRpe ? ` · RPE ${set.plannedRpe}` : set.plannedRir ? ` · RIR ${set.plannedRir}` : ""}</strong></li>)}</ol>
     {exercise.coachNotes && <CoachCue text={exercise.coachNotes} />}{exercise.notes && <p>{exercise.notes}</p>}
   </section>;
 }
 
-function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule }: { workout: WorkoutSession | undefined; active: boolean; onClose: () => void; onStart: (id: string) => void; onReschedule: (id: string, date: string) => void }) {
+function SavedPlanPreview({ workout, active, onClose, onStart, onReschedule, onSaveTemplate }: { workout: WorkoutSession | undefined; active: boolean; onClose: () => void; onStart: (id: string) => void; onReschedule: (id: string, date: string) => void; onSaveTemplate?: (id: string) => void }) {
   const [date, setDate] = useState(workout?.date ?? "");
   useEffect(() => { setDate(workout?.date ?? ""); }, [workout?.id, workout?.date]);
+  const supersets = useMemo(() => workout ? supersetLabels(workout) : new Map<string, string>(), [workout]);
   return <Dialog open={Boolean(workout)} onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent onOpenAutoFocus={(event) => event.preventDefault()} className="plan-preview-dialog border-white/10 bg-[#151713] text-white">
-    <DialogHeader><DialogTitle>{workout?.name}</DialogTitle><DialogDescription className="text-white/60">Saved plan · {workout ? formatDate(workout.date) : ""}. Previewing does not start or log anything.</DialogDescription></DialogHeader>
-    {workout && <div className="flex min-w-0 flex-wrap items-end gap-2"><label className="min-w-0 flex-1 text-xs font-bold text-white/60">Planned date<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 min-w-0 w-full border-white/10 bg-black/20 text-base" /></label>{date !== workout.date && <Button type="button" variant="outline" disabled={!date} onClick={() => onReschedule(workout.id, date)} className="border-white/10 bg-transparent text-white">Save date</Button>}</div>}
-    <div className="plan-preview-body">{workout?.hyrox ? <section className="plan-preview-block"><h3>HYROX simulation</h3><p className="text-sm text-white/65">{workout.hyrox.segments.length} segments</p><ol>{workout.hyrox.segments.map((segment, index) => <li key={segment.id}><span>{index + 1}</span><strong>{segment.name}{segment.distanceM ? ` · ${segment.distanceM} m` : ""}{segment.reps ? ` · ${segment.reps} reps` : ""}</strong></li>)}</ol></section> : null}{workout && orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? <PlanPreviewExercise key={block.exercise.id} exercise={block.exercise} /> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "", block.activity.plannedDistanceKm !== null ? `${formatMeasure(block.activity.plannedDistanceKm)} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
+    <DialogHeader><DialogTitle>{workout?.name}</DialogTitle><DialogDescription className="text-white/60">{workout?.isTemplate ? "Saved workout template · Starting this template opens a fresh session and keeps the template in your library." : `Saved plan · ${workout ? formatDate(workout.date) : ""}. Previewing does not start or log anything.`}</DialogDescription></DialogHeader>
+    {workout && !workout.isTemplate && <div className="flex min-w-0 flex-wrap items-end gap-2"><label className="min-w-0 flex-1 text-xs font-bold text-white/60">Planned date<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 min-w-0 w-full border-white/10 bg-black/20 text-base" /></label>{date !== workout.date && <Button type="button" variant="outline" disabled={!date} onClick={() => onReschedule(workout.id, date)} className="border-white/10 bg-transparent text-white">Save date</Button>}</div>}
+    <div className="plan-preview-body">{workout?.hyrox ? <section className="plan-preview-block"><h3>HYROX simulation</h3><p className="text-sm text-white/65">{workout.hyrox.segments.length} segments</p><ol>{workout.hyrox.segments.map((segment, index) => <li key={segment.id}><span>{index + 1}</span><strong>{segment.name}{segment.distanceM ? ` · ${segment.distanceM} m` : ""}{segment.reps ? ` · ${segment.reps} reps` : ""}</strong></li>)}</ol></section> : null}{workout && orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? <PlanPreviewExercise key={block.exercise.id} exercise={block.exercise} supersetLabel={supersets.get(block.exercise.id)} /> : <section key={block.activity.id} className="plan-preview-block"><h3>{block.activity.name}</h3><p className="text-sm text-white/65">{[block.activity.activityType, block.activity.plannedDurationMin !== null ? `${formatMeasure(block.activity.plannedDurationMin)} min` : "", block.activity.plannedDistanceKm !== null ? `${formatMeasure(block.activity.plannedDistanceKm)} km` : "", block.activity.ruckLoad !== null ? `${block.activity.ruckLoad} ${block.activity.ruckLoadUnit} pack` : "", block.activity.efforts?.length ? `${block.activity.efforts.length} efforts` : "", block.activity.intensity].filter(Boolean).join(" · ")}</p>
       {block.activity.intervals && (block.activity.activityType === "run" ? <RunPlan text={block.activity.intervals} /> : <p>{block.activity.intervals}</p>)}{block.activity.mobilityMoves.map((move) => <p key={move.id}>{move.name} · {move.prescription}</p>)}{block.activity.coachNotes && <CoachCue text={block.activity.coachNotes} />}{block.activity.notes && <p>{block.activity.notes}</p>}
     </section>)}{workout?.notes && <p className="text-sm text-white/65">{workout.notes}</p>}</div>
-    <div className="plan-preview-actions"><Button variant="outline" onClick={onClose}>Close</Button><Button disabled={active} className="bg-[var(--lime)] text-[#11140d]" onClick={() => { if (workout) { onClose(); onStart(workout.id); } }}><Play /> Start workout</Button></div>{active && <p className="text-sm text-white/60">Finish your current workout before starting another.</p>}
+    <div className="plan-preview-actions"><Button variant="outline" onClick={onClose}>Close</Button>{workout && !workout.isTemplate && onSaveTemplate && <Button variant="outline" onClick={() => onSaveTemplate(workout.id)}><Save /> Save as template</Button>}<Button disabled={active} className="bg-[var(--lime)] text-[#11140d]" onClick={() => { if (workout) { onClose(); onStart(workout.id); } }}><Play /> Start workout</Button></div>{active && <p className="text-sm text-white/60">Finish your current workout before starting another.</p>}
   </DialogContent></Dialog>;
 }
 
@@ -583,6 +584,8 @@ export function TodayView({
   onCoach,
   onResume,
   onStartPlan,
+  onSaveTemplate,
+  onDeleteTemplate,
   onReschedulePlan,
   onSkipPlan,
   onHistory,
@@ -608,6 +611,8 @@ export function TodayView({
   onCoach: () => void;
   onResume: () => void;
   onStartPlan: (id: string) => void;
+  onSaveTemplate?: (id: string) => void;
+  onDeleteTemplate?: (id: string) => void;
   onReschedulePlan: (id: string, date: string) => void;
   onSkipPlan: (id: string) => void;
   onHistory: () => void;
@@ -634,8 +639,11 @@ export function TodayView({
   const nextActiveBlock = active ? nextOpenBlock(active) : undefined;
   const nextActiveLabel = nextActiveBlock?.type === "exercise" ? nextActiveBlock.exercise.name : nextActiveBlock?.activity.name;
   const planned = [...state.workouts]
-    .filter((workout) => workout.status === "planned")
+    .filter((workout) => workout.status === "planned" && !workout.isTemplate)
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+  const templates = [...state.workouts]
+    .filter((workout) => workout.status === "planned" && workout.isTemplate === true)
+    .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt));
   const today = useLocalDay();
   const todayEntries = state.workouts.filter((workout) => workout.date === today && workout.status === "completed");
   const streak = trainingWeekStreak(state, today);
@@ -648,7 +656,7 @@ export function TodayView({
 
   return (
     <div className="page-stack today-stack">
-      <SavedPlanPreview workout={planned.find((item) => item.id === previewId)} active={Boolean(active)} onClose={() => setPreviewId(null)} onStart={onStartPlan} onReschedule={onReschedulePlan} />
+      <SavedPlanPreview workout={state.workouts.find((item) => item.id === previewId && item.status === "planned")} active={Boolean(active)} onClose={() => setPreviewId(null)} onStart={onStartPlan} onReschedule={onReschedulePlan} onSaveTemplate={onSaveTemplate} />
       <section className="topline">
         <div>
           <h1 className="today-date">{new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</h1>
@@ -733,6 +741,39 @@ export function TodayView({
                   <div className="flex shrink-0 gap-2">
                     <Button size="sm" onClick={() => setPreviewId(workout.id)} className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90">Preview</Button>
                     <Button size="icon-sm" variant="ghost" aria-label={`Skip ${workout.name}`} onClick={() => onSkipPlan(workout.id)} className="text-white/60 hover:bg-white/7 hover:text-white"><X /></Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {!active && templates.length > 0 && (
+        <section className="template-library">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Routine library</p>
+              <h2>Saved templates</h2>
+            </div>
+            <Badge variant="outline" className="border-white/10 text-white/60">{templates.length}</Badge>
+          </div>
+          <div className="space-y-3">
+            {templates.map((template) => {
+              const exerciseSets = template.exercises.reduce((sum, item) => sum + item.sets.length, 0);
+              return (
+                <article key={template.id} className="plan-card template-card">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-extrabold tracking-[-0.02em] text-white">{template.name}</h3>
+                      <Badge variant="outline" className="border-[var(--lime)]/25 bg-[var(--lime)]/8 text-[var(--lime)]">Template</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-white/60">{countLabel(template.exercises.length + template.cardio.length, "block")} · {countLabel(exerciseSets, "set")}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" onClick={() => onStartPlan(template.id)} className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90">Start</Button>
+                    <Button size="sm" variant="outline" onClick={() => setPreviewId(template.id)} className="border-white/12 bg-white/[0.025] text-white hover:bg-white/8">Preview</Button>
+                    {onDeleteTemplate && <Button size="icon-sm" variant="ghost" aria-label={`Remove template ${template.name}`} onClick={() => onDeleteTemplate(template.id)} className="text-white/60 hover:bg-white/7 hover:text-white"><X /></Button>}
                   </div>
                 </article>
               );

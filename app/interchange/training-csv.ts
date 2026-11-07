@@ -1,6 +1,6 @@
 import type { TrainingState } from "../domain/training-types";
 import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, setDisplayNumbers } from "../domain/completion";
-import { segmentMeasure } from "../domain/activity-segments";
+import { segmentCountLabel, segmentMeasure } from "../domain/activity-segments";
 import { csvSetEffort, toCsv } from "./csv-export";
 export function trainingCsvRows(state: TrainingState): string[][] {
   const rows = [["date", "workout", "record_status", "type", "exercise_or_activity", "set", "load_type", "weight_mode", "planned_weight", "actual_weight", "unit", "planned_reps", "actual_reps", "completed_as_planned", "rpe_or_effort", "duration_min", "distance_km", "ruck_load", "average_hr", "elevation_m", "pace", "notes", "skip_reason", "efforts", "warmup"]];
@@ -25,7 +25,7 @@ export function trainingCsvRows(state: TrainingState): string[][] {
         average_hr: hasEvidence ? c.averageHr?.toString() ?? "" : "",
         elevation_m: hasEvidence ? c.elevationM?.toString() ?? "" : "",
         pace: hasEvidence ? c.pace : "", notes: c.notes,
-        efforts: hasEvidence ? (c.efforts ?? []).map((e, i) => `${i + 1}: ${e.completed ? "done" : "not done"}${e.completed && e.actualDistanceM !== null ? ` ${e.actualDistanceM} m` : ""}${e.completed && e.actualLoad !== null ? ` ${e.actualLoad} ${c.effortLoadUnit ?? "lb"}` : ""}${e.completed && e.actualDurationSec !== null ? ` ${e.actualDurationSec} sec` : ""}`).join("; ") : "",
+        efforts: hasEvidence ? ((c.efforts ?? []).length ? (c.efforts ?? []).map((e, i) => `${i + 1}: ${e.completed ? "done" : "not done"}${e.completed && e.actualDistanceM !== null ? ` ${e.actualDistanceM} m` : ""}${e.completed && e.actualLoad !== null ? ` ${e.actualLoad} ${c.effortLoadUnit ?? "lb"}` : ""}${e.completed && e.actualDurationSec !== null ? ` ${e.actualDurationSec} sec` : ""}`).join("; ") : c.segments?.length ? segmentCountLabel(c.segments) : (c.roundsDone ?? 0) > 0 ? `${c.roundsDone} ${c.roundsDone === 1 ? "round" : "rounds"} done` : "") : "",
       });
     });
   }

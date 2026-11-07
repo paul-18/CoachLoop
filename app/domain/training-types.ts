@@ -51,6 +51,7 @@ export interface TrainingSet {
 
 export interface ExerciseBlock {
   substitutedFor?: string;
+  supersetId?: string;
   id: string;
   name: string;
   restSec: number;
@@ -163,6 +164,8 @@ export interface WorkoutSession {
   originKey?: string;
   /** True only for the untouched example plan created by Start with an example. */
   starterSeed?: boolean;
+  /** True when saved in the reusable workout template library on Today. */
+  isTemplate?: boolean;
   updatedAt?: string;
 }
 
@@ -199,6 +202,7 @@ export const DEFAULT_QUICK_LOG_ACTIVITIES: QuickLogActivityType[] = QUICK_LOG_OP
 
 export interface AppSettings {
   colorTheme?: ColorTheme;
+  portraitLock?: boolean;
   weeklyCards?: WeeklyCard[];
   progressSections?: ProgressSection[];
   bodyDiagram?: "male" | "female";

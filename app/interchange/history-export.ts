@@ -3,6 +3,7 @@ import type { TrainingState, TrainingSet } from "../domain/training-types";
 import { performedReps, performedWeight, performedDistance, performedDuration, formatMeasure, exerciseIdentity } from "../domain/training-metrics";
 
 import { hasCompletedActivityWork } from "../domain/completion";
+import { segmentCountLabel } from "../domain/activity-segments";
 const setDescription = (set: TrainingSet) => {
   const weight = performedWeight(set);
   const load = set.loadType === "bodyweight"
@@ -41,6 +42,8 @@ export function exportCompletedHistory(state: TrainingState, filter: { from?: st
       const details = [
         performedDistance(activity) !== null ? `${formatMeasure(performedDistance(activity)!)} km` : null,
         performedDuration(activity) !== null ? `${formatMeasure(performedDuration(activity)!)} min` : null,
+        (activity.roundsDone ?? 0) > 0 ? `${activity.roundsDone} ${activity.roundsDone === 1 ? "round" : "rounds"} done` : null,
+        activity.segments?.length ? segmentCountLabel(activity.segments) : null,
         activity.activityType === "ruck" && activity.ruckLoad !== null ? `${activity.ruckLoad} ${activity.ruckLoadUnit} pack` : null,
         activity.efforts?.some((effort) => effort.completed) ? activity.efforts.filter((effort) => effort.completed).map((effort) => [effort.actualDistanceM !== null ? `${effort.actualDistanceM} m` : "", effort.actualLoad !== null ? `${effort.actualLoad} ${activity.effortLoadUnit ?? "lb"}` : "", effort.actualDurationSec !== null ? `${effort.actualDurationSec} sec` : ""].filter(Boolean).join(" · ") || "effort").join("; ") : null,
       ].filter(Boolean);

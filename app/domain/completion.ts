@@ -1,4 +1,4 @@
-import type { ActivityEffort, CardioEntry, TrainingSet, WorkoutSession } from "./training-types";
+import type { ActivityEffort, CardioEntry, ExerciseBlock, TrainingSet, WorkoutSession } from "./training-types";
 import { normalizedBlockOrder } from "./block-order";
 import { segmentCounts, segmentHasTypedActual, segmentMeasure } from "./activity-segments";
 export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.skipped && (activity.segments?.length
@@ -125,11 +125,64 @@ export const activityStillOpen = (activity: CardioEntry) => {
   return !activity.completed;
 };
 
+export function supersetGroupExercises(workout: WorkoutSession, supersetId?: string): ExerciseBlock[] {
+  if (!supersetId) return [];
+  const byId = new Map(workout.exercises.map(exercise => [exercise.id, exercise]));
+  const ordered = normalizedBlockOrder(workout)
+    .filter(block => block.type === "exercise")
+    .map(block => byId.get(block.id))
+    .filter((exercise): exercise is ExerciseBlock => Boolean(exercise && exercise.supersetId === supersetId));
+  return ordered.length >= 2 ? ordered : [];
+}
+
+/** Assigns A1/A2, B1/B2 labels to exercises that share a supersetId with at least one other exercise. */
+export function supersetLabels(workout: WorkoutSession): Map<string, string> {
+  const labels = new Map<string, string>();
+  const byId = new Map(workout.exercises.map(exercise => [exercise.id, exercise]));
+  const orderedExercises = normalizedBlockOrder(workout)
+    .filter(block => block.type === "exercise")
+    .map(block => byId.get(block.id))
+    .filter((exercise): exercise is ExerciseBlock => Boolean(exercise));
+  const counts = new Map<string, number>();
+  for (const exercise of orderedExercises) {
+    if (exercise.supersetId) counts.set(exercise.supersetId, (counts.get(exercise.supersetId) ?? 0) + 1);
+  }
+  const groupLetters = new Map<string, string>();
+  const groupIndex = new Map<string, number>();
+  let nextGroupCode = 65; // 'A'
+  for (const exercise of orderedExercises) {
+    const groupId = exercise.supersetId;
+    if (!groupId || (counts.get(groupId) ?? 0) < 2) continue;
+    let letter = groupLetters.get(groupId);
+    if (!letter) {
+      letter = String.fromCharCode(nextGroupCode);
+      nextGroupCode += 1;
+      groupLetters.set(groupId, letter);
+    }
+    const memberNumber = (groupIndex.get(groupId) ?? 0) + 1;
+    groupIndex.set(groupId, memberNumber);
+    labels.set(exercise.id, `${letter}${memberNumber}`);
+  }
+  return labels;
+}
+
 export function nextOpenBlock(workout: WorkoutSession) {
   for (const block of normalizedBlockOrder(workout)) {
     if (block.type === "exercise") {
       const exercise = workout.exercises.find(item => item.id === block.id);
-      if (exercise?.sets.some(set => !set.completed && !set.skipped)) return { type: "exercise" as const, exercise };
+      if (exercise?.sets.some(set => !set.completed && !set.skipped)) {
+        const group = supersetGroupExercises(workout, exercise.supersetId);
+        if (group.length >= 2) {
+          const openInGroup = group.filter(item => item.sets.some(set => !set.completed && !set.skipped));
+          const chosen = openInGroup.reduce((best, candidate) => {
+            const bestDone = best.sets.filter(set => set.completed || set.skipped).length;
+            const candidateDone = candidate.sets.filter(set => set.completed || set.skipped).length;
+            return candidateDone < bestDone ? candidate : best;
+          }, openInGroup[0]!);
+          return { type: "exercise" as const, exercise: chosen };
+        }
+        return { type: "exercise" as const, exercise };
+      }
     } else {
       const activity = workout.cardio.find(item => item.id === block.id);
       if (activity && activityStillOpen(activity)) return { type: "activity" as const, activity };
@@ -157,6 +210,25 @@ export function nextRestTarget(workout: WorkoutSession, fromBlockId: string, fro
   const order = normalizedBlockOrder(workout);
   const start = order.findIndex((block) => block.id === fromBlockId);
   if (start < 0) return undefined;
+  const fromExercise = workout.exercises.find((item) => item.id === fromBlockId);
+  const supersetGroup = supersetGroupExercises(workout, fromExercise?.supersetId);
+  if (fromExercise && supersetGroup.length >= 2) {
+    const groupPos = supersetGroup.findIndex((item) => item.id === fromBlockId);
+    for (const partner of supersetGroup.slice(groupPos + 1)) {
+      const set = partner.sets.find((item) => !item.completed && !item.skipped);
+      if (set) return { type: "exercise" as const, exercise: partner, set };
+    }
+    for (const partner of supersetGroup.slice(0, groupPos + 1)) {
+      let startAt = 0;
+      if (partner.id === fromBlockId && fromSetId) {
+        const found = partner.sets.findIndex((set) => set.id === fromSetId);
+        if (found < 0) continue;
+        startAt = found + 1;
+      }
+      const set = partner.sets.slice(startAt).find((item) => !item.completed && !item.skipped);
+      if (set) return { type: "exercise" as const, exercise: partner, set };
+    }
+  }
   for (let index = start; index < order.length; index += 1) {
     const block = order[index];
     if (block.type === "exercise") {

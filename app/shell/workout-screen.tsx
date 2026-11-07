@@ -14,7 +14,7 @@ export function WorkoutScreen({ model }: { model: ShellModel }) {
     <ViewErrorBoundary onReload={model.restart} label="This workout" resetKey={displayedWorkout.id}>
       {displayedWorkout.hyrox
         ? <HyroxWorkout saveStatus={localSaveStatus} history={displayedState.workouts} key={displayedWorkout.id} workout={displayedWorkout} unit={displayedState.settings.defaultUnit} onUpdate={putWorkout} onFinish={finishEditor} onDiscard={discardWorkout} onBack={leaveEditor} />
-        : <WorkoutEditor demoMode={demoActive} quickLogActivityId={quickLogActivityId} saveStatus={localSaveStatus} workout={displayedWorkout} state={displayedState} onIncrement={model.progress.updateLoadIncrement} onUpdate={putWorkout} onFinish={(workout) => finishEditor(workout)} onDiscard={editingWorkoutId ? undefined : discardWorkout} onBack={leaveEditor} />}
+        : <WorkoutEditor demoMode={demoActive} quickLogActivityId={quickLogActivityId} saveStatus={localSaveStatus} workout={displayedWorkout} state={displayedState} onIncrement={model.progress.updateLoadIncrement} onUpdate={putWorkout} onSaveTemplate={model.workouts.saveAsTemplate} onFinish={(workout) => finishEditor(workout)} onDiscard={editingWorkoutId ? undefined : discardWorkout} onBack={leaveEditor} />}
     </ViewErrorBoundary>
     </div>
   </>;

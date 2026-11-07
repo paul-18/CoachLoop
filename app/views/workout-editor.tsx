@@ -3,7 +3,7 @@
 "use client";
 
 import { Activity, ArrowLeft, Check, ChevronDown, ChevronUp, CopyPlus, Dumbbell, Minus, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -18,7 +18,8 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea";
 
 import { ExerciseSubstitution } from "./exercise-substitution";
-import { moveBlock, moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues } from "../domain/training-workflow";
+import { moveBlock, moveBlockLater, substituteExercise, incrementKey, matchedPreviousSetValues, linkSupersetWithNext, unlinkSuperset } from "../domain/training-workflow";
+import { workoutPersonalRecords, type SetPersonalRecord } from "../domain/personal-records";
 import { activityEffortSummary, activityLoggingStyle, completeActivityEffort, makeActivityEffort } from "../domain/activity-logging";
 
 import { completedSetValues, convertWeight, exerciseIdentity, formatLoad, performedReps, performedWeight, performedDuration, performedDistance, formatMeasure, displayedDistance, workoutLiftingVolume } from "../domain/training-metrics";
@@ -31,7 +32,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, supersetLabels, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -173,7 +174,7 @@ function PlateVisualizer({
       <div className="plate-visualizer" aria-label={`Leg press plate loading for ${total} ${unit}`}>
         {plateCounts.map(({ plate, count }, idx) => (
           <span key={plate} className="inline-flex items-center gap-1.5">
-            {idx > 0 && <span className="text-xs text-white/45">+</span>}
+            {idx > 0 && <span className="text-xs text-white/55">+</span>}
             <span
               className="plate-disc"
               style={{ backgroundColor: plateColors[String(plate)] ?? "#4f83ff" }}
@@ -226,6 +227,7 @@ function SetRow({
   numberLabel,
   numberShort,
   set,
+  pr,
   onChange,
   onToggle,
   onMatchPrevious,
@@ -240,6 +242,7 @@ function SetRow({
   numberLabel: string;
   numberShort: string;
   set: TrainingSet;
+  pr?: SetPersonalRecord;
   onChange: (changes: Partial<TrainingSet>) => void;
   onToggle: () => void;
   onMatchPrevious?: () => void;
@@ -259,7 +262,7 @@ function SetRow({
     <>
     <div className={`set-row compact-set-row ${set.completed ? "is-complete" : set.skipped ? "is-skipped" : ""} ${isNext ? "is-next" : ""}`} role="group" aria-label={`${context}${isNext ? ", next unfinished set" : ""}`}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{numberShort}{set.notes ? "•" : ""}</span>{targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button ref={optionsTrigger} variant="ghost" className="set-number" aria-label={`Options for ${context}${pr ? `, ${pr.label}` : ""}${targetEffort ? `, target ${targetEffort}` : ""}${set.notes ? ", note recorded" : ""}`}><span>{numberShort}{set.notes ? "•" : ""}</span>{pr ? <span className="set-pr-badge" title={pr.summary}>PR</span> : targetEffort ? <small className="set-target-effort" title={`Target ${targetEffort}`}>{set.plannedRpe ? `@${set.plannedRpe}` : `R${set.plannedRir}`}</small> : <MoreHorizontal className="size-3" />}</Button></DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" sideOffset={8} collisionPadding={{ top: 132, bottom: 16 }} className="border-white/10 bg-[#20231e] text-white">
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("before")}><Plus /> Insert set before</DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => onInsert("after")}><Plus /> Insert set after</DropdownMenuItem>
@@ -342,6 +345,11 @@ function ExerciseEditor({
   onSubstitute,
   increment,
   onIncrement,
+  personalRecords,
+  supersetLabel,
+  nextExerciseName,
+  onLinkSuperset,
+  onUnlinkSuperset,
 }: {
   nextSetId?: string;
   exercise: ExerciseBlock;
@@ -364,6 +372,11 @@ function ExerciseEditor({
   onSubstitute: (anchor: HTMLButtonElement | null) => void;
   increment: number;
   onIncrement: (value: number) => void;
+  personalRecords?: Map<string, SetPersonalRecord>;
+  supersetLabel?: string;
+  nextExerciseName?: string;
+  onLinkSuperset?: () => void;
+  onUnlinkSuperset?: () => void;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const exerciseOptionsRef = useRef<HTMLButtonElement>(null);
@@ -419,18 +432,19 @@ function ExerciseEditor({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
   const allDone = exercise.sets.length > 0 && exercise.sets.every((set) => set.completed || set.skipped);
+  const hasExercisePr = exercise.sets.some((set) => personalRecords?.has(set.id));
   if (allDone && !showCompleted) {
     const summary = compactSetSummary(exercise.sets);
-    return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Review ${exercise.name}`}><span className="completed-block-icon">{exercise.sets.every(s=>s.completed) ? <Check /> : <span>—</span>}</span><span className="completed-block-copy"><strong>{exercise.name}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{summary ? ` · ${summary}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
+    return <button type="button" className="completed-block" onClick={() => setShowCompleted(true)} aria-label={`Review ${exercise.name}`}><span className="completed-block-icon">{exercise.sets.every(s=>s.completed) ? <Check /> : <span>—</span>}</span><span className="completed-block-copy"><strong>{supersetLabel && <span className="superset-badge mr-1.5">{supersetLabel}</span>}{exercise.name}{hasExercisePr && <span className="set-pr-badge ml-1.5">PR</span>}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{summary ? ` · ${summary}` : ""}</small></span><span className="completed-block-edit">Edit <ChevronDown /></span></button>;
   }
   if (collapsed && !allDone) {
-    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{exercise.name}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
+    return <button type="button" className="completed-block activity-summary" onClick={onToggleCollapse} aria-label={`Expand ${exercise.name}`}><span className="completed-block-copy"><strong>{supersetLabel && <span className="superset-badge mr-1.5">{supersetLabel}</span>}{exercise.name}</strong><small className="exercise-card-progress">{exerciseProgressCopy(exercise.sets)}{previous ? ` · Last: ${previous}` : ""}</small></span><span className="completed-block-edit">Open <ChevronDown /></span></button>;
   }
   return (
     <Card className={`exercise-card gap-0 border-white/8 bg-[#171916] py-0 shadow-none ${allDone ? "is-complete" : ""}`}>
       <CardHeader className="gap-3 border-b border-white/7 px-4 py-4 sm:px-5">
         <div className="min-w-0">
-          <div className="exercise-title-line"><Input
+          <div className="exercise-title-line">{supersetLabel && <span className="superset-badge" title={`Superset ${supersetLabel}`}>{supersetLabel}</span>}<Input
             value={exercise.name}
             onChange={(event) => handleNameChange(event.target.value)}
             onBlur={handleNameBlur}
@@ -493,7 +507,7 @@ function ExerciseEditor({
         </div>
         <div className="flex items-center gap-1">
           <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={`Collapse ${exercise.name}`} onClick={() => { if (allDone) setShowCompleted(false); else onToggleCollapse?.(); }}><ChevronUp /></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button ref={exerciseOptionsRef} variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={`Options for ${exercise.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{onCollapseOthers && <DropdownMenuItem className="min-h-11" onSelect={onCollapseOthers}>Collapse other blocks</DropdownMenuItem>}{onLinkSuperset && nextExerciseName && <DropdownMenuItem className="min-h-11" onSelect={onLinkSuperset}>Link superset with {nextExerciseName}</DropdownMenuItem>}{supersetLabel && onUnlinkSuperset && <DropdownMenuItem className="min-h-11" onSelect={onUnlinkSuperset}>Unlink superset ({supersetLabel})</DropdownMenuItem>}<DropdownMenuItem className="min-h-11" disabled={!canMoveUp} onSelect={onMoveUp}>Move up</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!canMoveDown} onSelect={onMoveDown}>Move down</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={onLater}>Do later · move to bottom</DropdownMenuItem><DropdownMenuItem className="min-h-11" disabled={!exercise.sets.some(s=>!s.completed&&!s.skipped)} onSelect={() => onSubstitute(exerciseOptionsRef.current)}>Substitute remaining sets</DropdownMenuItem><DropdownMenuItem className="min-h-11" onSelect={()=>onChange({...exercise,updatedAt:new Date().toISOString(),sets:exercise.sets.map(s=>s.completed?s:{...s,skipped:true,updatedAt:new Date().toISOString()})})}>Finish exercise · skip remaining</DropdownMenuItem><DropdownMenuItem className="min-h-11 text-red-300" onSelect={onRemove}>Remove exercise</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 px-3 py-3 sm:px-4">
@@ -507,6 +521,7 @@ function ExerciseEditor({
               numberLabel={setNumbers[index].label}
               numberShort={setNumbers[index].short}
               set={set}
+              pr={personalRecords?.get(set.id)}
               increment={set.unit === (refSet?.unit ?? defaultUnit) && set.weightMode === (refSet?.weightMode ?? "total") ? increment : 0}
               onSkip={() => updateSet(set.id, {skipped:!set.skipped,completed:false,completedAsPlanned:false})}
               onChange={(changes) => updateSet(set.id, changes)}
@@ -1230,6 +1245,7 @@ export function WorkoutEditor({
   workout,
   state,
   onUpdate,
+  onSaveTemplate,
   onFinish,
   onDiscard,
   onBack,
@@ -1240,6 +1256,7 @@ export function WorkoutEditor({
   workout: WorkoutSession;
   state: TrainingState;
   onUpdate: (workout: WorkoutSession) => void;
+  onSaveTemplate?: (workout: WorkoutSession) => void;
   saveStatus?: "saving" | "saved" | "error";
   onFinish: (updated?: WorkoutSession) => Promise<void>;
   onDiscard?: () => void;
@@ -1483,6 +1500,8 @@ export function WorkoutEditor({
 
   const progress = workoutProgressCopy(workout);
   const reviewWorkout = finishCandidate ?? workout;
+  const personalRecords = useMemo(() => workoutPersonalRecords(state, reviewWorkout), [state, reviewWorkout]);
+  const supersets = useMemo(() => supersetLabels(workout), [workout]);
   const unusual = unusualWorkoutWarning(reviewWorkout);
   const skippedSets = reviewWorkout.exercises.reduce((sum,e)=>sum+e.sets.filter(s=>s.skipped&&!s.completed).length,0);
   const unfinishedSets = reviewWorkout.exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => !set.completed && !set.skipped).length, 0);
@@ -1518,42 +1537,53 @@ export function WorkoutEditor({
         <Button variant="ghost" size="icon" onClick={() => { onUpdate(latestWorkout.current); onBack(); }} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
-          <p role="status" className="mt-1 truncate text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · {demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</p>
+          <p className="workout-header-progress mt-1 text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · <span role={saveStatus === "error" ? "alert" : "status"} aria-live="polite">{demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</span></p>
         </div>
-        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{nextBlock && <DropdownMenuItem onSelect={() => collapseOthers(nextBlock.type === "exercise" ? nextBlock.exercise.id : nextBlock.activity.id)}>Focus current block · collapse others</DropdownMenuItem>}{collapsedBlockIds.length > 0 && <DropdownMenuItem onSelect={() => setCollapsedBlockIds([])}>Expand all exercises</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem><DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
+        <div className="workout-header-actions flex shrink-0 items-center gap-1"><Button variant="ghost" size="icon-sm" onClick={() => setKeepAwakeRequested((value) => !value)} className={keepAwakeRequested ? "min-h-11 min-w-11 bg-[var(--lime)]/10 text-[var(--lime)]" : "min-h-11 min-w-11 text-white/60 hover:bg-white/8 hover:text-white"} aria-label={keepAwakeRequested ? "Turn screen wake lock off" : "Keep screen awake"} title={keepAwakeRequested && !wakeLockHeld ? "Keep-awake requested; temporarily unavailable" : undefined}><Activity /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button ref={workoutOptionsRef} variant="ghost" size="icon-sm" className="min-h-11 min-w-11" aria-label="Workout options"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" sideOffset={6} collisionPadding={16} className="border-white/10 bg-[#20231e] text-white">{nextBlock && <DropdownMenuItem onSelect={() => collapseOthers(nextBlock.type === "exercise" ? nextBlock.exercise.id : nextBlock.activity.id)}>Focus current block · collapse others</DropdownMenuItem>}{collapsedBlockIds.length > 0 && <DropdownMenuItem onSelect={() => setCollapsedBlockIds([])}>Expand all exercises</DropdownMenuItem>}<DropdownMenuItem onSelect={() => setRenaming(true)}>Rename workout</DropdownMenuItem><DropdownMenuItem onSelect={() => setDateOpen(true)}>Change workout date</DropdownMenuItem>{onSaveTemplate && <DropdownMenuItem disabled={demoMode} onSelect={() => onSaveTemplate(latestWorkout.current)}>Save as template</DropdownMenuItem>}<DropdownMenuItem onSelect={() => openFinish(true)}>{finishLabel}</DropdownMenuItem></DropdownMenuContent></DropdownMenu><Button type="button" size="sm" onClick={() => openFinish(false)} className="min-h-11 bg-[var(--lime)] px-3 text-[#11140d]">Done</Button></div>
       </header>
 
       <ExerciseSubstitution returnFocus={substitutionAnchor} exercise={workout.exercises.find(e=>e.id===substitutionId)??null} state={state} onClose={()=>setSubstitutionId(null)} onSelect={name=>{onUpdate(substituteExercise(workout,substitutionId!,name,state.settings.defaultUnit));setSubstitutionId(null);toast.success("Replacement added; previous sets preserved");}} />
       <RestTimer restUntil={restUntil} onChange={setRestUntil} nextLabel={nextLabel} measureRef={restTimerRef} />
 
       <main className="workout-main mx-auto w-full max-w-4xl space-y-4 px-3 pb-40 sm:px-6">
-        {orderedWorkoutBlocks(workout).map((block) => {
-          if (block.type === "exercise") {
-            const refSet = block.exercise.sets.find((s) => !s.completed && !s.skipped) ?? block.exercise.sets[0];
-            return (
-              <ExerciseEditor
-                key={block.exercise.id}
-                exercise={block.exercise}
-                nextSetId={nextSet?.id}
-                previous={previousFor(block.exercise.name)}
-                recentHistory={recentHistoryFor(block.exercise.name)}
-                defaultUnit={state.settings.defaultUnit}
-                barWeightLb={state.settings.barWeightLb}
-                barWeightKg={state.settings.barWeightKg}
-                collapsed={collapsedBlockIds.includes(block.exercise.id)}
-                onToggleCollapse={() => setCollapsedBlockIds((ids) => ids.includes(block.exercise.id) ? ids.filter((id) => id !== block.exercise.id) : [...ids, block.exercise.id])}
-                onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.exercise.id) : undefined}
-                increment={state.loadIncrements?.[incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
-                onIncrement={value => onIncrement(incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases), value)}
-                onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
-                {...moveFor(block.exercise.id)}
-                onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
-                onChange={updateExercise}
-                onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
-                onRemove={() => removeExercise(block.exercise.id)}
-              />
-            );
-          }
+        {(() => {
+          const orderedBlocks = orderedWorkoutBlocks(workout);
+          const orderedExercises = orderedBlocks.flatMap(b => b.type === "exercise" ? [b.exercise] : []);
+          return orderedBlocks.map((block) => {
+            if (block.type === "exercise") {
+              const refSet = block.exercise.sets.find((s) => !s.completed && !s.skipped) ?? block.exercise.sets[0];
+              const exIdx = orderedExercises.findIndex(e => e.id === block.exercise.id);
+              const nextExercise = exIdx >= 0 ? orderedExercises[exIdx + 1] : undefined;
+              const canLinkNext = Boolean(nextExercise && (!block.exercise.supersetId || block.exercise.supersetId !== nextExercise.supersetId));
+              return (
+                <ExerciseEditor
+                  key={block.exercise.id}
+                  exercise={block.exercise}
+                  nextSetId={nextSet?.id}
+                  previous={previousFor(block.exercise.name)}
+                  recentHistory={recentHistoryFor(block.exercise.name)}
+                  defaultUnit={state.settings.defaultUnit}
+                  barWeightLb={state.settings.barWeightLb}
+                  barWeightKg={state.settings.barWeightKg}
+                  collapsed={collapsedBlockIds.includes(block.exercise.id)}
+                  onToggleCollapse={() => setCollapsedBlockIds((ids) => ids.includes(block.exercise.id) ? ids.filter((id) => id !== block.exercise.id) : [...ids, block.exercise.id])}
+                  onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.exercise.id) : undefined}
+                  increment={state.loadIncrements?.[incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
+                  onIncrement={value => onIncrement(incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases), value)}
+                  onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
+                  {...moveFor(block.exercise.id)}
+                  onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
+                  onChange={updateExercise}
+                  onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
+                  onRemove={() => removeExercise(block.exercise.id)}
+                  personalRecords={personalRecords}
+                  supersetLabel={supersets.get(block.exercise.id)}
+                  nextExerciseName={canLinkNext ? nextExercise?.name : undefined}
+                  onLinkSuperset={canLinkNext && nextExercise ? () => { onUpdate(linkSupersetWithNext(workout, block.exercise.id)); toast.success(`Linked superset with ${nextExercise.name}`); } : undefined}
+                  onUnlinkSuperset={block.exercise.supersetId ? () => { onUpdate(unlinkSuperset(workout, block.exercise.id)); toast.success("Superset unlinked"); } : undefined}
+                />
+              );
+            }
           return (
             <CardioEditor
               key={block.activity.id}
@@ -1581,7 +1611,8 @@ export function WorkoutEditor({
               }}
             />
           );
-        })}
+          });
+        })()}
 
         <div className="grid grid-cols-2 gap-3">
           <Button
@@ -1625,6 +1656,16 @@ export function WorkoutEditor({
               {unusual && <p role="status" className="activity-warning">{unusual}</p>}
               {reviewWorkout.cardio.flatMap(activity => { const mismatch = segmentMismatch(activity); return mismatch ? [{ activity, mismatch }] : []; }).map(({ activity, mismatch }) => <p key={activity.id} role="note" className="activity-warning">{activity.name}: {mismatch.message}</p>)}
               <div className="finish-review">
+                {personalRecords.size > 0 && (
+                  <div className="finish-pr-banner" role="status">
+                    <p className="finish-pr-title">New personal {personalRecords.size === 1 ? "record" : "records"} ({personalRecords.size})</p>
+                    <ul className="finish-pr-list">
+                      {[...personalRecords.values()].map((pr) => (
+                        <li key={pr.setId}><strong>{pr.exerciseName}</strong> · {pr.summary} <span className="set-pr-badge">{pr.label}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
                 <div className="finish-fields">
                   <div className="finish-effort-card">

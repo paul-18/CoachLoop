@@ -23,6 +23,26 @@ export function useShellModel() {
     document.documentElement.dataset.coachTheme = state.settings.colorTheme ?? "lime";
     return () => { delete document.documentElement.dataset.coachTheme; };
   }, [ready, state.settings.colorTheme]);
+  useEffect(() => {
+    if (!ready) return;
+    const locked = state.settings.portraitLock === true;
+    if (locked) document.documentElement.dataset.portraitLock = "true";
+    else delete document.documentElement.dataset.portraitLock;
+    const orientation = typeof screen !== "undefined"
+      ? (screen as Screen & { orientation?: { lock?: (mode: string) => Promise<void>; unlock?: () => void } }).orientation
+      : undefined;
+    if (locked) {
+      void orientation?.lock?.("portrait-primary")?.catch(() => undefined);
+    } else {
+      try { orientation?.unlock?.(); } catch { /* Ignore orientation unlock on unsupported platforms. */ }
+    }
+  }, [ready, state.settings.portraitLock]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (workouts.workoutOpen && workouts.displayedWorkout) {
+      document.title = `${workouts.displayedWorkout.name} · Coach Loop`;
+    }
+  }, [workouts.workoutOpen, workouts.displayedWorkout]);
   const restart = async () => { await flushLatest(); window.location.reload(); };
   const onApplyUpdate = async () => {
     setUpdating(true);

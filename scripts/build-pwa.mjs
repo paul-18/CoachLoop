@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const dist = join(root, "dist");
-const walk = async folder => (await Promise.all((await readdir(folder, { withFileTypes: true })).map(async entry => {
+const walk = async folder => (await Promise.all((await readdir(folder, { withFileTypes: true })).filter(entry => !entry.name.startsWith(".")).map(async entry => {
   const path = join(folder, entry.name);
   return entry.isDirectory() ? walk(path) : [path];
 }))).flat();

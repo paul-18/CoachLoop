@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { MainView } from "../views/shared";
 
 const VALID_VIEWS = new Set<MainView>(["today", "history", "coach", "progress", "settings"]);
+const VIEW_TITLES: Record<MainView, string> = {
+  today: "Today · Coach Loop",
+  history: "History · Coach Loop",
+  coach: "Coach · Coach Loop",
+  progress: "Progress · Coach Loop",
+  settings: "Settings · Coach Loop",
+};
 
 function initialViewFromLocation(): MainView {
   if (typeof window === "undefined") return "today";
@@ -24,8 +31,30 @@ export function useShellNavigation() {
   const consumeCalendarRequest = useCallback(() => setCalendarRequest(0), []);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
+    if (typeof document !== "undefined") {
+      document.title = VIEW_TITLES[view] ?? "Coach Loop";
+    }
   }, [view]);
-  const navigateTab = (value: MainView) => { setCalendarRequest(0); setView(value); };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPopState = () => setView(initialViewFromLocation());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  const navigateTab = (value: MainView) => {
+    setCalendarRequest(0);
+    setView(value);
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location.href);
+        if (value === "today") url.searchParams.delete("view");
+        else url.searchParams.set("view", value);
+        if (url.search !== window.location.search) {
+          window.history.pushState({ view: value }, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+      } catch { /* Ignore history state errors in restricted test contexts. */ }
+    }
+  };
   const returnTabToTop = (value: MainView) => {
     if (value !== view) return;
     setCalendarRequest(0);
