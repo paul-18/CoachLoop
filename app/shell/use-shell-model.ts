@@ -25,15 +25,30 @@ export function useShellModel() {
   }, [ready, state.settings.colorTheme]);
   useEffect(() => {
     if (!ready) return;
-    const locked = state.settings.portraitLock === true;
+    const locked = state.settings.portraitLock !== false;
     if (locked) document.documentElement.dataset.portraitLock = "true";
     else delete document.documentElement.dataset.portraitLock;
     const orientation = typeof screen !== "undefined"
-      ? (screen as Screen & { orientation?: { lock?: (mode: string) => Promise<void>; unlock?: () => void } }).orientation
+      ? (screen as Screen & { orientation?: { angle?: number; lock?: (mode: string) => Promise<void>; unlock?: () => void } }).orientation
       : undefined;
+    const syncOrientation = () => {
+      const legacyAngle = typeof window !== "undefined" && "orientation" in window ? (window as Window & { orientation?: number }).orientation : undefined;
+      const angle = typeof orientation?.angle === "number" ? orientation.angle : typeof legacyAngle === "number" ? legacyAngle : 90;
+      document.documentElement.dataset.landscapeAngle = (angle === -90 || angle === 270) ? "270" : "90";
+      if (locked) {
+        void orientation?.lock?.("portrait-primary")?.catch(() => undefined);
+      }
+    };
     if (locked) {
-      void orientation?.lock?.("portrait-primary")?.catch(() => undefined);
+      syncOrientation();
+      window.addEventListener("orientationchange", syncOrientation);
+      window.addEventListener("resize", syncOrientation, { passive: true });
+      return () => {
+        window.removeEventListener("orientationchange", syncOrientation);
+        window.removeEventListener("resize", syncOrientation);
+      };
     } else {
+      delete document.documentElement.dataset.landscapeAngle;
       try { orientation?.unlock?.(); } catch { /* Ignore orientation unlock on unsupported platforms. */ }
     }
   }, [ready, state.settings.portraitLock]);

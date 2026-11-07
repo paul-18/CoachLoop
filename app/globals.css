@@ -764,13 +764,17 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .hyrox-workout { min-height: 100dvh; color: #f4f6f0; background: #10120f; }
 .hyrox-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; background: #10120ff5; border-bottom: 1px solid #ffffff12; padding: calc(10px + var(--app-safe-top) + var(--workout-header-clearance)) 12px 10px; }
 .hyrox-header > div { min-width: 0; flex: 1; }.hyrox-header strong,.hyrox-header small { display: block; overflow-wrap: anywhere; }.hyrox-header strong { font-size: 1rem; }.hyrox-header small { color: #adb6a5; font-size: .8rem; }.hyrox-header button { min-height: 44px; flex-shrink: 0; }
-.hyrox-main { max-width: 700px; margin-inline: auto; padding: 16px 14px calc(120px + env(safe-area-inset-bottom,0px)); }
+.hyrox-main { max-width: 700px; margin-inline: auto; padding: 16px 14px calc(188px + env(safe-area-inset-bottom,0px)); }
 .hyrox-live { border: 1px solid #c6ff4130; border-radius: 20px; background: #c6ff4105; padding: 18px; }
 .hyrox-live h1 { font-size: clamp(1.6rem,6vw,2.4rem); line-height: 1.1; margin: 12px 0; font-weight: 800; overflow-wrap: anywhere; }
 .hyrox-requirement { color: var(--lime); font-size: 1.1rem; line-height: 1.5; }
 .hyrox-clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0 16px; }.hyrox-clocks span { display: block; font-size: .8rem; color: #adb6a5; }.hyrox-clocks strong { display: block; font-size: clamp(1.8rem,7vw,3rem); font-variant-numeric: tabular-nums; }
+.hyrox-live-actions { display: flex; gap: 10px; margin: 0 0 14px; }.hyrox-live-actions button { min-height: 52px; white-space: normal; }
 .hyrox-next { border-top: 1px solid #ffffff12; padding-top: 12px; margin-top: 14px; font-size: .9rem; line-height: 1.5; }
-.hyrox-controls { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; display: flex; gap: 10px; padding: 12px max(16px,calc((100vw - 680px)/2)) calc(18px + env(safe-area-inset-bottom,0px)); background: #171c14f5; border-top: 1px solid #c6ff4120; }.hyrox-controls button { min-height: 52px; white-space: normal; }
+.hyrox-controls { position: fixed; bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 78px); left: 10px; right: 10px; z-index: 46; display: flex; gap: 10px; padding: 10px 12px; border-radius: 16px; background: #171c14f8; border: 1px solid #c6ff4140; box-shadow: 0 14px 34px rgba(0,0,0,.45); }.hyrox-controls button { min-height: 52px; white-space: normal; }
+@media (min-width: 1100px) {
+  .hyrox-controls { bottom: 0; left: 242px; right: 0; border-radius: 0; border: 0; border-top: 1px solid #c6ff4120; padding: 12px max(16px, calc((100% - 680px)/2)) 18px; }
+}
 .hyrox-primary { flex: 1; background: var(--lime); color: #111; font-weight: 800; }.hyrox-primary:hover { background: #b0eb34; }
 .hyrox-result-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.hyrox-result-total strong { color: var(--lime); font-size: 2rem; font-variant-numeric: tabular-nums; }
 .hyrox-results { min-width: 0; }
@@ -1281,4 +1285,44 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
   flex-shrink:0;
   min-width:36px;
   min-height:36px;
+}
+
+/* Portrait orientation lock for mobile devices rotated into landscape when OS auto-rotate is enabled. */
+@media screen and (orientation: landscape) and (max-height: 560px) {
+  html[data-portrait-lock="true"] {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 100dvh;
+    height: 100dvw;
+    max-width: 100dvh;
+    max-height: 100dvw;
+    margin: 0;
+    overflow: hidden;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    transform-origin: center center;
+    background: #10120f;
+  }
+  html[data-portrait-lock="true"][data-landscape-angle="270"] {
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+  html[data-portrait-lock="true"] body {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  html[data-portrait-lock="true"] [data-slot="dialog-content"],
+  html[data-portrait-lock="true"] [data-slot="alert-dialog-content"],
+  html[data-portrait-lock="true"] [role="dialog"] {
+    max-width: calc(100dvh - 28px);
+    max-height: calc(100dvw - 32px);
+  }
+  html[data-portrait-lock="true"] [data-slot="dialog-content"],
+  html[data-portrait-lock="true"] [data-slot="alert-dialog-content"] {
+    top: 50%;
+  }
 }

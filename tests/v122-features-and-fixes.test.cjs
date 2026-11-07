@@ -49,15 +49,19 @@ test('v122 Section 1: interchange, CSV, backup diff, and manifest fixes', () => 
   const diffs = workoutDifferences(workout, modified);
   assert.ok(diffs.some(d => d.includes('Bench Press, set 1 · actualWeight: 185 → 190')), 'working set 1 is labeled set 1 in backup diff');
 
-  // Manifest checks
+  // Manifest & CSS checks
   const rootDir = path.resolve(__dirname, '..');
   const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public/manifest.webmanifest'), 'utf8'));
-  assert.equal(manifest.orientation, 'any', 'manifest orientation allows tablet/desktop rotation by default');
+  assert.equal(manifest.orientation, 'portrait-primary', 'manifest orientation locks standalone PWA to portrait-primary');
   assert.equal(manifest.launch_handler?.client_mode, 'navigate-existing', 'manifest includes single-window launch_handler');
   assert.ok(manifest.screenshots.some(s => s.type === 'image/png' && s.form_factor === 'narrow'), 'narrow PNG screenshot present');
   assert.ok(manifest.screenshots.some(s => s.type === 'image/png' && s.form_factor === 'wide'), 'wide PNG screenshot present');
   assert.ok(fs.existsSync(path.join(rootDir, 'public/screenshot-narrow.png')));
   assert.ok(fs.existsSync(path.join(rootDir, 'public/screenshot-wide.png')));
+  const css = fs.readFileSync(path.join(rootDir, 'app/globals.css'), 'utf8');
+  assert.match(css, /\.hyrox-controls\s*\{[^}]*z-index:\s*46/, 'hyrox-controls sits above .mobile-nav (z-index 45)');
+  assert.match(css, /@media screen and \(orientation: landscape\) and \(max-height: 560px\)/, 'landscape phone counter-rotation media query present');
+  assert.match(css, /html\[data-portrait-lock="true"\]\s*\{[^}]*rotate\(-90deg\)/, 'portrait lock counter-rotates landscape phone viewport');
 
   // Templates excluded from dated SAVED PLANS in coach prompt
   const template = structuredClone(workout);
@@ -198,9 +202,32 @@ test('v122 UI Journey: Saved Templates library, PR badge in editor/finish/histor
     root.render(React.createElement(App));
     await until(() => document.querySelector('[role="tab"]'), 'app opens');
 
-    // Landmark & document title checks
+    // Landmark, default portrait lock, & document title checks
     assert.equal(document.getElementById('main-content')?.tagName, 'MAIN', '#main-content is a semantic <main> landmark');
+    assert.equal(document.documentElement.dataset.portraitLock, 'true', 'portrait lock is enabled by default');
     assert.equal(document.title, 'Today · Coach Loop');
+
+    // Verify HYROX Start timer is visible in both Focused practice (segment) and Full simulation modes
+    document.querySelector('.hyrox-entry').click();
+    await until(() => document.querySelector('.hyrox-setup'), 'HYROX setup dialog opens');
+    const modeSelect = document.querySelector('.hyrox-setup select');
+    modeSelect.value = 'focused';
+    modeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const openHyroxBtn = [...document.querySelectorAll('.hyrox-setup button')].find(b => b.textContent.includes('Open session'));
+    openHyroxBtn.click();
+    await until(() => document.querySelector('.hyrox-workout'), 'Focused HYROX session opens');
+    const liveStartBtn = document.querySelector('.hyrox-live-actions button');
+    const footerStartBtn = document.querySelector('.hyrox-controls button');
+    assert.ok(liveStartBtn && liveStartBtn.textContent.includes('Start timer'), 'Inline Start timer button visible inside .hyrox-live card');
+    assert.ok(footerStartBtn && footerStartBtn.textContent.includes('Start timer'), 'Footer Start timer button present in .hyrox-controls');
+    liveStartBtn.click();
+    await until(() => document.querySelector('.hyrox-live-actions')?.textContent.includes('Complete segment'), 'Clicking Start timer starts segment clock and reveals Pause + Complete segment');
+    // Discard the focused HYROX test session so we can continue testing Templates & Supersets
+    const discardTrigger = [...document.querySelectorAll('.hyrox-main button')].find(b => b.textContent.includes('Discard session'));
+    discardTrigger.click();
+    await until(() => [...document.querySelectorAll('[role="alertdialog"] button')].find(b => b.textContent.includes('Discard session')), 'Discard dialog opens');
+    [...document.querySelectorAll('[role="alertdialog"] button')].find(b => b.textContent.includes('Discard session')).click();
+    await until(() => !document.querySelector('.hyrox-workout'), 'Returned from HYROX session');
 
     // Open History, expand Push Baseline, and save it as a template
     tab('History');
