@@ -2,10 +2,18 @@
 
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
-## v120 — release candidate
+## v121 — published
+
+- Prominent Session effort in Finish Workout dialog: moved Session effort out of the collapsed bottom disclosure to a highlighted `.finish-effort-card` at the very top of `.finish-review`, with one-tap RPE chips (`6 · Easy` through `10 · Max`), custom decimal input, and immediate persistence to the workout even if the user taps `Keep training`.
+- Dialog close button ergonomics: kept the visual `X` icon compact (`size-4` / `16×16px`) while adding `-m-2 p-2` invisible hit padding.
+- PWA & iOS Safari improvements: explicit "Check updates" outcome messages in Settings (`"You're up to date"`, `"Update downloaded — use Restart to update"`, or failure notice); compact `● v121 Update` pill on Today when a service-worker update is waiting; iOS Safari `.mobile-nav` compositor re-anchoring and keyboard auto-hide; iOS predictive-keyboard attributes (`autoComplete="off"`, `autoCorrect="on"`, `autoCapitalize="sentences"`, `spellCheck`, `data-form-type="other"`) preventing Contact Name autofill bars in notes; skip-to-content link; manifest metadata (`lang`, `dir`, `categories`, `screenshots`, `shortcuts`); Safari/Home Screen multi-window update guidance; and Rollup `manualChunks` bundle splitting.
+- Workout editor, domain & history fixes: consistent working-set numbering after warm-ups (`W1, 1, 2`) in `HistoryView`, `planDifferences`, and `trainingCsvRows`; multi-activity `openActivityIds` state so opening a second activity no longer collapses the first; effort rest-timer `effort.id` tracking; weight-step reference set fallback to first uncompleted set; `substituteExercise` preservation of `plannedRpe`, `plannedRir`, and `unit`; `repeatWorkoutDraft` fallback to planned duration/distance and `replanWorkoutDraft` cleanup of import fingerprints, tombstones, and cardio performance stats; Undo tombstone cleanup for sets, exercises, and activities; Swim `GroupedActivityStepper` consistency; HYROX action-specific debounce; HYROX preview in `SavedPlanPreview`; and single-entry bodyweight grammar in `MonthlyReviewContent`.
+- See [v121 update notes](docs/releases/V121-UPDATE-NOTES.md).
+
+## v120 — published
 
 - Fixed iOS Safari / Home Screen PWA native date-field overflow by disabling the problematic WebKit appearance sizing path, retaining the native `type=date` picker, restoring border-box width constraints, and reserving a line-height for the date value. Reset WebKit's internal date-edit padding. Added regression assertions and bumped `APP_RELEASE` to v120.
-- Release gate: GitHub Pages workflow results pending. See [v120 update notes](docs/releases/V120-UPDATE-NOTES.md).
+- See [v120 update notes](docs/releases/V120-UPDATE-NOTES.md).
 
 ## v119 — published
 

@@ -401,12 +401,13 @@ function ExerciseEditor({
       action: { label: "Undo", onClick: () => {
         const current = latestExercise.current;
         const sets = [...current.sets];
-        sets.splice(Math.min(index, sets.length), 0, { ...removed, id: uid("set"), updatedAt: new Date().toISOString() });
-        onChange({ ...current, sets, updatedAt: new Date().toISOString() });
+        sets.splice(Math.min(index, sets.length), 0, { ...removed, updatedAt: new Date().toISOString() });
+        onChange({ ...current, deletedSetIds: (current.deletedSetIds ?? []).filter((id) => id !== removed.id), sets, updatedAt: new Date().toISOString() });
       } },
     });
   };
   const setNumbers = setDisplayNumbers(exercise.sets);
+  const refSet = exercise.sets.find((set) => !set.completed && !set.skipped) ?? exercise.sets[0];
   const setupRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -471,7 +472,7 @@ function ExerciseEditor({
               className="mt-1 h-9 w-full border-white/8 bg-black/20 px-2 text-center text-xs"
             />
           </label>
-          <label className="field-label">Weight step ({exercise.sets[0]?.unit ?? defaultUnit})<DecimalInput min={0} max={1000} value={increment || null} placeholder="Off" onValueChange={value => onIncrement(value && value > 0 ? value : 0)} /><small>Optional +/− in each set’s menu.</small></label>
+          <label className="field-label">Weight step ({refSet?.unit ?? defaultUnit})<DecimalInput min={0} max={1000} value={increment || null} placeholder="Off" onValueChange={value => onIncrement(value && value > 0 ? value : 0)} /><small>Optional +/− in each set’s menu.</small></label>
           <label className="field-label">Units for remaining sets<NativeSelect value={exercise.sets.find((set) => !set.completed && !set.skipped)?.unit ?? exercise.sets[0]?.unit ?? defaultUnit} onChange={(event) => {
             const updatedAt = new Date().toISOString();
             const unit = event.target.value as Unit;
@@ -506,7 +507,7 @@ function ExerciseEditor({
               numberLabel={setNumbers[index].label}
               numberShort={setNumbers[index].short}
               set={set}
-              increment={set.unit === (exercise.sets[0]?.unit ?? defaultUnit) && set.weightMode === exercise.sets[0]?.weightMode ? increment : 0}
+              increment={set.unit === (refSet?.unit ?? defaultUnit) && set.weightMode === (refSet?.weightMode ?? "total") ? increment : 0}
               onSkip={() => updateSet(set.id, {skipped:!set.skipped,completed:false,completedAsPlanned:false})}
               onChange={(changes) => updateSet(set.id, changes)}
               onToggleWarmup={() => updateSet(set.id, { warmup: !set.warmup })}
@@ -612,7 +613,7 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
   const isCircuit = activity.activityType === "circuit";
   const unitWord = isCircuit ? "Round" : "Set";
   const unitWordPlural = isCircuit ? "rounds" : "sets";
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(() => !activity.segments?.length);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedUnits, setExpandedUnits] = useState<string[]>([]);
   const [labelError, setLabelError] = useState<string | null>(null);
@@ -724,7 +725,7 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
     </div>
   </div>;
   const partCard = (segment: ActivitySegment, index: number, word: string, showInlineDone = true) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
-    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`${word} ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
+    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`${word} ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => { setLabelError(null); setExpandedId(value => value === segment.id ? null : segment.id); }}>
       <span className="stepper-part-index">{index + 1}</span>
       <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
       <span className="stepper-part-status">{statusText(segment)}</span>
@@ -779,7 +780,7 @@ function GroupedActivityStepper({ activity, onChange }: { activity: CardioEntry;
           <div className="stepper-unit-stations">{currentUnit.segments.map((segment, index) => <div key={segment.id} className="stepper-unit-station-row"><span className="stepper-part-index">{index + 1}</span><span className="stepper-unit-station-name">{segmentPlanText(segment)}</span><span className="stepper-part-status">{statusText(segment)}</span></div>)}</div>
         </div>
       </> : <>
-        <button type="button" className="stepper-current-text" aria-expanded={expandedId === currentUnit.segments[0]!.id} aria-label={`Current ${unitPosition(currentUnit, currentUnitIndex)}: ${segmentPlanText(currentUnit.segments[0]!)}`} onClick={() => setExpandedId(value => value === currentUnit.segments[0]!.id ? null : currentUnit.segments[0]!.id)}>
+        <button type="button" className="stepper-current-text" aria-expanded={expandedId === currentUnit.segments[0]!.id} aria-label={`Current ${unitPosition(currentUnit, currentUnitIndex)}: ${segmentPlanText(currentUnit.segments[0]!)}`} onClick={() => { setLabelError(null); setExpandedId(value => value === currentUnit.segments[0]!.id ? null : currentUnit.segments[0]!.id); }}>
           <span className="stepper-part-plan">{segmentPlanText(currentUnit.segments[0]!)}</span>
           {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
         </button>
@@ -903,7 +904,7 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
     </div>
   </div>;
   const partCard = (segment: ActivitySegment, index: number) => <div key={segment.id} className={`activity-stepper-part ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""}`}>
-    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Interval ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => setExpandedId(value => value === segment.id ? null : segment.id)}>
+    <button type="button" className="stepper-part-text" aria-expanded={expandedId === segment.id} aria-label={`Interval ${index + 1}: ${segmentPlanText(segment)}, ${statusText(segment)}`} onClick={() => { setLabelError(null); setExpandedId(value => value === segment.id ? null : segment.id); }}>
       <span className="stepper-part-index">{index + 1}</span>
       <span className="stepper-part-plan">{segmentPlanText(segment)}</span>
       <span className="stepper-part-status">{statusText(segment)}</span>
@@ -917,7 +918,7 @@ function ActivityStepper({ activity, onChange }: { activity: CardioEntry; onChan
       <span className="stepper-dots" role="img" aria-label={`${counts.done} of ${segments.length} intervals done`}>{segments.map((segment, index) => <span key={segment.id} className={`stepper-dot ${segment.status === "completed" ? "is-done" : segment.status === "modified" ? "is-measured" : segment.status === "skipped" ? "is-skipped" : ""} ${index === currentIndex ? "is-current" : ""}`} title={`Interval ${index + 1}: ${statusText(segment)}`} />)}</span>
     </div>
     {current && <div className="activity-stepper-current">
-      <button type="button" className="stepper-current-text" aria-expanded={expandedId === current.id} aria-label={`Current interval ${currentIndex + 1}: ${segmentPlanText(current)}`} onClick={() => setExpandedId(value => value === current.id ? null : current.id)}>
+      <button type="button" className="stepper-current-text" aria-expanded={expandedId === current.id} aria-label={`Current interval ${currentIndex + 1}: ${segmentPlanText(current)}`} onClick={() => { setLabelError(null); setExpandedId(value => value === current.id ? null : current.id); }}>
         <span className="stepper-part-plan">{segmentPlanText(current)}</span>
         {activity.intensity ? <span className="stepper-part-intensity">{activity.intensity}</span> : null}
       </button>
@@ -985,7 +986,7 @@ function CardioEditor({
   onCollapseOthers?: () => void;
   activity: CardioEntry;
   onChange: (activity: CardioEntry) => void;
-  onCompleteEffort: (seconds: number) => void;
+  onCompleteEffort: (seconds: number, effortId?: string) => void;
   onLater: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -1109,11 +1110,20 @@ function CardioEditor({
           const currentActivity = activityRef.current;
           const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
           update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
-        }} />) : postSessionNoSegments ? null : canAddIntervals ? (intervalsOpen ? <ActivityStepper activity={activity} onChange={segments => {
+        }} />) : postSessionNoSegments ? null : canAddIntervals ? (intervalsOpen ? (activity.activityType === "circuit" || activity.activityType === "swim" ? <GroupedActivityStepper activity={activity} onChange={(segments, opts) => {
+          const currentActivity = activityRef.current;
+          const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
+          if (opts && opts.completed !== undefined) {
+            if (opts.completed) {
+              const done = completeActivity({ ...currentActivity, segments });
+              update({ segments: done.segments, completed: true, completedAsPlanned: done.completedAsPlanned }, true);
+            } else update({ segments, completed: false, completedAsPlanned: false }, true);
+          } else update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
+        }} /> : <ActivityStepper activity={activity} onChange={segments => {
           const currentActivity = activityRef.current;
           const added = segments.some(segment => !(currentActivity.segments ?? []).some(item => item.id === segment.id));
           update({ segments, ...(added && currentActivity.completed ? { completed: false } : {}) }, true);
-        }} /> : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> {activity.activityType === "swim" ? "Add swim sets" : "Add intervals"}</Button>) : null}
+        }} />) : <Button type="button" variant="outline" onClick={() => setIntervalsOpen(true)}><Plus /> {activity.activityType === "swim" ? "Add swim sets" : "Add intervals"}</Button>) : null}
         {activity.activityType === "force" && style !== "efforts" && <Button type="button" variant="outline" onClick={() => update({ loggingStyle: "efforts", efforts: [makeActivityEffort()] })}><Plus /> Add effort</Button>}
         {style === "efforts" && <div className="activity-efforts">
           {efforts.map((effort, index) => {
@@ -1133,7 +1143,7 @@ function CardioEditor({
                 <Button type="button" variant={effort.completed ? "default" : "outline"} className="activity-effort-check" aria-label={`${effort.completed ? "Undo" : "Complete"} effort ${index + 1}: ${shownText}`} onClick={() => {
                   const next = efforts.map((item) => item.id === effort.id ? effort.completed ? { ...item, completed: false, ...(!hasDifferentActual ? { actualDistanceM: null, actualDurationSec: null, actualLoad: null } : {}) } : completeActivityEffort(item) : item);
                   update({ efforts: next, completed: next.length > 0 && next.every((item) => item.completed), completedAsPlanned: false }, true);
-                  if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!);
+                  if (!effort.completed && next.some((item) => !item.completed) && (activity.effortRestSec ?? 0) > 0) onCompleteEffort(activity.effortRestSec!, effort.id);
                   if (!effort.completed && next.every((item) => item.completed)) setShowCompleted(false);
                 }}><Check /><span className="sr-only">Done</span></Button>
                 <Button type="button" variant="ghost" className="activity-effort-edit" onClick={() => setExpandedEffortId(value => value === effort.id ? null : effort.id)} aria-expanded={expandedEffortId === effort.id}><Pencil /><span className="sr-only">Did different</span></Button>
@@ -1250,7 +1260,7 @@ export function WorkoutEditor({
   const [renaming, setRenaming] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [collapsedBlockIds, setCollapsedBlockIds] = useState<string[]>([]);
-  const [openActivityId, setOpenActivityId] = useState<string | null>(quickLogActivityId);
+  const [openActivityIds, setOpenActivityIds] = useState<string[]>(() => quickLogActivityId ? [quickLogActivityId] : []);
   const [focusMode, setFocusMode] = useState(false);
   const workoutOptionsRef = useRef<HTMLButtonElement>(null);
   const isEditingHistory = Boolean(workout.completedAt);
@@ -1368,7 +1378,7 @@ export function WorkoutEditor({
     const otherExerciseIds = latestWorkout.current.exercises.filter((item) => item.id !== keepId).map((item) => item.id);
     setFocusMode(true);
     setCollapsedBlockIds(otherExerciseIds);
-    setOpenActivityId(latestWorkout.current.cardio.some((item) => item.id === keepId) ? keepId : null);
+    setOpenActivityIds(latestWorkout.current.cardio.some((item) => item.id === keepId) ? [keepId] : []);
   };
 
   const updateExercise = (exercise: ExerciseBlock) => {
@@ -1395,7 +1405,7 @@ export function WorkoutEditor({
     if (!wasDone && isNowDone) {
       const upcoming = nextOpenBlock(next);
       setCollapsedBlockIds((ids) => [...ids.filter((id) => !(upcoming?.type === "exercise" && id === upcoming.exercise.id) && id !== exercise.id), exercise.id]);
-      if (upcoming?.type === "activity") setOpenActivityId(upcoming.activity.id);
+      if (upcoming?.type === "activity") setOpenActivityIds((ids) => ids.includes(upcoming.activity.id) ? ids : [...ids, upcoming.activity.id]);
     }
   };
   const updateCardio = (activity: CardioEntry) => {
@@ -1421,7 +1431,7 @@ export function WorkoutEditor({
       if (upcoming?.type === "exercise") {
         setCollapsedBlockIds((ids) => ids.filter((id) => id !== upcoming.exercise.id));
       } else if (upcoming?.type === "activity") {
-        setOpenActivityId(upcoming.activity.id);
+        setOpenActivityIds((ids) => ids.includes(upcoming.activity.id) ? ids : [...ids, upcoming.activity.id]);
       }
     }
   };
@@ -1447,12 +1457,12 @@ export function WorkoutEditor({
         label: "Undo",
         onClick: () => {
           const current = latestWorkout.current;
-          const restored = { ...removed, id: uid("exercise"), updatedAt: new Date().toISOString() };
+          const restored = { ...removed, updatedAt: new Date().toISOString() };
           const exercises = [...current.exercises];
           exercises.splice(Math.min(index, exercises.length), 0, restored);
           const blockOrder = [...normalizedBlockOrder(current)];
           blockOrder.splice(Math.max(0, blockIndex), 0, { type: "exercise", id: restored.id });
-          onUpdate({ ...current, exercises, blockOrder });
+          onUpdate({ ...current, deletedExerciseIds: (current.deletedExerciseIds ?? []).filter((item) => item !== removed.id), exercises, blockOrder });
         },
       },
     });
@@ -1480,9 +1490,9 @@ export function WorkoutEditor({
   const differences = planDifferences(reviewWorkout);
   const pendingActuals = unconfirmedActualActivities(workout);
   const updateReviewWorkout = (update: Partial<WorkoutSession>) => {
-    const next = { ...reviewWorkout, ...update };
-    if (finishCandidate) setFinishCandidate(next);
-    else onUpdate(next);
+    const updatedAt = new Date().toISOString();
+    onUpdate({ ...latestWorkout.current, ...update, updatedAt });
+    if (finishCandidate) setFinishCandidate({ ...finishCandidate, ...update, updatedAt });
   };
   const openFinish = (fromMenu: boolean) => {
     finishFromMenu.current = fromMenu;
@@ -1517,55 +1527,61 @@ export function WorkoutEditor({
       <RestTimer restUntil={restUntil} onChange={setRestUntil} nextLabel={nextLabel} measureRef={restTimerRef} />
 
       <main className="workout-main mx-auto w-full max-w-4xl space-y-4 px-3 pb-40 sm:px-6">
-        {orderedWorkoutBlocks(workout).map((block) => block.type === "exercise" ? (
-          <ExerciseEditor
-            key={block.exercise.id}
-            exercise={block.exercise}
-            nextSetId={nextSet?.id}
-            previous={previousFor(block.exercise.name)}
-            recentHistory={recentHistoryFor(block.exercise.name)}
-            defaultUnit={state.settings.defaultUnit}
-            barWeightLb={state.settings.barWeightLb}
-            barWeightKg={state.settings.barWeightKg}
-            collapsed={collapsedBlockIds.includes(block.exercise.id)}
-            onToggleCollapse={() => setCollapsedBlockIds((ids) => ids.includes(block.exercise.id) ? ids.filter((id) => id !== block.exercise.id) : [...ids, block.exercise.id])}
-            onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.exercise.id) : undefined}
-            increment={state.loadIncrements?.[incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
-            onIncrement={value => onIncrement(incrementKey(block.exercise.name, block.exercise.sets[0]?.unit ?? state.settings.defaultUnit, block.exercise.sets[0]?.weightMode ?? "total", state.exerciseAliases),value)}
-            onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
-            {...moveFor(block.exercise.id)}
-            onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
-            onChange={updateExercise}
-            onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
-            onRemove={() => removeExercise(block.exercise.id)}
-          />
-        ) : (
-          <CardioEditor
-            key={block.activity.id}
-            activity={block.activity}
-            initiallyOpen={quickLogActivityId === block.activity.id}
-            openOverride={openActivityId === block.activity.id}
-            onOpenChange={(open) => setOpenActivityId(open ? block.activity.id : null)}
-            onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.activity.id) : undefined}
-            isNext={nextBlock?.type === "activity" && nextBlock.activity.id === block.activity.id}
-            onChange={updateCardio}
-            onCompleteEffort={(seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.activity.id })}
-            onLater={() => { onUpdate(moveBlockLater(workout, block.activity.id)); toast.success("Moved to the end of this workout"); }}
-            {...moveFor(block.activity.id)}
-            onRemove={() => {
-              const removed = block.activity;
-              const index = normalizedBlockOrder(workout).findIndex((item) => item.id === removed.id);
-              onUpdate({ ...workout, deletedActivityIds: [...(workout.deletedActivityIds ?? []), removed.id], cardio: workout.cardio.filter((item) => item.id !== removed.id), blockOrder: workout.blockOrder.filter((item) => item.id !== removed.id) });
-              toast(`${removed.name} removed`, { action: { label: "Undo", onClick: () => {
-                const current = latestWorkout.current;
-                const restored = { ...removed, id: uid("cardio"), updatedAt: new Date().toISOString() };
-                const blockOrder = [...normalizedBlockOrder(current)];
-                blockOrder.splice(Math.max(0, index), 0, { type: "activity", id: restored.id });
-                onUpdate({ ...current, cardio: [...current.cardio, restored], blockOrder });
-              } } });
-            }}
-          />
-        ))}
+        {orderedWorkoutBlocks(workout).map((block) => {
+          if (block.type === "exercise") {
+            const refSet = block.exercise.sets.find((s) => !s.completed && !s.skipped) ?? block.exercise.sets[0];
+            return (
+              <ExerciseEditor
+                key={block.exercise.id}
+                exercise={block.exercise}
+                nextSetId={nextSet?.id}
+                previous={previousFor(block.exercise.name)}
+                recentHistory={recentHistoryFor(block.exercise.name)}
+                defaultUnit={state.settings.defaultUnit}
+                barWeightLb={state.settings.barWeightLb}
+                barWeightKg={state.settings.barWeightKg}
+                collapsed={collapsedBlockIds.includes(block.exercise.id)}
+                onToggleCollapse={() => setCollapsedBlockIds((ids) => ids.includes(block.exercise.id) ? ids.filter((id) => id !== block.exercise.id) : [...ids, block.exercise.id])}
+                onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.exercise.id) : undefined}
+                increment={state.loadIncrements?.[incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases)]?.value ?? 0}
+                onIncrement={value => onIncrement(incrementKey(block.exercise.name, refSet?.unit ?? state.settings.defaultUnit, refSet?.weightMode ?? "total", state.exerciseAliases), value)}
+                onLater={() => {onUpdate(moveBlockLater(workout,block.exercise.id));toast.success("Moved to the end of this workout");}}
+                {...moveFor(block.exercise.id)}
+                onSubstitute={(anchor) => { substitutionAnchor.current = anchor; setSubstitutionId(block.exercise.id); }}
+                onChange={updateExercise}
+                onCompleteSet={(setId, seconds) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.exercise.id, setId })}
+                onRemove={() => removeExercise(block.exercise.id)}
+              />
+            );
+          }
+          return (
+            <CardioEditor
+              key={block.activity.id}
+              activity={block.activity}
+              initiallyOpen={quickLogActivityId === block.activity.id}
+              openOverride={openActivityIds.includes(block.activity.id)}
+              onOpenChange={(open) => setOpenActivityIds((ids) => open ? (ids.includes(block.activity.id) ? ids : [...ids, block.activity.id]) : ids.filter((id) => id !== block.activity.id))}
+              onCollapseOthers={workout.exercises.length + workout.cardio.length > 1 ? () => collapseOthers(block.activity.id) : undefined}
+              isNext={nextBlock?.type === "activity" && nextBlock.activity.id === block.activity.id}
+              onChange={updateCardio}
+              onCompleteEffort={(seconds, setId) => setRestUntil(Date.now() + seconds * 1000, { blockId: block.activity.id, setId })}
+              onLater={() => { onUpdate(moveBlockLater(workout, block.activity.id)); toast.success("Moved to the end of this workout"); }}
+              {...moveFor(block.activity.id)}
+              onRemove={() => {
+                const removed = block.activity;
+                const index = normalizedBlockOrder(workout).findIndex((item) => item.id === removed.id);
+                onUpdate({ ...workout, deletedActivityIds: [...(workout.deletedActivityIds ?? []), removed.id], cardio: workout.cardio.filter((item) => item.id !== removed.id), blockOrder: workout.blockOrder.filter((item) => item.id !== removed.id) });
+                toast(`${removed.name} removed`, { action: { label: "Undo", onClick: () => {
+                  const current = latestWorkout.current;
+                  const restored = { ...removed, updatedAt: new Date().toISOString() };
+                  const blockOrder = [...normalizedBlockOrder(current)];
+                  blockOrder.splice(Math.max(0, index), 0, { type: "activity", id: restored.id });
+                  onUpdate({ ...current, deletedActivityIds: (current.deletedActivityIds ?? []).filter((item) => item !== removed.id), cardio: [...current.cardio, restored], blockOrder });
+                } } });
+              }}
+            />
+          );
+        })}
 
         <div className="grid grid-cols-2 gap-3">
           <Button
@@ -1610,11 +1626,52 @@ export function WorkoutEditor({
               {reviewWorkout.cardio.flatMap(activity => { const mismatch = segmentMismatch(activity); return mismatch ? [{ activity, mismatch }] : []; }).map(({ activity, mismatch }) => <p key={activity.id} role="note" className="activity-warning">{activity.name}: {mismatch.message}</p>)}
               <div className="finish-review">
                 {isEditingHistory && <Button variant="outline" onClick={() => { setFinishOpen(false); setDateOpen(true); }}>Workout date: {formatDate(workout.date)} · Change</Button>}
+                <div className="finish-fields">
+                  <div className="finish-effort-card">
+                    <div className="finish-effort-header">
+                      <div>
+                        <p className="finish-effort-title">Session effort</p>
+                        <p className="finish-effort-subtitle">How hard was this session? (1–10 RPE)</p>
+                      </div>
+                      {reviewWorkout.sessionRpe.trim() && <span className="finish-effort-badge">RPE {reviewWorkout.sessionRpe.trim()}/10</span>}
+                    </div>
+                    <div className="finish-effort-chips" role="group" aria-label="Quick session effort">
+                      {([
+                        { value: "6", label: "6", sub: "Easy" },
+                        { value: "7", label: "7", sub: "Moderate" },
+                        { value: "8", label: "8", sub: "Hard" },
+                        { value: "9", label: "9", sub: "Very hard" },
+                        { value: "10", label: "10", sub: "Max" },
+                      ] as const).map((chip) => {
+                        const active = reviewWorkout.sessionRpe.trim() === chip.value;
+                        return (
+                          <button
+                            key={chip.value}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => updateReviewWorkout({ sessionRpe: active ? "" : chip.value })}
+                            className={`finish-effort-chip ${active ? "is-active" : ""}`}
+                          >
+                            <strong>{chip.label}</strong>
+                            <small>{chip.sub}</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Input
+                      aria-label="Session effort out of 10"
+                      inputMode="decimal"
+                      value={reviewWorkout.sessionRpe}
+                      placeholder="Or type 1–10 (e.g. 7.5)"
+                      onChange={(event) => updateReviewWorkout({ sessionRpe: event.target.value })}
+                      className="border-white/10 bg-black/25"
+                    />
+                  </div>
+                  <label className="field-label">Notes · optional<Textarea value={reviewWorkout.notes} onChange={(event) => updateReviewWorkout({ notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label>
+                </div>
                 <WorkoutVolume workout={reviewWorkout} unit={state.settings.defaultUnit} />
                 {differences.length > 0 && <details className="log-notes" open><summary>Changed from plan · {differences.length}</summary><ul className="space-y-1.5 py-2 text-sm text-white/70">{differences.map((change, index) => <li key={index} className="break-words">{change}</li>)}</ul></details>}
                 {unfinishedSets + unfinishedActivities > 0 && <details className="log-notes"><summary>Review unfinished work ({unfinishedSets + unfinishedActivities})</summary><ul className="space-y-2 py-2 text-sm text-white/65">{reviewWorkout.exercises.filter((exercise) => exercise.sets.some((set) => !set.completed && !set.skipped)).map((exercise) => <li key={exercise.id}>{exercise.name}: {exercise.sets.filter((set) => !set.completed && !set.skipped).length} sets incomplete</li>)}{reviewWorkout.cardio.filter(activityStillOpen).map((activity) => <li key={activity.id}>{activity.name}: incomplete</li>)}</ul></details>}
-                <div className="finish-fields"><details className="log-notes"><summary>Session effort · optional{reviewWorkout.sessionRpe ? ` · ${reviewWorkout.sessionRpe}/10` : ""}</summary><Input aria-label="Session effort out of 10" inputMode="decimal" value={reviewWorkout.sessionRpe} placeholder="—" onChange={(event) => updateReviewWorkout({ sessionRpe: event.target.value })} /></details>
-                <label className="field-label">Notes · optional<Textarea value={reviewWorkout.notes} onChange={(event) => updateReviewWorkout({ notes: event.target.value })} placeholder="How it felt, anything changed…" className="mt-2 min-h-20 border-white/8 bg-black/20" /></label></div>
               </div>
               {finishError && <p role="alert" className="text-sm text-red-200">{finishError}</p>}
               <AlertDialogFooter><AlertDialogCancel disabled={finishing} className="border-white/10 bg-transparent text-white">{isEditingHistory ? "Keep editing" : "Keep training"}</AlertDialogCancel><AlertDialogAction disabled={finishing} onClick={async event => { event.preventDefault(); setFinishing(true); setFinishError(""); try { await onFinish(finishCandidate ?? undefined); setRestUntil(null); setFinishOpen(false); setFinishCandidate(null); } catch { setFinishError("Could not save. Your editable workout is retained. Retry, or keep training and export a backup from Settings."); } finally { setFinishing(false); } }} className="bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90">{unusualSaveLabel(unusual, finishing, finishLabel)}</AlertDialogAction></AlertDialogFooter>

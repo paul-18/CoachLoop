@@ -1,4 +1,5 @@
 import { formatLoad, performedDistance, performedDuration, performedReps, performedWeight, formatMeasure } from "./training-metrics";
+import { setDisplayNumbers } from "./completion";
 import { segmentMeasure } from "./activity-segments";
 import { localDate, type WorkoutSession } from "./training-types";
 import { validMeasurementDate } from "./training-workflow";
@@ -11,13 +12,15 @@ export function reschedulePlannedWorkout(workout: WorkoutSession, date: string, 
 /** Correct the calendar date without rewriting when work was actually saved. */
 export function changeWorkoutDate(workout: WorkoutSession, date: string, today = localDate()): WorkoutSession {
   if (!validMeasurementDate(date) || (workout.status !== "planned" && date > today)) throw new Error("Choose a valid workout date up to today.");
-  return { ...workout, date };
+  return { ...workout, date, updatedAt: new Date().toISOString() };
 }
 
 /** Only compare completed work that had an actual prescription. Unfinished work has its own review. */
 export function planDifferences(workout: WorkoutSession): string[] {
   const changes: string[] = [];
   for (const exercise of workout.exercises) {
+    const numbers = setDisplayNumbers(exercise.sets);
+    const warmupCount = exercise.sets.filter((s) => s.warmup).length;
     exercise.sets.forEach((set, index) => {
       if (!set.completed || (!set.plannedReps.trim() && set.plannedWeight === null)) return;
       const actualReps = performedReps(set);
@@ -26,7 +29,10 @@ export function planDifferences(workout: WorkoutSession): string[] {
       const weightChanged = set.plannedWeight !== null && (actualWeight === null || Math.abs(actualWeight - set.plannedWeight) > 0.0001);
       if (!repsChanged && !weightChanged) return;
       const format = (weight: number | null, reps: string) => `${formatLoad(set.loadType, weight, set.unit, set.weightMode).replace(/ total$/, "")} × ${reps || "—"}`;
-      changes.push(`${exercise.name} · ${set.warmup ? "Warm-up" : `Set ${index + 1}`}: ${format(set.plannedWeight, set.plannedReps)} → ${format(actualWeight, actualReps)}`);
+      const setLabel = set.warmup
+        ? (warmupCount > 1 ? `Warm-up ${numbers[index]?.short.replace(/^W/, "")}` : "Warm-up")
+        : (numbers[index]?.label ?? `Set ${index + 1}`);
+      changes.push(`${exercise.name} · ${setLabel}: ${format(set.plannedWeight, set.plannedReps)} → ${format(actualWeight, actualReps)}`);
     });
   }
   for (const activity of workout.cardio) {

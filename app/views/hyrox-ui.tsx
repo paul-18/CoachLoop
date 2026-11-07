@@ -69,6 +69,7 @@ export function HyroxWorkout({ saveStatus, workout, onUpdate, onFinish, onBack, 
   const [now, setNow] = useState(() => Date.now());
   const [awake, setAwake] = useState(false);
   const lastTap = useRef(0);
+  const lastAction = useRef<string | null>(null);
   useEffect(() => { const handle = window.setInterval(() => setNow(Date.now()), 500); return () => clearInterval(handle); }, []);
   useEffect(() => {
     if (!awake) return;
@@ -79,10 +80,10 @@ export function HyroxWorkout({ saveStatus, workout, onUpdate, onFinish, onBack, 
     void acquire(); document.addEventListener("visibilitychange", visible);
     return () => { disposed = true; document.removeEventListener("visibilitychange", visible); void lock?.release().catch(() => undefined); };
   }, [awake]);
-  const act = (action: "start" | "pause" | "complete" | "undo") => { const time = Date.now(); if (time-lastTap.current < 600) return; lastTap.current = time; onUpdate(updateHyrox(workout, action, time)); setNow(time); };
+  const act = (action: "start" | "pause" | "complete" | "undo") => { const time = Date.now(); if (action === lastAction.current && time-lastTap.current < 600) return; lastTap.current = time; lastAction.current = action; onUpdate(updateHyrox(workout, action, time)); setNow(time); };
   return <div className="hyrox-workout"><header className="hyrox-header"><Button variant="ghost" size="icon" aria-label="Back to Today" onClick={onBack}><ArrowLeft /></Button><div><strong>{editing ? "Edit HYROX session" : "HYROX simulation"}</strong><small>{HYROX_DIVISIONS[session.division]} · {session.modified ? "Modified" : "Division preset"}</small><small role="status">{saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved on this device"}</small></div><Button variant="outline" aria-pressed={awake} onClick={() => setAwake((v) => !v)}>{awake ? "Awake on" : "Keep awake"}</Button></header>
     <main className="hyrox-main">{!editing && current && <section className="hyrox-live"><p className="eyebrow">Segment {index+1} of {session.segments.length}</p><h1>{current.name}</h1><p className="hyrox-requirement">{hyroxPrescription(current, unit)}</p><div className="hyrox-clocks"><div><span>This segment</span><strong>{hyroxTime(hyroxSegmentElapsed(session, now))}</strong></div><div><span>Total</span><strong>{hyroxTime(hyroxTotal(session, now))}</strong></div></div><p className="hyrox-muted">{current.cue}</p>{session.segments[index+1] && <p className="hyrox-next">Next: {session.segments[index+1].name} · {hyroxPrescription(session.segments[index+1], unit)}</p>}<p className="hyrox-muted">{!session.started ? "Tap Start timer when ready." : session.runningSince === null ? "Paused · timer excludes this break." : "Timer continues when you leave this screen."}</p></section>}
-    {editing && <label className="field-label">Workout date<Input type="date" max={localDate()} value={workout.date} onChange={(event) => { const date = event.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date <= localDate()) onUpdate({ ...workout, date }); }} /></label>}
+    {editing && <label className="field-label">Workout date<Input type="date" max={localDate()} value={workout.date} onChange={(event) => { const date = event.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date <= localDate()) onUpdate({ ...workout, date, updatedAt: new Date().toISOString() }); }} /></label>}
     {(editing || !current) ? <HyroxResults workout={workout} onUpdate={onUpdate} unit={unit} history={history} /> : <details className="hyrox-info"><summary>Full session & recorded splits <ChevronDown size={16} /></summary><HyroxResults workout={workout} onUpdate={onUpdate} unit={unit} history={history} /></details>}
     {!editing && index !== 0 && <Button variant="outline" onClick={() => act("undo")}>Undo last completion</Button>}
     <details className="hyrox-info"><summary>Your notes <ChevronDown size={16} /></summary><Textarea aria-label="HYROX session notes" value={workout.notes} onChange={(event) => onUpdate({ ...workout, notes: event.target.value })} placeholder="Turf, substitutions, interruptions…" /></details>

@@ -1,5 +1,5 @@
 import type { TrainingState } from "../domain/training-types";
-import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, setDisplayNumbers } from "../domain/completion";
 import { segmentMeasure } from "../domain/activity-segments";
 import { csvSetEffort, toCsv } from "./csv-export";
 export function trainingCsvRows(state: TrainingState): string[][] {
@@ -8,7 +8,7 @@ export function trainingCsvRows(state: TrainingState): string[][] {
   for (const w of state.workouts) {
     if (w.status === "skipped") { row({ date: w.date, workout: w.name, record_status: "skipped", notes: w.notes, skip_reason: w.skipReason }); continue; }
     if (w.status !== "completed") continue;
-    w.exercises.forEach(e => e.sets.forEach((s, i) => row({ date: w.date, workout: w.name, record_status: s.completed ? "completed" : s.skipped ? "skipped" : "incomplete", type: "strength", exercise_or_activity: e.name, set: String(i + 1), load_type: s.loadType, weight_mode: s.weightMode, planned_weight: s.plannedWeight?.toString() ?? "", actual_weight: s.actualWeight?.toString() ?? "", unit: s.unit, planned_reps: s.plannedReps, actual_reps: s.actualReps, completed_as_planned: String(s.completedAsPlanned), rpe_or_effort: csvSetEffort(s), notes: `${e.notes} ${s.notes}`.trim(), warmup: String(s.warmup) })));
+    w.exercises.forEach(e => { const numbers = setDisplayNumbers(e.sets); e.sets.forEach((s, i) => row({ date: w.date, workout: w.name, record_status: s.completed ? "completed" : s.skipped ? "skipped" : "incomplete", type: "strength", exercise_or_activity: e.name, set: numbers[i]?.short ?? String(i + 1), load_type: s.loadType, weight_mode: s.weightMode, planned_weight: s.plannedWeight?.toString() ?? "", actual_weight: s.actualWeight?.toString() ?? "", unit: s.unit, planned_reps: s.plannedReps, actual_reps: s.actualReps, completed_as_planned: String(s.completedAsPlanned), rpe_or_effort: csvSetEffort(s), notes: `${e.notes} ${s.notes}`.trim(), warmup: String(s.warmup) })); });
     w.cardio.forEach(c => {
       const hasEvidence = hasCompletedActivityWork(c);
       const durationIncomplete = c.segments?.length ? (() => { const measure = segmentMeasure(c, "duration"); return measure !== null && measure.done > 0 && !measure.fullyRecorded; })() : false;

@@ -509,8 +509,19 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .activity-basics input, .activity-basics select { min-height: 44px; }
 .finish-review { display: grid; gap: 16px; }
 .finish-counts { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--lime); font-size: .875rem; }
-.finish-fields { display: grid; gap: 16px; }
+.finish-fields { display: grid; gap: 14px; }
 .finish-fields .effort-picker { max-width: 100px; }
+.finish-effort-card { display: grid; gap: 10px; border: 1px solid rgba(var(--theme-accent-rgb),.28); border-radius: 14px; background: rgba(var(--theme-accent-rgb),.05); padding: 12px 14px; min-width: 0; }
+.finish-effort-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-width: 0; }
+.finish-effort-title { font-size: .92rem; font-weight: 800; color: #f4f6f0; letter-spacing: -.01em; margin: 0; }
+.finish-effort-subtitle { font-size: .76rem; color: #aeb6a6; margin: 2px 0 0; line-height: 1.35; }
+.finish-effort-badge { flex-shrink: 0; border-radius: 999px; background: rgba(var(--theme-accent-rgb),.16); border: 1px solid rgba(var(--theme-accent-rgb),.32); color: var(--lime); padding: 2px 8px; font-size: .72rem; font-weight: 800; }
+.finish-effort-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; min-width: 0; }
+.finish-effort-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 46px; min-width: 0; padding: 4px 2px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.28); color: #e2e8db; transition: border-color .15s, background-color .15s, color .15s; }
+.finish-effort-chip strong { font-size: .88rem; font-weight: 800; line-height: 1.1; }
+.finish-effort-chip small { font-size: .62rem; color: #9ea796; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.finish-effort-chip.is-active, .finish-effort-chip[aria-pressed="true"] { border-color: var(--lime); background: rgba(var(--theme-accent-rgb),.18); color: var(--lime); }
+.finish-effort-chip.is-active small, .finish-effort-chip[aria-pressed="true"] small { color: #f4f6f0; }
 .rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; bottom: auto; left: 0; border: 0; border-bottom: 1px solid rgba(var(--theme-accent-rgb),.13); border-radius: 0; z-index: 39; gap: 8px; padding: 6px max(12px,calc((100vw - 864px)/2)); }
 .rest-timer-copy { flex: 1; min-width: 0; }
 .rest-timer-copy > p:first-child { display: flex; align-items: baseline; gap: 8px; }
@@ -633,7 +644,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
   width: auto;
   max-width: 400px;
   display: grid;
-  grid-template-columns: minmax(0,1fr) 72px;
+  grid-template-columns: minmax(0,1fr) minmax(96px, .72fr);
   gap: 10px;
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 12px;
@@ -833,8 +844,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .feature-bars { display: grid; gap: 8px; padding-block: 12px; }.feature-bars > div { display: grid; grid-template-columns: 105px minmax(0,1fr) 70px; align-items: center; gap: 8px; font-size: .8rem; }.feature-bars i { height: 8px; border-radius: 4px; background: var(--lime); }.feature-bars strong { font-weight: 500; text-align: right; }
 .hyrox-compare { display: grid; gap: 10px; }.hyrox-compare > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; font-size: .875rem; padding-block: 6px; border-top: 1px solid #ffffff12; }.hyrox-compare > div span:first-child { grid-column: 1 / -1; font-weight: 700; }.hyrox-compare strong { color: var(--lime); }
 .set-row.is-skipped { background: #ffffff03; }.set-row.is-skipped input { opacity: .6; text-decoration: line-through; }
-.exercise-options-row { flex-wrap: wrap; }.exercise-options-row label { min-width: 0; }.exercise-options-row label:last-child small { display: block; margin-top: 5px; font-size: .8rem; color: #acb6a6; }
-.exercise-options-row > label:last-child { grid-column: 1 / -1; }
+.exercise-options-row { flex-wrap: wrap; }.exercise-options-row label { min-width: 0; }.exercise-options-row label:nth-child(3) small { display: block; margin-top: 5px; font-size: .72rem; color: #acb6a6; }
 .hyrox-plan-line > span:has(.hyrox-include) { width: 44px; }.hyrox-include { min-height: 44px; min-width: 44px; border-radius: 10px; }.hyrox-include svg { width: 20px; height: 20px; }
 
 /* First-use guidance stays compact and disappears after completed training. */

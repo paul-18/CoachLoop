@@ -57,7 +57,7 @@ export function substituteExercise(workout: WorkoutSession, id: string, name: st
   if (!remaining.length) return workout;
   const now = new Date().toISOString();
   const replacement = {...makeExercise(unit, original.restSec, name.trim()), substitutedFor: original.name,
-    sets: remaining.map(s => makeSet(unit, {plannedReps:s.plannedReps, warmup:s.warmup})), updatedAt:now};
+    sets: remaining.map(s => makeSet(s.unit ?? unit, {plannedReps:s.plannedReps, plannedRpe:s.plannedRpe, plannedRir:s.plannedRir, warmup:s.warmup})), updatedAt:now};
   const exercises = workout.exercises.map(e => e.id === id ? {...e, updatedAt:now, sets:e.sets.map(s => s.completed || s.skipped ? s : {...s, skipped:true, updatedAt:now})} : e);
   exercises.push(replacement);
   const order = [...workout.blockOrder];

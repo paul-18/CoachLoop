@@ -30,7 +30,7 @@ import { localDate, type TrainingState, type Unit, type WorkoutSession } from ".
 import { copyText, downloadText, formatDate, summarizeWorkout, orderedWorkoutBlocks, EmptyPanel } from "./shared";
 import { FirstWorkoutNote } from "./first-workout-note";
 
-import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress } from "../domain/completion";
+import { performedDuration, performedDistance, formatMeasure, hasCompletedActivityWork, activityHistoryLabel, exerciseSetProgress, setDisplayNumbers } from "../domain/completion";
 import { formatSegmentMeasure, segmentCountLabel, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../domain/activity-segments";
 
 import { WorkoutVolume } from "./workout-editor";
@@ -86,18 +86,21 @@ function HistoryWorkoutDetails({ workout, unit, history }: { workout: WorkoutSes
               {exercise.coachNotes && <details className="history-extra"><summary>Coach cue</summary><p>{exercise.coachNotes}</p></details>}
               {exercise.sets.length ? (
                 <div className="history-set-list">
-                  {exercise.sets.map((set, index) => {
-                    const weight = set.completed ? performedWeight(set) : set.plannedWeight;
-                    const reps = set.completed ? performedReps(set) : set.plannedReps;
-                    return (
-                      <div key={set.id} className={`history-set-compact ${set.completed ? "" : "incomplete"}`}>
-                        <span className="history-set-index">{set.warmup ? "W" : index + 1}</span>
-                        <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}</strong>
-                        <small>{set.completed ? set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : "" : set.skipped ? "Skipped" : "Not done"}</small>
-                        {set.notes && <p className="history-set-note">{set.notes}</p>}
-                      </div>
-                    );
-                  })}
+                  {(() => {
+                    const numbers = setDisplayNumbers(exercise.sets);
+                    return exercise.sets.map((set, index) => {
+                      const weight = set.completed ? performedWeight(set) : set.plannedWeight;
+                      const reps = set.completed ? performedReps(set) : set.plannedReps;
+                      return (
+                        <div key={set.id} className={`history-set-compact ${set.completed ? "" : "incomplete"}`}>
+                          <span className="history-set-index">{numbers[index]?.short ?? index + 1}</span>
+                          <strong>{formatLoad(set.loadType, weight, set.unit, set.weightMode)} × {reps || "?"}</strong>
+                          <small>{set.completed ? set.rpe ? `RPE ${set.rpe}` : set.rir ? `${set.rir} RIR` : "" : set.skipped ? "Skipped" : "Not done"}</small>
+                          {set.notes && <p className="history-set-note">{set.notes}</p>}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               ) : <p className="history-empty-copy">No sets recorded.</p>}
             </details>
@@ -179,7 +182,7 @@ export function HistoryView({
     workout.status === "skipped" ||
     ((workout.exercises.some((e) => e.sets.some((s) => s.skipped)) || workout.cardio.some((c) => c.skipped)) &&
       !workout.exercises.some((e) => e.sets.some((s) => s.completed)) &&
-      !workout.cardio.some((c) => c.completed || c.efforts?.some((e) => e.completed)));
+      !workout.cardio.some((c) => hasCompletedActivityWork(c)));
   const workouts = useMemo(() => [...state.workouts]
     .filter((workout) => workout.status === "completed" || workout.status === "skipped")
     .filter((workout) => {
@@ -269,6 +272,11 @@ export function HistoryView({
                     <div className="mt-5 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                       {workout.status === "skipped" ? (
                         <Button size="sm" variant="outline" onClick={() => onReplan(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Replan</Button>
+                      ) : isWorkoutFullySkipped(workout) ? (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => onEdit(workout.id)} className="border-white/10 bg-transparent text-white"><SquarePen /> Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => onReplan(workout.id)} className="border-white/10 bg-transparent text-white"><Redo2 /> Replan</Button>
+                        </>
                       ) : (
                         <>
                           <Button size="sm" variant="outline" onClick={() => onEdit(workout.id)} className="border-white/10 bg-transparent text-white"><SquarePen /> Edit</Button>
