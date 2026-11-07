@@ -32,7 +32,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, supersetLabels, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, supersetGroupExercises, supersetLabels, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -145,19 +145,65 @@ const plateColors: Record<string, string> = {
   "1.25": "#a9b0a3",
 };
 
+interface SupersetPlateSpec {
+  exerciseId: string;
+  setId: string;
+  supersetLabel?: string;
+  exerciseName: string;
+  total: number | null;
+  unit: Unit;
+  barWeight: number;
+  isLegPress: boolean;
+}
+
+function plateSpecForExercise(
+  exercise: ExerciseBlock,
+  barWeightLb: number,
+  barWeightKg: number,
+  supersetLabel?: string,
+): SupersetPlateSpec | null {
+  const openSet = exercise.sets.find((s) => !s.completed && !s.skipped);
+  if (!openSet || openSet.loadType !== "weighted" || openSet.weightMode !== "total") return null;
+  const legPress = isLegPress(exercise.name);
+  if (!legPress && !isBarbellExercise(exercise.name)) return null;
+  const total = openSet.completedAsPlanned ? openSet.plannedWeight : openSet.actualWeight ?? openSet.plannedWeight;
+  const barWeight = legPress ? 0 : (openSet.unit === "lb" ? barWeightLb : barWeightKg);
+  if (total === null || !Number.isFinite(total) || total > 5000 || total <= 0 || !Number.isFinite(barWeight) || barWeight < 0 || (!legPress && total < barWeight)) return null;
+  return {
+    exerciseId: exercise.id,
+    setId: openSet.id,
+    supersetLabel,
+    exerciseName: exercise.name,
+    total,
+    unit: openSet.unit,
+    barWeight,
+    isLegPress: legPress,
+  };
+}
+
 function PlateVisualizer({
   total,
   unit,
   barWeight,
   isLegPress = false,
+  supersetLabel,
+  exerciseName,
 }: {
   total: number | null;
   unit: Unit;
   barWeight: number;
   isLegPress?: boolean;
+  supersetLabel?: string;
+  exerciseName?: string;
 }) {
   if (total === null || !Number.isFinite(total) || total > 5000 || total <= 0 || !Number.isFinite(barWeight) || barWeight < 0 || (!isLegPress && total < barWeight)) return null;
   const available = unit === "lb" ? [45, 35, 25, 10, 5, 2.5, 1.25] : [25, 20, 15, 10, 5, 2.5, 1.25];
+  const prefix = (supersetLabel || exerciseName) ? (
+    <span className="inline-flex items-center gap-1.5 mr-1">
+      {supersetLabel && <span className="superset-badge">{supersetLabel}</span>}
+      {exerciseName && <span className="text-xs font-bold text-white/80">{exerciseName}</span>}
+    </span>
+  ) : null;
 
   if (isLegPress) {
     let remaining = total;
@@ -171,7 +217,8 @@ function PlateVisualizer({
     }
 
     return (
-      <div className="plate-visualizer" aria-label={`Leg press plate loading for ${total} ${unit}`}>
+      <div className="plate-visualizer" aria-label={`${exerciseName ? `${exerciseName}: ` : ""}Leg press plate loading for ${total} ${unit}`}>
+        {prefix}
         {plateCounts.map(({ plate, count }, idx) => (
           <span key={plate} className="inline-flex items-center gap-1.5">
             {idx > 0 && <span className="text-xs text-white/55">+</span>}
@@ -202,7 +249,8 @@ function PlateVisualizer({
   const grouped = formatGroupedPlates(plates);
 
   return (
-    <div className="plate-visualizer" aria-label={`Barbell loading for ${total} ${unit}`}>
+    <div className="plate-visualizer" aria-label={`${exerciseName ? `${exerciseName}: ` : ""}Barbell loading for ${total} ${unit}`}>
+      {prefix}
       <span className="plate-bar" />
       {plates.map((plate, index) => (
         <span
@@ -347,6 +395,8 @@ function ExerciseEditor({
   onIncrement,
   personalRecords,
   supersetLabel,
+  supersetPlates,
+  isActiveSuperset = false,
   nextExerciseName,
   onLinkSuperset,
   onUnlinkSuperset,
@@ -374,6 +424,8 @@ function ExerciseEditor({
   onIncrement: (value: number) => void;
   personalRecords?: Map<string, SetPersonalRecord>;
   supersetLabel?: string;
+  supersetPlates?: SupersetPlateSpec[];
+  isActiveSuperset?: boolean;
   nextExerciseName?: string;
   onLinkSuperset?: () => void;
   onUnlinkSuperset?: () => void;
@@ -577,14 +629,29 @@ function ExerciseEditor({
               }}
               onRemove={() => removeSet(set.id)}
             />
-            {set.id === nextSetId && set.loadType === "weighted" && set.weightMode === "total" && (isBarbellExercise(exercise.name) || isLegPress(exercise.name)) && (
+            {set.id === nextSetId && supersetPlates && supersetPlates.length > 0 ? (
+              <div className="superset-plate-visualizers space-y-1.5">
+                {supersetPlates.map((spec) => (
+                  <PlateVisualizer
+                    key={spec.exerciseId}
+                    total={spec.total}
+                    unit={spec.unit}
+                    barWeight={spec.barWeight}
+                    isLegPress={spec.isLegPress}
+                    supersetLabel={spec.supersetLabel}
+                    exerciseName={supersetPlates.length > 1 || spec.exerciseId !== exercise.id ? spec.exerciseName : undefined}
+                  />
+                ))}
+              </div>
+            ) : (set.id === nextSetId || (isActiveSuperset && set.id === exercise.sets.find((s) => !s.completed && !s.skipped)?.id)) && set.loadType === "weighted" && set.weightMode === "total" && (isBarbellExercise(exercise.name) || isLegPress(exercise.name)) ? (
               <PlateVisualizer
                 total={set.completedAsPlanned ? set.plannedWeight : set.actualWeight ?? set.plannedWeight}
                 unit={set.unit}
                 barWeight={isLegPress(exercise.name) ? 0 : (set.unit === "lb" ? barWeightLb : barWeightKg)}
                 isLegPress={isLegPress(exercise.name)}
+                supersetLabel={supersetLabel}
               />
-            )}
+            ) : null}
           </div>
         ))}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
@@ -1555,6 +1622,15 @@ export function WorkoutEditor({
               const exIdx = orderedExercises.findIndex(e => e.id === block.exercise.id);
               const nextExercise = exIdx >= 0 ? orderedExercises[exIdx + 1] : undefined;
               const canLinkNext = Boolean(nextExercise && (!block.exercise.supersetId || block.exercise.supersetId !== nextExercise.supersetId));
+              const supersetGroup = supersetGroupExercises(workout, block.exercise.supersetId);
+              const isSuperset = supersetGroup.length > 1;
+              const isActiveSuperset = isSuperset && nextBlock?.type === "exercise" && supersetGroup.some(e => e.id === nextBlock.exercise.id);
+              const supersetPlates = isSuperset
+                ? supersetGroup.flatMap(ex => {
+                    const spec = plateSpecForExercise(ex, state.settings.barWeightLb, state.settings.barWeightKg, supersets.get(ex.id));
+                    return spec ? [spec] : [];
+                  })
+                : undefined;
               return (
                 <ExerciseEditor
                   key={block.exercise.id}
@@ -1578,6 +1654,8 @@ export function WorkoutEditor({
                   onRemove={() => removeExercise(block.exercise.id)}
                   personalRecords={personalRecords}
                   supersetLabel={supersets.get(block.exercise.id)}
+                  supersetPlates={supersetPlates}
+                  isActiveSuperset={isActiveSuperset}
                   nextExerciseName={canLinkNext ? nextExercise?.name : undefined}
                   onLinkSuperset={canLinkNext && nextExercise ? () => { onUpdate(linkSupersetWithNext(workout, block.exercise.id)); toast.success(`Linked superset with ${nextExercise.name}`); } : undefined}
                   onUnlinkSuperset={block.exercise.supersetId ? () => { onUpdate(unlinkSuperset(workout, block.exercise.id)); toast.success("Superset unlinked"); } : undefined}

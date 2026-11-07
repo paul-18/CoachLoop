@@ -215,14 +215,20 @@ test('v122 UI Journey: Saved Templates library, PR badge in editor/finish/histor
     await until(() => [...document.querySelectorAll('[role="menuitem"]')].find(m => m.textContent.includes('Save as template')), 'Save as template menu item opens');
     [...document.querySelectorAll('[role="menuitem"]')].find(m => m.textContent.includes('Save as template')).click();
 
-    // Switch to Today and verify Saved templates section appears
+    // Switch to Today and verify Routine library appears below HYROX simulation and is distinct from .plan-card
     tab('Today');
-    await until(() => document.querySelector('.template-library'), 'Saved templates library rendered on Today');
-    assert.match(document.querySelector('.template-library').textContent, /Push Baseline/);
+    await until(() => document.querySelector('.template-library'), 'Routine library rendered on Today');
+    const hyroxEl = document.querySelector('.hyrox-entry');
+    const libEl = document.querySelector('.template-library');
+    assert.ok(hyroxEl && libEl, 'both HYROX and Routine library exist on Today');
+    assert.ok(hyroxEl.compareDocumentPosition(libEl) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING, 'Routine library is positioned below HYROX simulation');
+    assert.equal(libEl.querySelector('.plan-card'), null, 'Routine library does not use Planned workouts .plan-card layout');
+    assert.match(libEl.textContent, /Push Baseline/);
+    assert.match(libEl.textContent, /Bench Press · Barbell Row/);
 
     // Start workout from template -> starts an active copy while keeping template in state
-    const startBtn = [...document.querySelectorAll('.template-card button')].find(b => b.textContent.trim() === 'Start');
-    assert.ok(startBtn, 'Start button on template card');
+    const startBtn = document.querySelector('.template-card-launch');
+    assert.ok(startBtn, 'Launch button on template card');
     startBtn.click();
     await until(() => document.querySelector('.workout-header'), 'Active workout opens from template');
 
@@ -233,6 +239,14 @@ test('v122 UI Journey: Saved Templates library, PR badge in editor/finish/histor
     await until(() => [...document.querySelectorAll('[role="menuitem"]')].find(m => m.textContent.includes('Link superset with Barbell Row')), 'Link superset menu item appears');
     [...document.querySelectorAll('[role="menuitem"]')].find(m => m.textContent.includes('Link superset with Barbell Row')).click();
     await until(() => document.querySelector('.superset-badge')?.textContent === 'A1', 'A1 superset badge rendered');
+
+    // Verify active set shows BOTH superset exercises' plate visualizers (Bench Press 185 lb + Barbell Row 155 lb)
+    const supersetPlatesBox = document.querySelector('.superset-plate-visualizers');
+    assert.ok(supersetPlatesBox, 'superset plate visualizers container rendered on active set');
+    const plateVisualizers = [...supersetPlatesBox.querySelectorAll('.plate-visualizer')];
+    assert.equal(plateVisualizers.length, 2, 'active set shows plate visualizers for both A1 and A2 exercises');
+    assert.match(plateVisualizers[0].getAttribute('aria-label'), /Bench Press: Barbell loading for 185 lb/);
+    assert.match(plateVisualizers[1].getAttribute('aria-label'), /Barbell Row: Barbell loading for 155 lb/);
 
     // Enter a PR weight (205 lb x 5) on Bench Press Set 1 and complete it
     const weightInput = document.querySelector('input[aria-label*="Bench Press, Set 1, actual weight"]');

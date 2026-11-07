@@ -1218,3 +1218,67 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
   min-width:0;
   overflow-wrap:anywhere;
 }
+.template-library {
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:16px;
+  background:rgba(255,255,255,0.02);
+  padding:12px 14px;
+  min-width:0;
+}
+.template-library-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.template-library-title {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-size:0.86rem;
+}
+.template-library-list {
+  display:grid;
+  gap:6px;
+  min-width:0;
+}
+.template-card {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  border:1px solid rgba(255,255,255,0.065);
+  border-radius:12px;
+  background:rgba(0,0,0,0.22);
+  padding:6px 8px 6px 11px;
+}
+.template-card-launch {
+  display:flex;
+  flex:1;
+  min-width:0;
+  min-height:44px;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  background:transparent;
+  border:0;
+  padding:0;
+  color:inherit;
+  cursor:pointer;
+}
+.template-card-start {
+  flex-shrink:0;
+  border-radius:8px;
+  border:1px solid rgba(var(--theme-accent-rgb), 0.35);
+  background:rgba(var(--theme-accent-rgb), 0.12);
+  color:var(--lime);
+  padding:4px 9px;
+  font-size:0.74rem;
+  font-weight:800;
+}
+.template-card-remove {
+  flex-shrink:0;
+  min-width:36px;
+  min-height:36px;
+}

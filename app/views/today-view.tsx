@@ -749,39 +749,6 @@ export function TodayView({
         </section>
       )}
 
-      {!active && templates.length > 0 && (
-        <section className="template-library">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Routine library</p>
-              <h2>Saved templates</h2>
-            </div>
-            <Badge variant="outline" className="border-white/10 text-white/60">{templates.length}</Badge>
-          </div>
-          <div className="space-y-3">
-            {templates.map((template) => {
-              const exerciseSets = template.exercises.reduce((sum, item) => sum + item.sets.length, 0);
-              return (
-                <article key={template.id} className="plan-card template-card">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate font-extrabold tracking-[-0.02em] text-white">{template.name}</h3>
-                      <Badge variant="outline" className="border-[var(--lime)]/25 bg-[var(--lime)]/8 text-[var(--lime)]">Template</Badge>
-                    </div>
-                    <p className="mt-1 text-sm text-white/60">{countLabel(template.exercises.length + template.cardio.length, "block")} · {countLabel(exerciseSets, "set")}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button size="sm" onClick={() => onStartPlan(template.id)} className="bg-[var(--lime)] font-black text-[#11140d] hover:bg-[var(--lime)]/90">Start</Button>
-                    <Button size="sm" variant="outline" onClick={() => setPreviewId(template.id)} className="border-white/12 bg-white/[0.025] text-white hover:bg-white/8">Preview</Button>
-                    {onDeleteTemplate && <Button size="icon-sm" variant="ghost" aria-label={`Remove template ${template.name}`} onClick={() => onDeleteTemplate(template.id)} className="text-white/60 hover:bg-white/7 hover:text-white"><X /></Button>}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {active ? <div className="active-secondary-actions"><button type="button" onClick={onImport}>Import a plan</button><button type="button" onClick={onCoach}>Ask your AI chat</button></div> : !welcomePending(state) && <section className="action-grid">
         <button type="button" className="primary-action" onClick={onImport}>
           <span className="action-icon"><Clipboard /></span>
@@ -818,6 +785,53 @@ export function TodayView({
       </section>}
 
       {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
+
+      {!active && templates.length > 0 && (
+        <section className="template-library" aria-label="Routine library">
+          <div className="template-library-head">
+            <span className="template-library-title"><Dumbbell className="size-4 text-[var(--lime)]" /><strong>Routine library</strong></span>
+            <span className="text-xs font-semibold text-white/55">{templates.length} saved</span>
+          </div>
+          <div className="template-library-list">
+            {templates.map((template) => {
+              const blockNames = [
+                ...template.exercises.map((item) => item.name),
+                ...template.cardio.map((item) => item.name),
+              ].filter(Boolean);
+              const exerciseSets = template.exercises.reduce((sum, item) => sum + item.sets.length, 0);
+              const summary = blockNames.length
+                ? `${blockNames.slice(0, 3).join(" · ")}${blockNames.length > 3 ? ` +${blockNames.length - 3}` : ""}${exerciseSets ? ` · ${countLabel(exerciseSets, "set")}` : ""}`
+                : `${countLabel(template.exercises.length + template.cardio.length, "block")} · ${countLabel(exerciseSets, "set")}`;
+              return (
+                <div key={template.id} className="template-card">
+                  <button
+                    type="button"
+                    onClick={() => onStartPlan(template.id)}
+                    className="template-card-launch"
+                  >
+                    <span className="min-w-0 flex-1 text-left">
+                      <strong className="block truncate text-sm font-extrabold text-white">{template.name}</strong>
+                      <small className="mt-0.5 block truncate text-xs text-white/55">{summary}</small>
+                    </span>
+                    <span className="template-card-start">Start</span>
+                  </button>
+                  {onDeleteTemplate && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Remove template ${template.name}`}
+                      onClick={() => onDeleteTemplate(template.id)}
+                      className="template-card-remove text-white/55 hover:bg-white/8 hover:text-white"
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {!active && todayEntries.length > 0 && <button type="button" className="today-logged" onClick={onHistory}><span className="truncate">Logged today: {todayEntries.length <= 2 ? todayEntries.map((workout) => workout.name).join(" · ") : `${todayEntries.length} workouts (${todayEntries[0].name} + ${todayEntries.length - 1} more)`}</span><ChevronRight aria-hidden="true" /></button>}
 

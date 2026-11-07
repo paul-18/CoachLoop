@@ -12,13 +12,13 @@ Release **v122** implements live Personal Record (PR) detection, a reusable Work
    - First-time exercises without prior completed history never trigger false PR badges.
 
 2. **Saved Workout Templates / Routine Library (`app/domain/workout-copy.ts`, `app/shell/use-workout-controller.ts`, `app/views/today-view.tsx`, `app/views/history-view.tsx`)**
-   - Save any planned, active, or completed workout to your reusable **Saved templates** library from History (`⋯ → Save as template`), Saved Plan Preview (`Save as template`), or the live Workout Editor (`⋯ → Save as template`).
-   - Starting a template from Today's **Saved templates** section creates a fresh active copy for today while keeping the template untouched in your library.
+   - Save any planned, active, or completed workout to your reusable **Routine library** from History (`⋯ → Save as template`), Saved Plan Preview (`Save as template`), or the live Workout Editor (`⋯ → Save as template`).
+   - Positioned below **HYROX simulation** on Today as a compact one-tap routine shelf showing the routine's exercises and set count (visually distinct from dated `Planned workouts` preview cards); tapping a template starts a fresh active copy for today while keeping the template untouched in your library.
    - Templates are excluded from dated `SAVED PLANS` in AI Coach briefs so reusable routines are never mistaken for scheduled upcoming plans.
 
 3. **Superset / Paired Exercise Grouping (`A1 / A2`) (`app/domain/completion.ts`, `app/domain/training-workflow.ts`, `app/views/workout-editor.tsx`)**
    - Pair adjacent exercises into supersets (`A1`/`A2`, `B1`/`B2`) from any exercise's `⋯` menu (`Link superset with ...` / `Unlink superset`).
-   - Displays `A1`/`A2` badges across the Workout Editor, Plan Preview, History, and Coach exports.
+   - Displays `A1`/`A2` badges across the Workout Editor, Plan Preview, History, and Coach exports, and shows **both superset exercises' plate visualizers** on the active set when a superset is active.
    - `nextRestTarget` and `nextOpenBlock` automatically alternate between superset exercises round-by-round (`A1 Set 1 → A2 Set 1 → A1 Set 2 → A2 Set 2`) before advancing to subsequent blocks.
 
 ## Data Integrity, PWA & Accessibility Fixes
