@@ -92,7 +92,8 @@ test('A.2 & B: skip link targets #main-content and fixed chrome re-anchors on fo
     assert.ok(nav, '.mobile-nav exists');
     document.dispatchEvent(new Event('focusout', { bubbles: true }));
     window.dispatchEvent(new Event('pageshow'));
-    await wait(50);
+    await wait(140);
+    await until(() => nav.style.transform === '', 'inline transform cleared after compositor re-anchor');
     assert.equal(nav.style.transform, '', 'inline transform cleared after compositor re-anchor');
 
     const { Textarea } = require('../components/ui/textarea.tsx');

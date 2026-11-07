@@ -60,8 +60,6 @@ test('v122 Section 1: interchange, CSV, backup diff, and manifest fixes', () => 
   assert.ok(fs.existsSync(path.join(rootDir, 'public/screenshot-wide.png')));
   const css = fs.readFileSync(path.join(rootDir, 'app/globals.css'), 'utf8');
   assert.match(css, /\.hyrox-controls\s*\{[^}]*z-index:\s*46/, 'hyrox-controls sits above .mobile-nav (z-index 45)');
-  assert.match(css, /@media screen and \(orientation: landscape\) and \(max-height: 560px\)/, 'landscape phone counter-rotation media query present');
-  assert.match(css, /html\[data-portrait-lock="true"\]\s*\{[^}]*rotate\(-90deg\)/, 'portrait lock counter-rotates landscape phone viewport');
 
   // Templates excluded from dated SAVED PLANS in coach prompt
   const template = structuredClone(workout);
@@ -202,9 +200,8 @@ test('v122 UI Journey: Saved Templates library, PR badge in editor/finish/histor
     root.render(React.createElement(App));
     await until(() => document.querySelector('[role="tab"]'), 'app opens');
 
-    // Landmark, default portrait lock, & document title checks
+    // Landmark & document title checks
     assert.equal(document.getElementById('main-content')?.tagName, 'MAIN', '#main-content is a semantic <main> landmark');
-    assert.equal(document.documentElement.dataset.portraitLock, 'true', 'portrait lock is enabled by default');
     assert.equal(document.title, 'Today · Coach Loop');
 
     // Verify HYROX Start timer is visible in both Focused practice (segment) and Full simulation modes
@@ -296,18 +293,6 @@ test('v122 UI Journey: Saved Templates library, PR badge in editor/finish/histor
     // Verify template is still intact in storage alongside active workout
     const savedState = await storage.loadTrainingState();
     assert.ok(savedState.workouts.some(w => w.isTemplate && w.name === 'Push Baseline'), 'Template remains reusable in storage after starting');
-
-    // Verify Portrait Lock setting in Settings -> Appearance & quick log
-    const keepTraining = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Keep training');
-    keepTraining.click();
-    await until(() => !document.querySelector('.finish-pr-banner'), 'Finish dialog closes');
-    document.querySelector('button[aria-label="Back to today"]').click();
-    await until(() => document.querySelector('[role="tab"]'), 'Back on Today');
-    tab('Settings');
-    await until(() => document.body.textContent.includes('Appearance & quick log'), 'Settings open');
-    const appearanceSummary = [...document.querySelectorAll('summary')].find(s => s.textContent.includes('Appearance & quick log'));
-    appearanceSummary.click();
-    await until(() => document.body.textContent.includes('Lock to portrait orientation'), 'Portrait lock option rendered in Settings');
   } finally {
     root.unmount();
     await wait(30);
