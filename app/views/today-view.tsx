@@ -784,7 +784,7 @@ export function TodayView({
         {state.settings.quickLogActivities?.join() === STARTER_QUICK_LOG_ACTIVITIES.join() && <p className="mt-2 text-sm text-white/60">More activities are in Settings.</p>}
       </section>}
 
-      {!active && state.workouts.length > 0 && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
+      {!active && (state.workouts.length > 0 || state.settings.welcomeChoice) && <button type="button" className="hyrox-entry" onClick={onHyrox}><Activity /><span><strong>HYROX simulation</strong><small>Choose a division · run + station timer</small></span><ChevronRight /></button>}
 
       {!active && templates.length > 0 && (
         <section className="template-library" aria-label="Routine library">

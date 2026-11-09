@@ -59,7 +59,8 @@ button, input, textarea, select { font: inherit; } button { touch-action: manipu
 .mobile-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(16,18,15,.86); padding: max(14px, var(--app-safe-top)) 16px 14px; backdrop-filter: blur(22px); }
 .mobile-header:empty { display: none; }
 .mobile-nav { position: fixed; top: auto; left: 10px; right: 10px; bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 6px); z-index: 45; display: grid; width: auto; height: 67px; grid-template-columns: repeat(5,1fr); gap: 2px; border: 1px solid rgba(255,255,255,.085); border-radius: 21px; background: rgba(24,27,22,.91); padding: 5px; box-shadow: 0 18px 45px rgba(0,0,0,.42); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
-html[data-keyboard-open="true"] .mobile-nav { opacity: 0; pointer-events: none; }
+html[data-keyboard-open="true"] .mobile-nav,
+html[data-keyboard-open="true"] .hyrox-controls { opacity: 0; pointer-events: none; }
 .mobile-tab { display: flex; height: 56px; flex-direction: column; gap: 4px; border-radius: 16px; color: rgba(255,255,255,.56); font-size: .64rem; font-weight: 800; }
 .mobile-tab svg { width: 18px; height: 18px; } .mobile-tab[data-state="active"] { background: rgba(var(--theme-accent-rgb),.09); color: var(--lime); box-shadow: none; }
 .page-stack { width: min(100%,1050px); margin: 0 auto; padding: 26px 16px 44px; display: flex; flex-direction: column; gap: 32px; }

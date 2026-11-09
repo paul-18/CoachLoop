@@ -52,7 +52,7 @@ test('v122 Section 1: interchange, CSV, backup diff, and manifest fixes', () => 
   // Manifest & CSS checks
   const rootDir = path.resolve(__dirname, '..');
   const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, 'public/manifest.webmanifest'), 'utf8'));
-  assert.equal(manifest.orientation, 'portrait-primary', 'manifest orientation locks standalone PWA to portrait-primary');
+  assert.equal(manifest.orientation, 'any', 'manifest orientation allows tablet/desktop rotation by default');
   assert.equal(manifest.launch_handler?.client_mode, 'navigate-existing', 'manifest includes single-window launch_handler');
   assert.ok(manifest.screenshots.some(s => s.type === 'image/png' && s.form_factor === 'narrow'), 'narrow PNG screenshot present');
   assert.ok(manifest.screenshots.some(s => s.type === 'image/png' && s.form_factor === 'wide'), 'wide PNG screenshot present');
