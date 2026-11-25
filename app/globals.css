@@ -1290,3 +1290,7 @@ html[data-coach-theme="rose"] { --lime:#ff8eac; --theme-accent-rgb:255,142,172; 
   min-width:36px;
   min-height:36px;
 }
+
+
+/* Keep explanatory lift metadata inside narrow progress cards. */
+.strength-result-note { display: block; max-width: min(100%, 18rem); white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
