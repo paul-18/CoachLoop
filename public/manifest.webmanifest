@@ -36,20 +36,6 @@
       "form_factor": "wide",
       "label": "Training dashboard and AI coach brief"
     },
-    {
-      "src": "./screenshot-narrow.svg",
-      "sizes": "390x844",
-      "type": "image/svg+xml",
-      "form_factor": "narrow",
-      "label": "Live workout logging on phone"
-    },
-    {
-      "src": "./screenshot-wide.svg",
-      "sizes": "1280x800",
-      "type": "image/svg+xml",
-      "form_factor": "wide",
-      "label": "Training dashboard and AI coach brief"
-    }
   ],
   "shortcuts": [
     {
