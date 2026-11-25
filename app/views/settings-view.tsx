@@ -79,7 +79,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     if (openSection === "coach-profile" && !state.coachProfile.trim()) setTextEdit({ kind: "profile", value: DEFAULT_COACH_PROFILE, starter: true });
     onSectionOpened?.();
   }, [openSection, onSectionOpened, state.coachProfile]);
-  const { health } = useStorageHealth();
+  const { health, refresh: refreshStorageHealth } = useStorageHealth();
   const [recover, setRecover] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -110,6 +110,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const updateCoachProfile = (coachProfile: string) =>
     setState((current) => ({ ...current, coachProfile, coachProfileUpdatedAt: new Date().toISOString() }));
   const exportBackup = () => {
+    void refreshStorageHealth(true);
     if (demoActive) { toast.error("Exit demo before backing up"); return; }
     try {
       const text = serializeBackup(portableBackup(canonicalState, state));
@@ -119,6 +120,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     } catch (error) { toast.error(error instanceof Error ? error.message : "Backup could not be prepared; keep your log"); }
   };
   const shareBackup = async () => {
+    void refreshStorageHealth(true);
     if (demoActive) { toast.error("Exit demo before backing up"); return; }
     try {
       const text = serializeBackup(portableBackup(canonicalState, state));
