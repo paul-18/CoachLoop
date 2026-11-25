@@ -31,5 +31,6 @@ export function acquireEditorLease(locks: LockManager, onOwner: () => void) {
 /** Only our own disposed AbortError is ignored; browser aborts are interruptions. */
 export function leaseAfterFinish(settled: "fulfilled" | "rejected", error: unknown, disposed: boolean): "ignore" | "interrupted" {
   if (disposed) return "ignore";
+  if (settled === "rejected" && error instanceof DOMException && error.name === "AbortError") return "interrupted";
   return "interrupted";
 }
