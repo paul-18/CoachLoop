@@ -117,6 +117,9 @@ const enqueueState = (snapshot: TrainingState): Promise<void> => {
         }
       } catch (error) {
         if (!queuedState && inFlight) queuedState = inFlight;
+        if (error instanceof DOMException && error.name === "QuotaExceededError") {
+          throw new Error("Device storage is full. Export a backup or free device storage, then retry saving.", { cause: error });
+        }
         throw error;
       } finally {
         // Release ownership in the same continuation as the final queue check;
@@ -128,6 +131,10 @@ const enqueueState = (snapshot: TrainingState): Promise<void> => {
   }
   return draining;
 };
+
+/** Retry the newest immutable candidate retained after a failed IndexedDB write. */
+export const retryQueuedState = (): Promise<void> =>
+  queuedState ? enqueueState(queuedState) : Promise.resolve();
 
 export const saveSnapshot = async (state: TrainingState, reason: string) => {
   const database = await openDatabase();
