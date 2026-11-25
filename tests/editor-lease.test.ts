@@ -15,7 +15,7 @@ function lockManager() {
       return;
     }
     active = true;
-    const lock = { name: "coach-loop-local-editor", mode: "exclusive" };
+    const lock = { name: "coach-loop-local-editor", mode: "exclusive" as const };
     void Promise.resolve(callback(lock)).then(() => { active = false; resolve(); }, error => { active = false; reject(error); });
   }) } as unknown as LockManager;
 }
