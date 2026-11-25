@@ -38,7 +38,6 @@
 
 * { box-sizing: border-box; }
 html { min-width: 280px; background: #10120f; color-scheme: dark; overflow-x: clip; overscroll-behavior-y: contain; }
-html { overscroll-behavior-y: contain; }
 body { margin: 0; min-height: 100dvh; background: radial-gradient(circle at 75% -10%, rgba(var(--theme-accent-rgb),.06), transparent 31rem), #10120f; color: var(--foreground); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; font-size: 16px; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overflow-x: clip; }
 button, input, textarea, select { font: inherit; } button { touch-action: manipulation; } ::selection { background: rgba(var(--theme-accent-rgb),.28); color: #fff; }
 .skip-link { position: fixed; top: max(12px, var(--app-safe-top)); left: 12px; z-index: 100; width: 1px; height: 1px; padding: 10px 16px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-radius: 12px; background: var(--lime); color: #11140d; font-size: .875rem; font-weight: 800; text-decoration: none; box-shadow: 0 10px 28px rgba(0,0,0,.45); transform: translateY(-200%); }
@@ -309,7 +308,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .workout-header-title { min-width: 0; overflow: hidden; }
 .workout-header-title h1, .workout-header-title p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-header-actions { flex-shrink: 0; }
-.workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 16px); }
+.workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 16px); padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
 .workout-shell.in-demo .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + var(--banner-height)); }
 .rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; left: 0; z-index: 39; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--live-rest-height); border-bottom: 1px solid rgba(var(--theme-accent-rgb),.1); background: rgba(21,24,19,.96); padding: 10px max(14px,calc((100vw - 896px)/2)); padding-inline: max(14px, env(safe-area-inset-left, 0px)); box-shadow: 0 10px 30px rgba(0,0,0,.22); backdrop-filter: blur(20px); }
 .workout-shell.in-demo .rest-timer { top: calc(var(--workout-content-offset) + var(--banner-height)); }

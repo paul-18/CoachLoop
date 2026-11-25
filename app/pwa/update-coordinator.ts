@@ -17,9 +17,9 @@ interface Intent {
   channel: MessageChannel;
 }
 
-/** Only a deliberately requested worker may restart the page. A UI timeout
- * does not cancel an activation already sent to the browser. Keep that intent
- * and re-flush on a visible, safe return before the single reload. */
+/** Only a deliberately requested worker may restart the page. If activation
+ * times out, the intent is cleared so a later request can post again
+ * instead of reporting "still pending" forever. */
 export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_000) {
   let intent: Intent | null = null;
   let requesting = false, reconciling = false, reloaded = false, disposed = false;

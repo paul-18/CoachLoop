@@ -4,6 +4,13 @@ export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error
 
 const timestampValue = (value?: string | null) => { const parsed = value ? Date.parse(value) : 0; return Number.isFinite(parsed) ? parsed : 0; };
 
+/** Tombstones are bare IDs with no age, so they cannot expire by date.
+ * Bound them instead: 500 is far above any real log (tens of workouts),
+ * and pruning keeps the newest additions. A pruned tombstone can only
+ * resurrect an item from a backup older than its deletion. */
+const MAX_TOMBSTONES = 500;
+const compactTombstones = (ids: string[]) => ids.length > MAX_TOMBSTONES ? ids.slice(-MAX_TOMBSTONES) : ids;
+
 const workoutTime = (workout: WorkoutSession) =>
   workout.updatedAt ??
   workout.completedAt ??
@@ -27,14 +34,14 @@ const pickNewestSection = <T>(local: T, remote: T, localUpdatedAt?: string, remo
 
 const mergeExercise = (left: ExerciseBlock, right: ExerciseBlock): ExerciseBlock => {
   const newer = timestampValue(right.updatedAt) >= timestampValue(left.updatedAt) ? right : left;
-  const deletedSetIds = [...new Set([...(left.deletedSetIds ?? []), ...(right.deletedSetIds ?? [])])];
+  const deletedSetIds = compactTombstones([...new Set([...(left.deletedSetIds ?? []), ...(right.deletedSetIds ?? [])])]);
   return { ...newer, ...(deletedSetIds.length ? { deletedSetIds } : {}), sets: mergeById<TrainingSet>(left.sets, right.sets).filter((set) => !deletedSetIds.includes(set.id)) };
 };
 
 const mergeWorkout = (left: WorkoutSession, right: WorkoutSession): WorkoutSession => {
   const newer = timestampValue(workoutTime(right)) >= timestampValue(workoutTime(left)) ? right : left;
-  const deletedExerciseIds = [...new Set([...(left.deletedExerciseIds ?? []), ...(right.deletedExerciseIds ?? [])])];
-  const deletedActivityIds = [...new Set([...(left.deletedActivityIds ?? []), ...(right.deletedActivityIds ?? [])])];
+  const deletedExerciseIds = compactTombstones([...new Set([...(left.deletedExerciseIds ?? []), ...(right.deletedExerciseIds ?? [])])]);
+  const deletedActivityIds = compactTombstones([...new Set([...(left.deletedActivityIds ?? []), ...(right.deletedActivityIds ?? [])])]);
   const exercises = new Map<string, ExerciseBlock>();
   for (const exercise of [...left.exercises, ...right.exercises]) {
     const current = exercises.get(exercise.id);
@@ -54,10 +61,10 @@ export const mergeTrainingStates = (
   local: TrainingState,
   remote: TrainingState,
 ): TrainingState => {
-  const deletedWorkoutIds = [...new Set([
+  const deletedWorkoutIds = compactTombstones([...new Set([
     ...(local.deletedWorkoutIds ?? []),
     ...(remote.deletedWorkoutIds ?? []),
-  ])];
+  ])]);
   const deleted = new Set(deletedWorkoutIds);
   const workouts = new Map<string, WorkoutSession>();
 

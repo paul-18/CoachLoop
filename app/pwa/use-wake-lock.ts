@@ -23,7 +23,7 @@ export function useWakeLock() {
         if (!wakeLock) throw new Error("unsupported");
         const next = await wakeLock.request("screen");
         if (disposed || document.visibilityState !== "visible") { await next.release(); return; }
-        sentinel = next; setWakeLockHeld(true);
+        sentinel = next; retries = 0; setWakeLockHeld(true);
         next.addEventListener("release", () => {
           if (sentinel !== next) return;
           sentinel = null; setWakeLockHeld(false);

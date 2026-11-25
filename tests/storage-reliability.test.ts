@@ -35,8 +35,12 @@ test("a newer queued state survives a failed transaction and can be explicitly r
     if (!aborted) {
       aborted = true;
       started();
+      // Abort synchronously: a setTimeout(0) abort races fake-indexeddb's
+      // auto-commit, so the put could commit before the abort lands and the
+      // drain would resolve instead of failing. The transaction is doomed
+      // from here, so a newer save queued next necessarily joins this drain.
       const transaction = this.transaction;
-      setTimeout(() => { try { transaction.abort(); } catch { /* Already settled. */ } }, 0);
+      try { transaction.abort(); } catch { /* Already settled. */ }
     }
     return request;
   };

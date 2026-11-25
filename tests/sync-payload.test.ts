@@ -19,6 +19,24 @@ test("portable backup retains a visible unresolved set correction across restore
   assert.equal(mergeRestoredState(canonical, backup).workouts[0].exercises[0].sets[0].actualWeight, 205);
 });
 
+test("sync merge compacts tombstone lists so they cannot grow unbounded", () => {
+  const local = defaultState(), remote = defaultState();
+  local.deletedWorkoutIds = Array.from({ length: 600 }, (_, i) => `old-${i}`);
+  remote.deletedWorkoutIds = ["new-1"];
+  const merged = mergeRestoredState(local, remote);
+  assert.equal(merged.deletedWorkoutIds?.length, 500);
+  assert.equal(merged.deletedWorkoutIds?.includes("new-1"), true);
+  assert.equal(merged.deletedWorkoutIds?.includes("old-0"), false);
+
+  const workout = makeWorkout("lb", 120);
+  const copy = structuredClone(workout);
+  copy.exercises[0].deletedSetIds = Array.from({ length: 600 }, (_, i) => `set-${i}`);
+  local.workouts = [structuredClone(workout)];
+  remote.workouts = [copy];
+  const mergedSets = mergeRestoredState(local, remote);
+  assert.equal(mergedSets.workouts[0].exercises[0].deletedSetIds?.length, 500);
+});
+
 test("sync merge retains set tombstones and compares offset timestamps by epoch", () => {
   const local = defaultState(), remote = defaultState();
   const workout = makeWorkout("lb", 120);

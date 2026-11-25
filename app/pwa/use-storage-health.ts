@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export function useStorageHealth() {
   const [health, setHealth] = useState<{ persisted: boolean | null; usage?: number; quota?: number }>({ persisted: null });
   const requestId = useRef(0);
+  const invalidate = useCallback(() => { requestId.current++; }, []);
   const refresh = useCallback(async (requestPersist = false) => {
     const id = ++requestId.current;
     const store = navigator.storage;
@@ -16,10 +17,11 @@ export function useStorageHealth() {
   }, []);
   useEffect(() => {
     let mounted = true;
-    void Promise.resolve().then(() => { if (mounted) void refresh(false); });
+    // Request persistence once on mount, as before; backup actions retry it on a user gesture.
+    void Promise.resolve().then(() => { if (mounted) void refresh(true); });
     const visible = () => { if (document.visibilityState === "visible") void refresh(false); };
     document.addEventListener("visibilitychange", visible);
-    return () => { mounted = false; requestId.current++; document.removeEventListener("visibilitychange", visible); };
-  }, [refresh]);
+    return () => { mounted = false; invalidate(); document.removeEventListener("visibilitychange", visible); };
+  }, [refresh, invalidate]);
   return { health, refresh };
 }

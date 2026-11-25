@@ -16,12 +16,13 @@ export function acquireEditorLease(locks: LockManager, onOwner: () => void) {
     await held;
   });
   const onPageHide = () => { release?.(); };
-  window.addEventListener("pagehide", onPageHide);
+  // Node test runs have no window; the browser path always does.
+  if (typeof window !== "undefined") window.addEventListener("pagehide", onPageHide);
   return {
     finished,
     dispose: () => {
       disposed = true;
-      window.removeEventListener("pagehide", onPageHide);
+      if (typeof window !== "undefined") window.removeEventListener("pagehide", onPageHide);
       controller.abort();
       release?.();
     },

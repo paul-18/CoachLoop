@@ -13,16 +13,18 @@ export function useShellModel() {
   const progress = useProgressActions(persistence);
   const offline = useOfflineStatus();
   const [updating, setUpdating] = useState(false);
-  const { ready, state, flushLatest } = persistence;
+  const { ready, displayedState, flushLatest } = persistence;
   const canRestart = useRef<() => boolean>(() => false);
   useLayoutEffect(() => {
     canRestart.current = () => !persistence.busy && !persistence.committing && !workouts.workoutOpen && !persistence.latestStateRef.current.workouts.some(w => w.status === "active") && !workouts.importOpen && !workouts.hyroxOpen && !workouts.coachOpen && !workouts.skipWorkout && !document.querySelector('[role="dialog"], [role="alertdialog"]') && !document.activeElement?.matches('input, textarea, select, [contenteditable="true"]');
   });
   useEffect(() => {
     if (!ready) return;
-    document.documentElement.dataset.coachTheme = state.settings.colorTheme ?? "lime";
+    // Read the displayed state so a Demo accent pick recolors the nav, icon
+    // and Exit demo button too; leaving Demo reverts to the durable theme.
+    document.documentElement.dataset.coachTheme = displayedState.settings.colorTheme ?? "lime";
     return () => { delete document.documentElement.dataset.coachTheme; };
-  }, [ready, state.settings.colorTheme]);
+  }, [ready, displayedState.settings.colorTheme]);
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (workouts.workoutOpen && workouts.displayedWorkout) {
