@@ -124,6 +124,7 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
     const next = await commitState(current => finishWorkoutState(current, finishingWorkout));
     saveRecoveryCopy(next, "workout-complete");
     setWorkoutOpen(false);
+    setEditingWorkoutId(null);
     setQuickLogActivityId(null);
     setView("history");
     toast.success(finishingWorkout.completedAt ? "History edit saved" : "Workout saved");
