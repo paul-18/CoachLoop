@@ -1,5 +1,11 @@
 # Changelog
 
+## v123 — release candidate
+
+- Fixes sync timestamp ordering, queued IndexedDB write retention, History editor cleanup, service-worker update timeout recovery, and iOS wake-lock/storage/local-day/rest-timer resume behavior.
+- Hardens offline navigation cache matching, safe-area spacing, numeric input behavior, CSP/SEO metadata, and Windows path handling in build chunking.
+
+
 Release-specific design notes and QC live under [`docs/releases/`](docs/README.md). This file is the short index; it does not replace those detailed records.
 
 ## v121 — published
