@@ -30,13 +30,14 @@ export function useLocalEditorLease(): { lease: Lease; retry: () => void } {
     });
     const settle = (settled: "fulfilled" | "rejected", error?: unknown) => {
       window.clearTimeout(waiting);
-      if (leaseAfterFinish(settled, error, disposed) === "interrupted") setLease("interrupted");
+      if (settled === "rejected" && error instanceof DOMException && error.name === "NotAllowedError") setLease("busy");
+      else if (leaseAfterFinish(settled, error, disposed) === "interrupted") setLease("interrupted");
     };
     void request.finished.then(() => settle("fulfilled"), (error: unknown) => settle("rejected", error));
     return () => { disposed = true; window.clearTimeout(waiting); request.dispose(); };
   }, [attempt]);
   useEffect(() => {
-    if (lease !== "interrupted") return;
+    if (lease !== "interrupted" && lease !== "busy") return;
     let used = false;
     const onVisible = () => {
       if (used || document.visibilityState !== "visible") return;
@@ -44,7 +45,13 @@ export function useLocalEditorLease(): { lease: Lease; retry: () => void } {
       retry();
     };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [lease, retry]);
   return { lease, retry };
 }
