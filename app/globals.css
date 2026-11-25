@@ -37,6 +37,7 @@
 
 * { box-sizing: border-box; }
 html { min-width: 280px; background: #10120f; color-scheme: dark; overflow-x: clip; overscroll-behavior-y: contain; }
+html { overscroll-behavior-y: contain; }
 body { margin: 0; min-height: 100dvh; background: radial-gradient(circle at 75% -10%, rgba(var(--theme-accent-rgb),.06), transparent 31rem), #10120f; color: var(--foreground); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; font-size: 16px; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overflow-x: clip; }
 button, input, textarea, select { font: inherit; } button { touch-action: manipulation; } ::selection { background: rgba(var(--theme-accent-rgb),.28); color: #fff; }
 .skip-link { position: fixed; top: max(12px, var(--app-safe-top)); left: 12px; z-index: 100; width: 1px; height: 1px; padding: 10px 16px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-radius: 12px; background: var(--lime); color: #11140d; font-size: .875rem; font-weight: 800; text-decoration: none; box-shadow: 0 10px 28px rgba(0,0,0,.45); transform: translateY(-200%); }
@@ -1047,7 +1048,7 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
   :root { --app-safe-top: env(safe-area-inset-top, 0px); --workout-header-clearance: 8px; }
 }
 @media (orientation: portrait) {
-  html[data-app-standalone="true"] { --app-safe-top: max(env(safe-area-inset-top, 0px), 59px); --workout-header-clearance: 8px; }
+  html[data-app-standalone="true"] { --app-safe-top: env(safe-area-inset-top, 0px); --workout-header-clearance: 8px; }
 }
 @media (max-width: 1099px) {
   .app-main { padding-left:env(safe-area-inset-left, 0px); padding-right:env(safe-area-inset-right, 0px); }
