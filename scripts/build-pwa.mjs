@@ -25,7 +25,7 @@ digest.update(await readFile(fileURLToPath(import.meta.url)));
 const release = digest.digest("hex").slice(0, 20);
 const worker = `const ROOT = new URL("./", self.registration.scope);
 const PREFIX = "coach-loop-pages:" + encodeURIComponent(ROOT.pathname) + ":";
-const CACHE = PREFIX + ${JSON.stringify(release)};
+const CACHE = PREFIX + String(Date.now()).padStart(13, "0") + ":" + ${JSON.stringify(release)};
 const ASSETS = ${JSON.stringify(["./", ...assets.map(path => `./${path}`)])};
 const HASHES = ${JSON.stringify(assetHashes)};
 const ENTRY = ${JSON.stringify(entry)};
