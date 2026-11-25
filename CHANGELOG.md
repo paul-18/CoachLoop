@@ -3,6 +3,7 @@
 ## v123 — published
 
 - Fixes sync timestamp ordering, queued IndexedDB write retention, History editor cleanup, service-worker update timeout recovery, and iOS wake-lock/storage/local-day/rest-timer resume behavior.
+- Hides the bottom tab bar during a live workout; the workout header's Back button is the way out, and the workout stays active and resumable from Today.
 - Hardens offline navigation cache matching, safe-area spacing, numeric input behavior, CSP/SEO metadata, and Windows path handling in build chunking.
 
 
