@@ -10,7 +10,7 @@ test("queued writes coalesce to the latest log; quota failures reject and a retr
   assert.deepEqual((await loadTrainingState())?.goals,["latest"]);
   const put=IDBObjectStore.prototype.put;
   IDBObjectStore.prototype.put=function(){throw new DOMException("QC simulated quota failure", "QuotaExceededError");};
-  try { await assert.rejects(saveTrainingState(a),/quota failure/); } finally { IDBObjectStore.prototype.put=put; }
+  try { await assert.rejects(saveTrainingState(a),/Device storage is full/); } finally { IDBObjectStore.prototype.put=put; }
   assert.deepEqual((await loadTrainingState())?.goals,["latest"]);
   await saveTrainingState(b);assert.deepEqual((await loadTrainingState())?.goals,["second"]);
 });
