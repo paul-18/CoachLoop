@@ -132,7 +132,7 @@ export function ImportWorkoutDialog({
 
   return (
     <Dialog open={open} onOpenChange={value => { if (!saving) onOpenChange(value); }}>
-      <DialogContent className="max-h-[88dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
+      <DialogContent onEscapeKeyDown={() => { if (!saving) onOpenChange(false); }} className="max-h-[88dvh] overflow-y-auto border-white/10 bg-[#151713] p-0 text-white sm:max-w-2xl">
         <DialogHeader className="border-b border-white/8 p-6 pb-5 text-left">
           <DialogTitle className="text-xl font-black tracking-[-0.035em]">
             Bring a workout in
