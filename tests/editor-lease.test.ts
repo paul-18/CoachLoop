@@ -45,3 +45,39 @@ test("external browser aborts are interruptions; only disposed leases are ignore
   assert.equal(leaseAfterFinish("rejected", new DOMException("Aborted", "AbortError"), false), "interrupted");
   assert.equal(leaseAfterFinish("fulfilled", undefined, true), "ignore");
 });
+
+/** WebKit rejects ifAvailable combined with a signal; model that rule. */
+function webkitLockManager() {
+  let active = false;
+  return { request: (_name: string, options: LockOptions, callback: LockGrantedCallback<void>) => new Promise<void>((resolve, reject) => {
+    if (options.ifAvailable && options.signal) {
+      reject(new DOMException("WebLockOptions's steal and ifAvailable need to be false when a signal is provided", "NotSupportedError"));
+      return;
+    }
+    if (options.ifAvailable && active) {
+      void Promise.resolve().then(() => callback(null)).then(resolve, reject);
+      return;
+    }
+    if (active) {
+      reject(new Error("Unexpected unbounded queue"));
+      return;
+    }
+    active = true;
+    const lock = { name: "coach-loop-local-editor", mode: "exclusive" as const };
+    void Promise.resolve(callback(lock)).then(() => { active = false; resolve(); }, error => { active = false; reject(error); });
+  }) } as unknown as LockManager;
+}
+
+test("lease acquisition works in WebKit: ifAvailable is never combined with a signal", async () => {
+  // WebKit/Safari throws NotSupportedError when locks.request() gets
+  // ifAvailable:true together with an AbortSignal. That used to reject the
+  // very first lease attempt, so the app showed "The editor lock stopped"
+  // on every load in Safari and the WebKit smoke test failed.
+  const locks = webkitLockManager();
+  let owned = false;
+  const lease = acquireEditorLease(locks, () => { owned = true; });
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(owned, true);
+  lease.dispose();
+  await lease.finished;
+});

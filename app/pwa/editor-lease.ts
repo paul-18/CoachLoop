@@ -2,12 +2,19 @@ import { localScopeSuffix } from "../persistence/local-scope";
 
 /** Acquire without joining an unbounded queue behind a suspended Safari tab. */
 export function acquireEditorLease(locks: LockManager, onOwner: () => void) {
-  const controller = new AbortController();
   let disposed = false;
   let release: (() => void) | undefined;
   const name = `coach-loop-local-editor${localScopeSuffix()}`;
+  // NOTE: do NOT pass an AbortSignal here. WebKit rejects
+  // locks.request() with NotSupportedError when `ifAvailable: true` is
+  // combined with a signal ("steal and ifAvailable need to be false when a
+  // signal is provided"), which made the app unusable in Safari/WebKit
+  // (the lease gate showed "The editor lock stopped" on every load).
+  // With ifAvailable the request resolves immediately either way, so there
+  // is no queued request that would need aborting; disposal is handled by
+  // the `disposed` flag and release() below.
   const finished = locks.request(name, {
-    mode: "exclusive", ifAvailable: true, signal: controller.signal,
+    mode: "exclusive", ifAvailable: true,
   }, async lock => {
     if (disposed) return;
     if (!lock) throw new DOMException("Another Coach Loop window owns the editor lock", "NotAllowedError");
@@ -23,7 +30,6 @@ export function acquireEditorLease(locks: LockManager, onOwner: () => void) {
     dispose: () => {
       disposed = true;
       if (typeof window !== "undefined") window.removeEventListener("pagehide", onPageHide);
-      controller.abort();
       release?.();
     },
   };
