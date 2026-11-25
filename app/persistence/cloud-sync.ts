@@ -2,6 +2,8 @@ import type { CardioEntry, ExerciseBlock, ExerciseMuscleTarget, TrainingSet, Tra
 import { normalizedBlockOrder } from "../domain/block-order";
 export type SyncStatus = "connecting" | "synced" | "saving" | "offline" | "error";
 
+const timestampValue = (value?: string | null) => { const parsed = value ? Date.parse(value) : 0; return Number.isFinite(parsed) ? parsed : 0; };
+
 const workoutTime = (workout: WorkoutSession) =>
   workout.updatedAt ??
   workout.completedAt ??
@@ -13,24 +15,24 @@ const mergeById = <T extends { id: string; updatedAt: string }>(older: T[], newe
   const items = new Map<string, T>();
   for (const item of [...older, ...newer]) {
     const current = items.get(item.id);
-    if (!current || item.updatedAt >= current.updatedAt) items.set(item.id, item);
+    if (!current || timestampValue(item.updatedAt) >= timestampValue(current.updatedAt)) items.set(item.id, item);
   }
   return [...items.values()];
 };
 
 const pickNewestSection = <T>(local: T, remote: T, localUpdatedAt?: string, remoteUpdatedAt?: string) =>
-  (localUpdatedAt ?? "1970-01-01T00:00:00.000Z") >= (remoteUpdatedAt ?? "1970-01-01T00:00:00.000Z")
+  timestampValue(localUpdatedAt) >= timestampValue(remoteUpdatedAt)
     ? local
     : remote;
 
 const mergeExercise = (left: ExerciseBlock, right: ExerciseBlock): ExerciseBlock => {
-  const newer = right.updatedAt >= left.updatedAt ? right : left;
+  const newer = timestampValue(right.updatedAt) >= timestampValue(left.updatedAt) ? right : left;
   const deletedSetIds = [...new Set([...(left.deletedSetIds ?? []), ...(right.deletedSetIds ?? [])])];
   return { ...newer, ...(deletedSetIds.length ? { deletedSetIds } : {}), sets: mergeById<TrainingSet>(left.sets, right.sets).filter((set) => !deletedSetIds.includes(set.id)) };
 };
 
 const mergeWorkout = (left: WorkoutSession, right: WorkoutSession): WorkoutSession => {
-  const newer = workoutTime(right) >= workoutTime(left) ? right : left;
+  const newer = timestampValue(workoutTime(right)) >= timestampValue(workoutTime(left)) ? right : left;
   const deletedExerciseIds = [...new Set([...(left.deletedExerciseIds ?? []), ...(right.deletedExerciseIds ?? [])])];
   const deletedActivityIds = [...new Set([...(left.deletedActivityIds ?? []), ...(right.deletedActivityIds ?? [])])];
   const exercises = new Map<string, ExerciseBlock>();
@@ -72,13 +74,13 @@ export const mergeTrainingStates = (
     const remoteTarget = exerciseMuscleOverrides[key];
     const localTime = localTarget.updatedAt ?? "1970-01-01T00:00:00.000Z";
     const remoteTime = remoteTarget?.updatedAt ?? "1970-01-01T00:00:00.000Z";
-    if (!remoteTarget || localTime >= remoteTime) exerciseMuscleOverrides[key] = localTarget;
+    if (!remoteTarget || timestampValue(localTime) >= timestampValue(remoteTime)) exerciseMuscleOverrides[key] = localTarget;
   });
   const mergeScheduleItems = <T extends { id: string; updatedAt?: string }>(localItems: T[] = [], remoteItems: T[] = []) => {
     const merged = new Map<string, T>();
     for (const item of [...remoteItems, ...localItems]) {
       const current = merged.get(item.id);
-      if (!current || (item.updatedAt ?? "1970-01-01T00:00:00.000Z") >= (current.updatedAt ?? "1970-01-01T00:00:00.000Z")) merged.set(item.id, item);
+      if (!current || timestampValue(item.updatedAt) >= timestampValue(current.updatedAt)) merged.set(item.id, item);
     }
     return [...merged.values()];
   };
@@ -94,17 +96,17 @@ export const mergeTrainingStates = (
   const bodyweights = new Map<string, TrainingState["bodyweightEntries"][number]>();
   for (const entry of [...(remote.bodyweightEntries ?? []), ...(local.bodyweightEntries ?? [])]) {
     const current = bodyweights.get(entry.date);
-    if (!current || entry.updatedAt >= current.updatedAt) bodyweights.set(entry.date, entry);
+    if (!current || timestampValue(entry.updatedAt) >= timestampValue(current.updatedAt)) bodyweights.set(entry.date, entry);
   }
 
   const waists = new Map<string, NonNullable<TrainingState["waistEntries"]>[number]>();
   for (const entry of [...(remote.waistEntries ?? []), ...(local.waistEntries ?? [])]) {
     const current = waists.get(entry.date);
-    if (!current || entry.updatedAt >= current.updatedAt) waists.set(entry.date, entry);
+    if (!current || timestampValue(entry.updatedAt) >= timestampValue(current.updatedAt)) waists.set(entry.date, entry);
   }
   const loadIncrements = {...remote.loadIncrements};
   for (const [key, value] of Object.entries(local.loadIncrements ?? {})) {
-    if (!loadIncrements[key] || value.updatedAt >= loadIncrements[key].updatedAt) loadIncrements[key] = value;
+    if (!loadIncrements[key] || timestampValue(value.updatedAt) >= timestampValue(loadIncrements[key].updatedAt)) loadIncrements[key] = value;
   }
   const goals = pickNewestSection(local.goals, remote.goals, local.goalsUpdatedAt, remote.goalsUpdatedAt);
   const coachProfile = pickNewestSection(local.coachProfile, remote.coachProfile, local.coachProfileUpdatedAt, remote.coachProfileUpdatedAt);
@@ -126,7 +128,7 @@ export const mergeTrainingStates = (
       const attempts = new Map<string, NonNullable<typeof item.attempts>[number]>();
       for (const attempt of [...legacy, ...(left?.attempts ?? []), ...(right?.attempts ?? [])]) {
         const prior = attempts.get(attempt.id);
-        if (!prior || attempt.updatedAt >= prior.updatedAt) attempts.set(attempt.id, attempt);
+        if (!prior || timestampValue(attempt.updatedAt) >= timestampValue(prior.updatedAt)) attempts.set(attempt.id, attempt);
       }
       const ordered = [...attempts.values()].sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt));
       const latest = ordered.at(-1);
