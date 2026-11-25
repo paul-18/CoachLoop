@@ -107,17 +107,16 @@ const enqueueState = (snapshot: TrainingState): Promise<void> => {
   queuedState = snapshot;
   if (!draining) {
     draining = pendingSave.catch(() => undefined).then(async () => {
+      let inFlight: TrainingState | null = null;
       try {
         while (queuedState) {
-          const snapshot = queuedState;
+          inFlight = queuedState;
           queuedState = null;
-          await transact(STATE_STORE, "readwrite", store => store.put(snapshot, STATE_KEY));
+          await transact(STATE_STORE, "readwrite", store => store.put(inFlight, STATE_KEY));
+          inFlight = null;
         }
       } catch (error) {
-        // All callers of this drain see failure. Never later write a Finish
-        // candidate whose caller was already told it failed. The hook retries
-        // its current editable state through a NEW save request.
-        queuedState = null;
+        if (!queuedState && inFlight) queuedState = inFlight;
         throw error;
       } finally {
         // Release ownership in the same continuation as the final queue check;
