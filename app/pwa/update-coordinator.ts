@@ -68,8 +68,9 @@ export function createUpdateCoordinator(env: UpdateEnvironment, timeoutMs = 15_0
         const current: Intent = {
           worker, save, safe, resolve, reject, channel,
           timer: setTimeout(() => {
-            notice("Update activation is still pending. The requested restart waits for a visible, idle, saved window. Retry here when ready.");
-            reject(new Error("Update is still applying. This requested restart will wait for a visible, idle, saved window. Closing all windows remains a fallback."));
+            if (intent === current) clear(current);
+            notice("Update activation timed out. Check for updates and try again when the app is ready.");
+            reject(new Error("Update activation timed out. You can request the update again."));
           }, timeoutMs),
         };
         intent = current;
