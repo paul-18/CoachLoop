@@ -93,13 +93,23 @@ function RestTimer({
     const tick = () => {
       const time = Date.now();
       setNow(time);
-      if (time >= restUntil) onChange(null);
+      if (time >= restUntil && document.visibilityState === "visible") {
+        toast.success("Rest complete");
+        onChange(null);
+      }
     };
     tick();
     const whenVisible = () => { if (document.visibilityState === "visible") tick(); };
     const timer = window.setInterval(tick, 250);
     document.addEventListener("visibilitychange", whenVisible);
-    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", whenVisible); };
+    window.addEventListener("pageshow", whenVisible);
+    window.addEventListener("focus", whenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", whenVisible);
+      window.removeEventListener("pageshow", whenVisible);
+      window.removeEventListener("focus", whenVisible);
+    };
   }, [restUntil, onChange]);
   if (!restUntil) return null;
   const seconds = Math.ceil((restUntil - now) / 1000);
@@ -348,6 +358,7 @@ function SetRow({
           aria-invalid={Boolean(evidenceError && !/^[1-9]\d*$/.test(set.actualReps.trim()))}
           aria-describedby={evidenceError ? errorId : undefined}
           inputMode="numeric"
+          pattern="[0-9]*"
           value={set.actualReps}
           onChange={(event) => onChange({ actualReps: event.target.value })}
           placeholder={set.plannedReps || "0"}
@@ -1359,7 +1370,7 @@ export function WorkoutEditor({
   });
   const [restFrom, setRestFrom] = useState<{ blockId: string; setId?: string } | null>(() => {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(restFromKey) ?? "null") as { blockId?: string; setId?: string } | null;
+      const saved = JSON.parse(localStorage.getItem(restFromKey) ?? "null") as { blockId?: string; setId?: string } | null;
       return saved?.blockId ? { blockId: saved.blockId, setId: saved.setId } : null;
     } catch { return null; }
   });
@@ -1369,8 +1380,8 @@ export function WorkoutEditor({
     try {
       if (deadline === null) localStorage.removeItem(restStorageKey);
       else localStorage.setItem(restStorageKey, String(deadline));
-      if (deadline === null || !from) sessionStorage.removeItem(restFromKey);
-      else sessionStorage.setItem(restFromKey, JSON.stringify(from));
+      if (deadline === null || !from) localStorage.removeItem(restFromKey);
+      else localStorage.setItem(restFromKey, JSON.stringify(from));
     } catch { /* The live timer still works if browser storage is unavailable. */ }
   };
   const latestWorkout = useRef(workout);
