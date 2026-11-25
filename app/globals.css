@@ -7,6 +7,7 @@
 
 :root {
   --app-safe-top: env(safe-area-inset-top, 0px);
+  --banner-height: 0px;
   --workout-header-clearance: 0px;
   --background: #10120f; --foreground: #f5f7ef; --card: #171916; --card-foreground: #f5f7ef;
   --popover: #171916; --popover-foreground: #f5f7ef; --primary: #c6ff4a; --primary-foreground: #11140d;
@@ -309,9 +310,9 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .workout-header-title h1, .workout-header-title p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-header-actions { flex-shrink: 0; }
 .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 16px); }
-.workout-shell.in-demo .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 68px); }
+.workout-shell.in-demo .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + var(--banner-height)); }
 .rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; left: 0; z-index: 39; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--live-rest-height); border-bottom: 1px solid rgba(var(--theme-accent-rgb),.1); background: rgba(21,24,19,.96); padding: 10px max(14px,calc((100vw - 896px)/2)); padding-inline: max(14px, env(safe-area-inset-left, 0px)); box-shadow: 0 10px 30px rgba(0,0,0,.22); backdrop-filter: blur(20px); }
-.workout-shell.in-demo .rest-timer { top: calc(var(--workout-content-offset) + 52px); }
+.workout-shell.in-demo .rest-timer { top: calc(var(--workout-content-offset) + var(--banner-height)); }
 .exercise-card [data-slot="card-header"] { grid-template-columns: minmax(0,1fr) auto; }
 .activity-card.is-complete { border-color: rgba(var(--theme-accent-rgb),.30); background: linear-gradient(125deg, rgba(var(--theme-accent-rgb),.09), rgba(23,25,22,.96) 45%); box-shadow: inset 4px 0 0 var(--lime); }
 .activity-card.is-complete [data-slot="card-header"] { border-bottom-color: rgba(var(--theme-accent-rgb),.14); }
@@ -682,6 +683,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .demo-bar strong { font-size: .84rem; }
 .demo-bar span { flex: 1; min-width: 12rem; font-size: .82rem; line-height: 1.4; }
 .demo-bar button { min-height: 44px; }
+body:has(.demo-bar) [data-sonner-toaster][data-y-position="top"] { top: calc(var(--banner-height) + env(safe-area-inset-top, 0px)) !important; z-index: 100; }
 .activity-warning { margin: 8px 0 0; color: #f3d48a; font-size: .82rem; line-height: 1.45; }
 .goal-text-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 420px; gap: 14px; border-color: rgba(255,255,255,.56); background: #151713; color: white; }
 .goal-text-dialog [data-slot="dialog-description"] { color: rgba(255,255,255,.65); }
