@@ -1074,13 +1074,13 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
 .workout-header { height:var(--live-header-height); min-height:var(--live-header-height); padding-top:calc(10px + var(--app-safe-top) + var(--workout-header-clearance)); }
 @media (max-width: 640px) {
   .workout-shell.has-rest-timer {
-    --live-header-height: calc(56px + var(--app-safe-top));
+    --live-header-height: calc(56px + var(--app-safe-top) + var(--workout-header-clearance));
     --live-rest-height: 48px;
   }
   .workout-shell.has-rest-timer .workout-header {
     height: var(--live-header-height);
     min-height: var(--live-header-height);
-    padding: calc(6px + var(--app-safe-top)) 10px 6px;
+    padding-block: calc(6px + var(--app-safe-top) + var(--workout-header-clearance)) 6px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px));
     gap: 6px;
   }
   .workout-shell.has-rest-timer .workout-header-title p {
