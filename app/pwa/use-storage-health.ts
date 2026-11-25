@@ -1,20 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 export function useStorageHealth() {
   const [health, setHealth] = useState<{ persisted: boolean | null; usage?: number; quota?: number }>({ persisted: null });
+  const requestId = useRef(0);
   const refresh = useCallback(async (requestPersist = false) => {
+    const id = ++requestId.current;
+    const store = navigator.storage;
+    let persisted: boolean | null = null;
     try {
-      const store = navigator.storage;
-      let persisted = store?.persisted ? await store.persisted() : null;
+      persisted = store?.persisted ? await store.persisted() : null;
       if (requestPersist && persisted === false && store.persist) persisted = await store.persist();
-      const estimate = await store?.estimate?.();
-      setHealth({ persisted, ...estimate });
-    } catch { setHealth({ persisted: null }); }
+    } catch { /* Preserve a valid persisted() result if persist() fails. */ }
+    let estimate: StorageEstimate | undefined;
+    try { estimate = await store?.estimate?.(); } catch { /* Estimates are optional. */ }
+    if (id === requestId.current) setHealth({ persisted, ...estimate });
   }, []);
   useEffect(() => {
-    void Promise.resolve().then(() => refresh(true));
+    let mounted = true;
+    void Promise.resolve().then(() => { if (mounted) void refresh(false); });
     const visible = () => { if (document.visibilityState === "visible") void refresh(false); };
     document.addEventListener("visibilitychange", visible);
-    return () => document.removeEventListener("visibilitychange", visible);
+    return () => { mounted = false; requestId.current++; document.removeEventListener("visibilitychange", visible); };
   }, [refresh]);
   return { health, refresh };
 }
