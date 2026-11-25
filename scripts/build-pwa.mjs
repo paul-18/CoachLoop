@@ -43,7 +43,7 @@ self.addEventListener("install", event => event.waitUntil((async () => {
   } catch (error) { await caches.delete(CACHE); throw error; }
 })()));
 self.addEventListener("activate", event => event.waitUntil((async () => {
-  const names = (await caches.keys()).filter(name => name.startsWith(PREFIX));
+  const names = (await caches.keys()).filter(name => name.startsWith(PREFIX)).sort();
   // Retain one preceding release during the deliberate controller-swap/reload.
   const keep = new Set([CACHE, ...names.filter(name => name !== CACHE).slice(-1)]);
   await Promise.all(names.filter(name => !keep.has(name)).map(name => caches.delete(name)));
@@ -110,7 +110,9 @@ self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== ROOT.origin) return;
-  if (request.mode === "navigate" && (url.pathname === ROOT.pathname || url.pathname === ROOT.pathname + "index.html")) {
+  const relativePath = url.pathname.slice(ROOT.pathname.length);
+  const isStaticAsset = /\\.[a-z0-9]{1,12}$/i.test(relativePath);
+  if (request.mode === "navigate" && url.pathname.startsWith(ROOT.pathname) && !isStaticAsset) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
       const cached = await cache.match(ROOT);
