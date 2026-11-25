@@ -129,9 +129,14 @@ export function AppScreens({ model }: { model: ShellModel }) {
           <TabsContent id="panel-settings" aria-labelledby="mobile-tab-settings desktop-tab-settings" value="settings"><ViewErrorBoundary onReload={restart} label="Settings" resetKey={view}><SettingsView openSection={settingsSection} onSectionOpened={consumeSettingsSection} state={displayedState} canonicalState={state} demoActive={demoActive} onEnterDemo={enterDemo} setState={applyProjectedUpdate} onResolveConflict={resolveConflict} onRestoreBackup={restoreBackup} onReset={resetAll} syncStatus={syncStatus} syncFailure={syncFailure} onRetrySync={retrySync} lastSyncedAt={lastSyncedAt} offlineReady={offlineReady} updateReady={updateReady} updateStatus={offline.updateStatus} release={release} localSaveStatus={localSaveStatus} updateBlocked={demoActive || busy || !!activeWorkout || workoutOpen || localSaveStatus !== "saved"} onCheckUpdates={demoActive ? undefined : checkUpdates} onApplyUpdate={onApplyUpdate} /></ViewErrorBoundary></TabsContent>
         </main>
 
+        {/* No bottom bar during a live workout: the workout header's Back
+            button is the way out (the workout stays active and resumable
+            from Today). Tapping a tab used to close the workout mid-set. */}
+        {!workoutOpen && (
         <TabsList className="mobile-nav" aria-label="Primary">
           {navItems.map(({ value, label, icon: Icon }) => <TabsTrigger key={value} id={`mobile-tab-${value}`} aria-controls={`panel-${value}`} value={value} onClick={() => { if (workoutOpen) setWorkoutOpen(false); returnTabToTop(value); }} className="mobile-tab"><Icon /><span>{label}</span></TabsTrigger>)}
         </TabsList>
+        )}
       </Tabs>
   );
 }
