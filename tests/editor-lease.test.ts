@@ -4,55 +4,44 @@ import { acquireEditorLease, leaseAfterFinish } from "../app/pwa/editor-lease";
 
 function lockManager() {
   let active = false;
-  const queue: Array<() => void> = [];
-  const advance = () => { if (!active) queue.shift()?.(); };
   return { request: (_name: string, options: LockOptions, callback: LockGrantedCallback<void>) => new Promise<void>((resolve, reject) => {
-    let started = false;
-    const run = () => {
-      if (options.signal?.aborted) return;
-      started = true; active = true;
-      void Promise.resolve(callback({ name: "coach-loop-local-editor", mode: "exclusive" })).then(() => {
-        active = false; resolve(); advance();
-      }, reject);
-    };
-    options.signal?.addEventListener("abort", () => {
-      if (started) return;
-      const index = queue.indexOf(run);
-      if (index >= 0) queue.splice(index, 1);
-      reject(new DOMException("Aborted", "AbortError"));
-    }, { once: true });
-    queue.push(run); advance();
+    if (options.signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    if (options.ifAvailable && active) {
+      void Promise.resolve().then(() => callback(null)).then(resolve, reject);
+      return;
+    }
+    if (active) {
+      reject(new Error("Unexpected unbounded queue"));
+      return;
+    }
+    active = true;
+    const lock = { name: "coach-loop-local-editor", mode: "exclusive" };
+    void Promise.resolve(callback(lock)).then(() => { active = false; resolve(); }, error => { active = false; reject(error); });
   }) } as unknown as LockManager;
 }
 
-test("second editor waits and acquires automatically after the first releases", async () => {
-  const locks = lockManager();
-  const owners: string[] = [];
-  const first = acquireEditorLease(locks, () => owners.push("first"));
-  const second = acquireEditorLease(locks, () => owners.push("second"));
-  assert.deepEqual(owners, ["first"]);
-  first.dispose();
-  await first.finished;
-  assert.deepEqual(owners, ["first", "second"]);
-  second.dispose(); await second.finished;
-});
-
-test("closing a waiting editor cancels its request without blocking a later editor", async () => {
+test("a second editor fails fast instead of queuing behind a suspended tab", async () => {
   const locks = lockManager();
   const first = acquireEditorLease(locks, () => {});
-  const cancelled = acquireEditorLease(locks, () => assert.fail("closed editor acquired"));
-  const rejected = assert.rejects(cancelled.finished, { name: "AbortError" });
-  cancelled.dispose(); await rejected;
-  let opened = false;
-  const next = acquireEditorLease(locks, () => { opened = true; });
-  first.dispose(); await first.finished;
-  assert.equal(opened, true);
-  next.dispose(); await next.finished;
+  const second = acquireEditorLease(locks, () => assert.fail("busy editor must not acquire"));
+  await assert.rejects(second.finished, { name: "NotAllowedError" });
+  first.dispose();
+  await first.finished;
+  const retry = acquireEditorLease(locks, () => {});
+  retry.dispose();
+  await retry.finished;
 });
 
-test("a lock that ends on its own is an interruption, while our own abort is ignored", () => {
+test("disposing a pending lease aborts it and later acquisition remains possible", async () => {
+  const locks = lockManager();
+  const lease = acquireEditorLease(locks, () => {});
+  lease.dispose();
+  await lease.finished;
+});
+
+test("external browser aborts are interruptions; only disposed leases are ignored", () => {
   assert.equal(leaseAfterFinish("fulfilled", undefined, false), "interrupted");
   assert.equal(leaseAfterFinish("rejected", new DOMException("nope", "InvalidStateError"), false), "interrupted");
-  assert.equal(leaseAfterFinish("rejected", new DOMException("Aborted", "AbortError"), false), "ignore");
+  assert.equal(leaseAfterFinish("rejected", new DOMException("Aborted", "AbortError"), false), "interrupted");
   assert.equal(leaseAfterFinish("fulfilled", undefined, true), "ignore");
 });
