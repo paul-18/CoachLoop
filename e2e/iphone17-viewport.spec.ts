@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { makeSeedState, makeSeedWorkout, seedTrainingState } from "./helpers/seed-training-state";
 
 // iPhone 17 standalone-PWA viewport: 402x874 (screen height; the installed
 // PWA has no Safari chrome, so the viewport approaches the screen height).
@@ -118,4 +119,21 @@ test("RestTimer aligns with the exercise column at desktop width too", async ({ 
   expect(Math.abs(alignment.skipRight - alignment.cardRight)).toBeLessThanOrEqual(2);
 
   expect(pageErrors).toEqual([]);
+});
+
+test("iPhone 17 width 402px: wrapped Lift balance notes have 16px bottom padding", async ({ page }) => {
+  await page.goto("/");
+  const state = makeSeedState([makeSeedWorkout("Lift balance padding fixture", 0, "Barbell Bench Press")]);
+  await seedTrainingState(page, state);
+  await page.reload();
+  await page.getByRole("tab", { name: "Progress", exact: true }).click();
+  const note = page.locator(".strength-result-note").first();
+  await expect(note).toBeVisible();
+  const measurements = await note.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const row = element.parentElement?.parentElement;
+    return { noteHeight: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight), paddingBottom: row ? parseFloat(getComputedStyle(row).paddingBottom) : 0 };
+  });
+  expect(measurements.noteHeight).toBeGreaterThanOrEqual(measurements.lineHeight * 1.9);
+  expect(measurements.paddingBottom).toBeGreaterThanOrEqual(16);
 });

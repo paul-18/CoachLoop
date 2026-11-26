@@ -10,8 +10,8 @@ import { planDifferences } from "../app/domain/plan-review";
 import { parseFitlog } from "../app/interchange/fitlog";
 import { weeklyCards } from "../app/domain/weekly-cards";
 
-test("v124: APP_RELEASE is v124", () => {
-  assert.equal(APP_RELEASE, "v124");
+test("v125: APP_RELEASE is v125", () => {
+  assert.equal(APP_RELEASE, "v125");
 });
 
 test("v119 (Task 1): exerciseProgressCopy and workoutProgressCopy stay synchronized with active denominator and skipped qualifiers", () => {

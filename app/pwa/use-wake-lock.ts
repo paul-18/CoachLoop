@@ -48,7 +48,14 @@ export function useWakeLock() {
       }
       finally { pending = false; }
     };
-    const onResume = () => { if (document.visibilityState === "visible") void acquire(); };
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      retries = 0;
+      if (sentinel?.released) sentinel = null;
+      void acquire();
+    };
     void acquire();
     document.addEventListener("visibilitychange", onResume);
     window.addEventListener("pageshow", onResume);

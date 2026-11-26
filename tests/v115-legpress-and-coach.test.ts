@@ -4,8 +4,8 @@ import { defaultState, makeWorkout } from "../app/domain/training-types";
 import { buildQuickTrainingExtract } from "../app/interchange/coach-export";
 import { APP_RELEASE } from "../app/app-release";
 
-test("v124: APP_RELEASE is v124", () => {
-  assert.equal(APP_RELEASE, "v124");
+test("v125: APP_RELEASE is v125", () => {
+  assert.equal(APP_RELEASE, "v125");
 });
 
 test("v115: buildQuickTrainingExtract supports 2, 7, 14, 30, and 60 days", () => {

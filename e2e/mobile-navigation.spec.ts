@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { makeSeedState, makeSeedWorkout, seedTrainingState } from "./helpers/seed-training-state";
 
 test("WebKit iPhone viewport keeps the bottom tabs usable through repeated navigation and zero horizontal overflow", async ({ page }) => {
   const pageErrors: string[] = [];
@@ -134,4 +135,37 @@ test("Bottom tabs hide while a blank workout is open; leaving via Back shows the
   }
 
   expect(pageErrors).toEqual([]);
+});
+
+test("History edit back arrow returns to History with URL and scroll position restored", async ({ page }) => {
+  const targetName = "History edit back arrow fixture";
+  await page.goto("/");
+  const state = makeSeedState(Array.from({ length: 35 }, (_, index) =>
+    makeSeedWorkout(index === 18 ? targetName : `History scroll fixture ${index}`, index)
+  ));
+  await seedTrainingState(page, state);
+  await page.reload();
+  await page.getByRole("tab", { name: "History", exact: true }).click();
+  const card = page.locator(".history-card").filter({ hasText: targetName }).first();
+  await expect(card).toBeVisible();
+  await card.scrollIntoViewIfNeeded();
+  await card.getByRole("button").first().click();
+  const editButton = card.getByRole("button", { name: "Edit", exact: true });
+  await expect(editButton).toBeVisible();
+  await editButton.scrollIntoViewIfNeeded();
+  await editButton.evaluate((button) => {
+    button.addEventListener("click", () => {
+      (window as Window & { __historyEditScroll?: number }).__historyEditScroll = window.scrollY;
+    }, { once: true });
+  });
+  await editButton.click();
+  const savedScroll = await page.evaluate(() =>
+    (window as Window & { __historyEditScroll?: number }).__historyEditScroll ?? window.scrollY
+  );
+  await expect(page.locator(".workout-header")).toBeVisible();
+  await page.getByRole("button", { name: "Back to today", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "History", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "History", exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => new URL(location.href).searchParams.get("view"))).toBe("history");
+  await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - savedScroll)).toBeLessThanOrEqual(2);
 });

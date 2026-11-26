@@ -38,6 +38,16 @@ export function finishWorkoutState(state: TrainingState, workout: WorkoutSession
   return { ...next, activeWorkoutId: selectedActiveWorkout(next)?.id ?? null };
 }
 
+export function skipPlannedWorkoutState(state: TrainingState, id: string, reason: string, skippedAt = new Date().toISOString()): TrainingState {
+  if (!state.workouts.some(w => w.id === id && w.status === "planned")) return state;
+  return {
+    ...state,
+    workouts: state.workouts.map(w => w.id === id && w.status === "planned"
+      ? { ...w, status: "skipped" as const, skippedAt, skipReason: reason, startedAt: null, completedAt: null, updatedAt: skippedAt }
+      : w),
+  };
+}
+
 export function discardWorkoutState(state: TrainingState, id: string): TrainingState {
   if (!state.workouts.some(w => w.id === id && w.status === "active")) throw new Error("Only an unfinished workout can be discarded");
   const next = { ...state, workouts: state.workouts.filter(w => w.id !== id), deletedWorkoutIds: [...new Set([...state.deletedWorkoutIds, id])] };

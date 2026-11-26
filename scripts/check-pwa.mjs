@@ -1,9 +1,35 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { webcrypto } from "node:crypto";
+const projectRoot=fileURLToPath(new URL("../",import.meta.url));
 const dist=fileURLToPath(new URL("../dist/",import.meta.url));
+// Rebuild the service worker twice from the same production assets and pin
+// byte-for-byte determinism as part of the release gate.
+for (let run=0;run<2;run++) {
+ const result=spawnSync(process.execPath,["scripts/build-pwa.mjs"],{cwd:projectRoot,encoding:"utf8"});
+ assert.equal(result.status,0,`build-pwa.mjs run ${run+1} failed: ${result.stderr}`);
+ if(run===0) var firstWorker=await readFile(dist+"sw.js");
+ else assert.deepEqual(await readFile(dist+"sw.js"),firstWorker,"sw.js must be byte-identical across consecutive PWA builds");
+}
+const iconSizes=[["apple-touch-icon.png",180],["icon-192-maskable.png",192],["icon-512-maskable.png",512]];
+for(const [name,size] of iconSizes) {
+ const png=await readFile(dist+name);
+ assert.equal(png.toString("ascii",12,16),"IHDR",`${name} has a PNG IHDR`);
+ assert.equal(png.readUInt32BE(16),size,`${name} width`);
+ assert.equal(png.readUInt32BE(20),size,`${name} height`);
+ assert.equal(png[25],3,`${name} uses an opaque indexed PNG palette`);
+ assert.equal(png.indexOf(Buffer.from("tRNS")), -1, `${name} has no transparency chunk`);
+}
+const iconManifest=JSON.parse(await readFile(dist+"manifest.webmanifest","utf8"));
+assert.ok(iconManifest.icons.some(icon=>icon.src==="./icon-192.png"&&icon.purpose==="any"));
+assert.ok(iconManifest.icons.some(icon=>icon.src==="./icon-512.png"&&icon.purpose==="any"));
+assert.ok(iconManifest.icons.some(icon=>icon.src==="./icon-192-maskable.png"&&icon.purpose==="maskable"));
+assert.ok(iconManifest.icons.some(icon=>icon.src==="./icon-512-maskable.png"&&icon.purpose==="maskable"));
+const appleTouchHtml=await readFile(dist+"index.html","utf8");
+assert.ok(appleTouchHtml.includes('sizes="180x180" href="./apple-touch-icon.png"'),"built HTML references the 180px Apple touch icon");
 const root=new URL("https://example.test/CoachLoop/");
 const stores=new Map(),events={};let claimed=false,network=0,online=true,windows=1,skipped=false,shellOverride=null,corruptPrecache=false,assetOverride=null;
 const cacheApi={
@@ -19,7 +45,9 @@ vm.runInNewContext(await readFile(dist+'sw.js','utf8'),{
  self:{registration:{scope:root.href},clients:{async claim(){claimed=true;},async matchAll(){return Array.from({length:windows},()=>({url:root.href}));}},async skipWaiting(){skipped=true;},addEventListener(type,fn){events[type]=fn;}}
 });
 const run=(name,event)=>new Promise((resolve,reject)=>events[name]({...event,waitUntil(p){p.then(resolve,reject);}}));
-await run('install');const current=[...stores.keys()][0];const prefix=current.slice(0,current.lastIndexOf(':')+1);
+await run('install');const current=[...stores.keys()][0];
+for(const name of ["apple-touch-icon.png","icon-192-maskable.png","icon-512-maskable.png"]) assert.ok([...stores.get(current).keys()].some(url=>url.endsWith("/"+name)),`${name} is included in the precache`);
+const prefix=current.slice(0,current.lastIndexOf(':')+1);
 // Current scope cleanup keeps one earlier release, unrelated apps and legacy caches.
 stores.set(prefix+'older',new Map());stores.set(prefix+'previous',new Map());stores.set('coach-loop-pages:%2FOther%2F:release',new Map());stores.set('coach-loop-pages-legacy',new Map());
 await run('activate');assert.ok(claimed);assert.ok(!stores.has(prefix+'older'));assert.ok(stores.has(prefix+'previous'));assert.ok(stores.has('coach-loop-pages:%2FOther%2F:release'));assert.ok(stores.has('coach-loop-pages-legacy'));

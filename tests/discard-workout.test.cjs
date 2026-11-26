@@ -2,7 +2,31 @@
    and leaves no stale editor state behind (the quick-log focus id included):
    a second quick log after a discard must open cleanly. */
 const test = require('node:test'), assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { skipPlannedWorkoutState } = require('../app/domain/workout-transitions.ts');
 const { environment, until, wait } = require("./helpers/dom-environment.cjs");
+
+test('skip planned workout commits through commitState and leaves non-planned sessions untouched', () => {
+  const controller = fs.readFileSync(require.resolve('../app/shell/use-workout-controller.ts'), 'utf8');
+  assert.match(controller, /void commitState\(\(current\) => \{[\s\S]*?skipPlannedWorkoutState\(current, id, reason, skippedAt\)/);
+  assert.match(controller, /\}\)\.catch\(saveFailure\);/);
+
+  const { defaultState, makeWorkout } = require('../app/domain/training-types.ts');
+  const state = defaultState();
+  const planned = makeWorkout('lb', 90, 'Planned');
+  planned.status = 'planned';
+  const completed = makeWorkout('lb', 90, 'Completed');
+  completed.status = 'completed';
+  state.workouts = [planned, completed];
+
+  const next = skipPlannedWorkoutState(state, planned.id, 'Unavailable', '2026-11-25T12:00:00.000Z');
+  assert.notStrictEqual(next, state);
+  assert.equal(next.workouts[0].status, 'skipped');
+  assert.equal(next.workouts[0].skipReason, 'Unavailable');
+  assert.strictEqual(next.workouts[1], completed, 'a completed workout is not modified');
+  assert.strictEqual(skipPlannedWorkoutState(next, completed.id, 'No reason'), next, 'non-planned id is a clean no-op');
+});
+
 
 test('discarding a blank workout closes the editor and removes the session', async () => {
   const dom = environment(), React = require('react'), { createRoot } = require('react-dom/client');

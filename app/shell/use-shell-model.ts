@@ -9,7 +9,7 @@ import { useProgressActions } from "./use-progress-actions";
 export function useShellModel() {
   const persistence = useTrainingPersistence();
   const navigation = useShellNavigation();
-  const workouts = useWorkoutController(persistence, navigation.setView);
+  const workouts = useWorkoutController(persistence, navigation.navigateTab);
   const progress = useProgressActions(persistence);
   const offline = useOfflineStatus();
   const [updating, setUpdating] = useState(false);

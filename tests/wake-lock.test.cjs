@@ -46,15 +46,16 @@ test('wake lock re-acquires after release and failed retries on visibilitychange
     toggle.click();
     await until(() => requestCalls >= 1, 'wake lock requested once held');
     assert.equal(requestCalls, 1);
-    // iOS drops the lock: fire the release listener, then fail the re-acquire.
-    assert.equal(releaseListeners.length, 1);
-    failNext = 1;
+    // iOS drops the lock. Three bounded attempts exhaust the retry counter:
+    // the release schedules one attempt, and two failed requests schedule the
+    // remaining attempts until retries reaches maxRetries.
+    failNext = 2;
     releaseListeners[0]();
-    // The 250 ms retry timer fires and fails; the catch schedules a bounded
-    // re-attempt, but before it runs, returning to the app must retry now.
-    await until(() => requestCalls >= 2, 'failed re-acquire was attempted');
+    await until(() => requestCalls >= 3, "three acquisition attempts reached the retry cap");
+    await wait(550); // let the final bounded retry finish and leave no timer pending
     const beforeResume = requestCalls;
-    document.dispatchEvent(new dom.window.Event('visibilitychange'));
-    await until(() => requestCalls > beforeResume, 'visibilitychange re-acquires after failures');
+    document.dispatchEvent(new dom.window.Event("visibilitychange"));
+    await until(() => requestCalls > beforeResume, "visibilitychange resets retries and re-acquires");
+    assert.equal(requestCalls, beforeResume + 1, "resume immediately requests a fresh wake lock");
   } finally { root.unmount(); await wait(30); dom.window.close(); }
 });

@@ -27,7 +27,6 @@ export function useShellNavigation() {
   const [calendarRequest, setCalendarRequest] = useState(0);
   const [settingsSection, setSettingsSection] = useState<"coach-profile" | "training-goals" | "backup" | null>(null);
   const consumeSettingsSection = useCallback(() => setSettingsSection(null), []);
-  const openSettingsSection = (section: "coach-profile" | "training-goals" | "backup") => { setSettingsSection(section); setView("settings"); };
   const consumeCalendarRequest = useCallback(() => setCalendarRequest(0), []);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -55,6 +54,17 @@ export function useShellNavigation() {
       } catch { /* Ignore history state errors in restricted test contexts. */ }
     }
   };
+  const openSettingsSection = (section: "coach-profile" | "training-goals" | "backup") => { setSettingsSection(section); navigateTab("settings"); };
+  // Keep direct view updates reflected in the URL; navigateTab writes synchronously.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (view === "today") url.searchParams.delete("view");
+      else url.searchParams.set("view", view);
+      if (url.search !== window.location.search) window.history.replaceState({ view }, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* Ignore history state errors in restricted test contexts. */ }
+  }, [view]);
   const returnTabToTop = (value: MainView) => {
     if (value !== view) return;
     setCalendarRequest(0);

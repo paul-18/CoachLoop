@@ -1,5 +1,11 @@
 # Changelog
 
+## v125 — release
+
+- Planned workout skipping now commits through the durable save boundary and ignores non-planned sessions; History edit navigation restores the History URL and scroll position.
+- Wake-lock resume resets bounded retries; iOS and Android icons now include an opaque 180px Apple icon and dedicated safe-area maskable assets.
+- Confirmation dialogs open without a fade, Demo History actions show a touch-visible read-only cue, and Lift balance rows have extra note padding.
+
 ## v124 — published
 
 - Discarding a workout now resolves the active session from live state and clears the editor (workout, history edit, quick-log focus) when it closes.

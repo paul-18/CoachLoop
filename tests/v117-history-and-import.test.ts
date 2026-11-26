@@ -8,8 +8,8 @@ import { exampleSafeImportFitlog, parseFitlog } from "../app/interchange/fitlog"
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("v124: APP_RELEASE is v124", () => {
-  assert.equal(APP_RELEASE, "v124");
+test("v125: APP_RELEASE is v125", () => {
+  assert.equal(APP_RELEASE, "v125");
 });
 
 test("v117: safe import example showcases leg press and interval run without segments", () => {
