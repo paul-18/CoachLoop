@@ -137,7 +137,7 @@ export const mergeTrainingStates = (
         const prior = attempts.get(attempt.id);
         if (!prior || timestampValue(attempt.updatedAt) >= timestampValue(prior.updatedAt)) attempts.set(attempt.id, attempt);
       }
-      const ordered = [...attempts.values()].sort((a, b) => a.date.localeCompare(b.date) || a.updatedAt.localeCompare(b.updatedAt));
+      const ordered = [...attempts.values()].sort((a, b) => a.date.localeCompare(b.date) || timestampValue(a.updatedAt) - timestampValue(b.updatedAt) || a.id.localeCompare(b.id));
       const latest = ordered.at(-1);
       return { ...item, result: latest?.result ?? item.result, testedOn: latest?.date ?? item.testedOn, attempts: ordered };
     }),

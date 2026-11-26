@@ -31,7 +31,21 @@ export function useWakeLock() {
           const delay = Math.min(4000, 250 * 2 ** retries++);
           clearTimeout(retryTimer); retryTimer = setTimeout(() => { void acquire(); }, delay);
         });
-      } catch { if (!disposed) setWakeLockHeld(false); }
+      } catch {
+        if (!disposed) {
+          setWakeLockHeld(false);
+          // A failed request (e.g. Low Power Mode) schedules no retry on its
+          // own: without this the lock stays dead while continuously visible
+          // until the user leaves and returns. One bounded re-attempt per
+          // failure, still capped by maxRetries so a permanently-blocked
+          // request cannot spin.
+          if (document.visibilityState === "visible" && retries < maxRetries) {
+            const delay = Math.min(4000, 250 * 2 ** retries++);
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(() => { void acquire(); }, delay);
+          }
+        }
+      }
       finally { pending = false; }
     };
     const onResume = () => { if (document.visibilityState === "visible") void acquire(); };

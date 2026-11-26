@@ -37,6 +37,7 @@ import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from 
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
 import { useWakeLock } from "../pwa/use-wake-lock";
+import { playRestChime, unlockRestAudio } from "../pwa/rest-chime";
 import { appendSegmentGroupIteration, completeActivity, completeSegmentGroup, completeSegmentGroupIteration, resolveUnknownSegments, segmentCountLabel, segmentCounts, segmentGroupProgress, segmentLabelError, segmentMismatch, segmentPlanText, segmentUnits, type SegmentUnit } from "../domain/activity-segments";
 
 function compactSetSummary(sets: TrainingSet[]) {
@@ -88,6 +89,16 @@ function RestTimer({
   measureRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const [now, setNow] = useState(() => Date.now());
+  // Unlock the shared AudioContext on real gestures (e.g. the "Complete set"
+  // tap) so the expiry beep can play later from the timer, not a gesture.
+  useEffect(() => {
+    document.addEventListener("pointerdown", unlockRestAudio);
+    document.addEventListener("keydown", unlockRestAudio);
+    return () => {
+      document.removeEventListener("pointerdown", unlockRestAudio);
+      document.removeEventListener("keydown", unlockRestAudio);
+    };
+  }, []);
   useEffect(() => {
     if (!restUntil) return;
     const tick = () => {
@@ -95,6 +106,7 @@ function RestTimer({
       setNow(time);
       if (time >= restUntil && document.visibilityState === "visible") {
         toast.success("Rest complete");
+        playRestChime();
         onChange(null);
       }
     };
@@ -116,11 +128,13 @@ function RestTimer({
   if (seconds <= 0) return null;
   return (
     <div className="rest-timer" ref={measureRef}>
+      <div className="rest-timer-inner">
       <div className="rest-timer-copy">
         <p className="text-xs font-bold text-white/55">Rest <span className="font-mono text-xl font-black text-white" role="timer" aria-label="Rest remaining">{formatDuration(seconds)}</span></p>
         <p className="rest-next">{nextLabel ? `Next: ${nextLabel}` : "All work complete"}</p>
       </div>
       <Button variant="ghost" size="sm" onClick={() => onChange(null)}>Skip</Button>
+      </div>
     </div>
   );
 }

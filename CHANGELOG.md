@@ -1,5 +1,19 @@
 # Changelog
 
+## v124 — published
+
+- Discarding a workout now resolves the active session from live state and clears the editor (workout, history edit, quick-log focus) when it closes.
+- Wake lock retries once more after a failed re-acquire instead of staying dead while the app stays visible; the release counter still resets on every successful acquire.
+- Service-worker cache names are deterministic (release number, not a timestamp), so identical builds produce identical sw.js and no-op deploys stop re-downloading the precache; activation keeps the true previous release.
+- Benchmark attempts sort by actual instant with an id tie-break, so equal-date attempts with different timezone offsets order correctly.
+- Removes frame-ancestors from the CSP meta tag (ignored there), adds og:image/twitter:image, and adds a public robots.txt.
+- Rest timer content now shares the workout column's centered 896px geometry, so the timer text aligns with exercise titles and Skip aligns with the card edge on phone and desktop; safe-area insets are per-side. The desktop rail shift for the timer bar was also dead code — a later rule reset it to full width — so the bar now actually starts at the rail on wide screens.
+- Dialogs no longer fade in from transparent: the overlay dims instantly and the card enters with a fast scale only, so underlying rows stop bleeding through.
+- Progress Strength subtitle wraps instead of truncating ("33 loaded sets · excludes bodyweight" now reads in full).
+- GitHub Actions upgraded to Node 24 majors (checkout v7, pnpm v6, setup-node v7, upload-artifact v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5), all SHA-pinned.
+- Adds an iPhone 17 (402×874) WebKit viewport check (overflow, rest-timer alignment, Finish reachability, 16px inputs, subtitle) and an Escape-closes-import regression test.
+- Rest timer plays a short two-note chime at 0:00 while visible (Web Audio, unlocked on the first tap; the toast still fires without audio).
+
 ## v123 — published
 
 - Fixes sync timestamp ordering, queued IndexedDB write retention, History editor cleanup, service-worker update timeout recovery, and iOS wake-lock/storage/local-day/rest-timer resume behavior.

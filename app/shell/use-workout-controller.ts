@@ -131,9 +131,17 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
 
   const discardWorkout = () => {
-    if (!activeWorkout) return;
-    void commitState(current => discardWorkoutState(current, activeWorkout.id)).then(() => {
-      setWorkoutOpen(false); toast.success("Workout discarded");
+    // Resolve the target inside the updater so a stale render-closure id can
+    // never discard the wrong session; leaveEditor() clears workoutOpen,
+    // editingWorkoutId and quickLogActivityId (a quick-log id left behind
+    // would leak into the next opened workout).
+    void commitState(current => {
+      const target = selectedActiveWorkout(current);
+      if (!target) throw new Error("Only an unfinished workout can be discarded");
+      return discardWorkoutState(current, target.id);
+    }).then(() => {
+      leaveEditor();
+      toast.success("Workout discarded");
     }).catch(saveFailure);
   };
 

@@ -61,3 +61,37 @@ test("sync merge retains set tombstones and compares offset timestamps by epoch"
   assert.equal(sets.some(set => set.id === deleted.id), false);
   assert.equal(sets.find(set => set.id === kept.id)?.actualReps, "5");
 });
+
+test("sync merge orders benchmark attempts by instant, not ISO string", () => {
+  const local = defaultState(), remote = defaultState();
+  const benchmark = {
+    id: "bench-5k",
+    name: "5K time trial",
+    protocol: "flat out",
+    result: "24:30",
+    testedOn: "2026-11-20",
+    retestDays: 90,
+    updatedAt: "2026-11-20T09:00:00Z",
+    attempts: [
+      { id: "attempt-a", date: "2026-11-20", result: "24:30", protocol: "flat out", updatedAt: "2026-11-20T10:00:00+02:00" },
+    ],
+  };
+  const remoteBenchmark = {
+    ...benchmark,
+    result: "23:40",
+    updatedAt: "2026-11-20T09:30:00Z",
+    attempts: [
+      { id: "attempt-b", date: "2026-11-20", result: "23:50", protocol: "flat out", updatedAt: "2026-11-20T09:00:00Z" },
+      { id: "attempt-c", date: "2026-11-20", result: "23:40", protocol: "flat out", updatedAt: "2026-11-20T09:00:00Z" },
+    ],
+  };
+  local.benchmarks = [benchmark];
+  remote.benchmarks = [remoteBenchmark];
+  const merged = mergeRestoredState(local, remote);
+  const attempts = merged.benchmarks?.[0].attempts ?? [];
+  // As strings "10:00:00+02:00" > "09:00:00Z", but as instants 08:00Z < 09:00Z;
+  // attempt-b and attempt-c share an instant, so the id breaks the tie.
+  assert.deepEqual(attempts.map((attempt) => attempt.id), ["attempt-a", "attempt-b", "attempt-c"]);
+  assert.equal(merged.benchmarks?.[0].result, "23:40");
+  assert.equal(merged.benchmarks?.[0].testedOn, "2026-11-20");
+});

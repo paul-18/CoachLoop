@@ -6,7 +6,7 @@ async function until(check, label) {
   // 10s budget: under full-suite parallel load a React commit + fake-indexeddb
   // round-trip can take far longer than the old 2s budget, which flaked the
   // release-journeys "acknowledgment enables restore" assertion once locally
-  // and (by timing) failed the v123 CI gate the same way. A longer wait only
+  // and (by timing) failed the v124 CI gate the same way. A longer wait only
   // delays a genuine failure; it cannot turn a failure into a pass.
   for (let i = 0; i < 200; i++) { if (await check()) return; await wait(50); }
   assert.ok(await check(), label);

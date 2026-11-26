@@ -16,7 +16,7 @@ const stages = [
   ["Production build", ["node_modules/vite/bin/vite.js", "build"]],
   ["PWA generation", ["scripts/build-pwa.mjs"]],
   ["PWA behavior", ["scripts/check-pwa.mjs"]],
-  ["WebKit smoke", ["node_modules/@playwright/test/cli.js", "test", "--config=playwright.config.ts", "--project=webkit"]],
+  ["WebKit smoke", ["node_modules/@playwright/test/cli.js", "test", "--config=playwright.config.ts", "--project=webkit", "--project=webkit-iphone17"]],
 ];
 const results = [];
 for (const [name, args] of stages) {

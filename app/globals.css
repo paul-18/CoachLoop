@@ -234,7 +234,7 @@ html[data-keyboard-open="true"] .hyrox-controls { opacity: 0; pointer-events: no
 .coverage-list-disclosure { margin-top: 9px; }.coverage-list-disclosure summary { width: fit-content; cursor: pointer; color: rgba(255,255,255,.57); font-size: .72rem; font-weight: 750; }
 .coverage-method { margin-top: 7px; }.coverage-method summary { width: fit-content; cursor: pointer; color: rgba(255,255,255,.56); font-size: .68rem; font-weight: 700; }.coverage-method p { max-width: 690px; margin-top: 7px; color: rgba(255,255,255,.56); font-size: .72rem; line-height: 1.55; }
 .coverage-settings-list { display: grid; gap: 8px; }.coverage-settings-row { display: grid; grid-template-columns: minmax(130px,1.2fr) repeat(2,minmax(135px,1fr)); align-items: center; gap: 9px; border: 1px solid rgba(255,255,255,.06); border-radius: 12px; background: rgba(0,0,0,.1); padding: 8px 10px; }.coverage-settings-name { min-width: 0; }.coverage-settings-name strong,.coverage-settings-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.coverage-settings-name strong { color: rgba(255,255,255,.78); font-size: .82rem; }.coverage-settings-name small { margin-top: 2px; color: rgba(255,255,255,.56); font-size: .66rem; }
-.activity-breakdown { min-width: 0; }.activity-cards { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 9px; }.activity-summary-card { display: grid; grid-template-columns: 28px minmax(0,1fr); column-gap: 8px; align-items: start; border: 1px solid color-mix(in srgb,var(--activity-color) 18%,transparent); border-radius: 12px; background: color-mix(in srgb,var(--activity-color) 5%,transparent); padding: 10px; }.activity-summary-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9px; color: var(--activity-color); background: color-mix(in srgb,var(--activity-color) 13%,transparent); }.activity-summary-text { display: flex; min-width: 0; flex-direction: column; }.activity-summary-text span { color: rgba(255,255,255,.53); font-size: .68rem; font-weight: 800; }.activity-summary-text strong { color: #f2f4ec; font-size: 1.1rem; font-weight: 900; letter-spacing: -.04em; }.activity-summary-text small { min-height: 1.2em; overflow: hidden; color: rgba(255,255,255,.56); font-size: .61rem; text-overflow: ellipsis; white-space: nowrap; }.activity-week { grid-column: 1/-1; display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-top: 9px; }.activity-week span { border-radius: 5px; background: rgba(255,255,255,.055); padding: 3px 0; color: rgba(255,255,255,.56); font-size: .57rem; font-weight: 800; text-align: center; }.activity-week span.logged { color: #111714; background: var(--activity-color); }
+.activity-breakdown { min-width: 0; }.activity-cards { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 9px; }.activity-summary-card { display: grid; grid-template-columns: 28px minmax(0,1fr); column-gap: 8px; align-items: start; border: 1px solid color-mix(in srgb,var(--activity-color) 18%,transparent); border-radius: 12px; background: color-mix(in srgb,var(--activity-color) 5%,transparent); padding: 10px; }.activity-summary-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9px; color: var(--activity-color); background: color-mix(in srgb,var(--activity-color) 13%,transparent); }.activity-summary-text { display: flex; min-width: 0; flex-direction: column; }.activity-summary-text span { color: rgba(255,255,255,.53); font-size: .68rem; font-weight: 800; }.activity-summary-text strong { color: #f2f4ec; font-size: 1.1rem; font-weight: 900; letter-spacing: -.04em; }.activity-summary-text small { min-height: 1.2em; overflow: hidden; color: rgba(255,255,255,.56); font-size: .61rem; }.activity-week { grid-column: 1/-1; display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-top: 9px; }.activity-week span { border-radius: 5px; background: rgba(255,255,255,.055); padding: 3px 0; color: rgba(255,255,255,.56); font-size: .57rem; font-weight: 800; text-align: center; }.activity-week span.logged { color: #111714; background: var(--activity-color); }
 .trend-chart { width: 100%; overflow: hidden; }
 .trend-chart svg { display: block; width: 100%; height: auto; min-height: 180px; }
 .trend-gridline { stroke: rgba(255,255,255,.065); stroke-width: 1; }
@@ -310,7 +310,13 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .workout-header-actions { flex-shrink: 0; }
 .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + 16px); padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
 .workout-shell.in-demo .workout-main { padding-top: calc(var(--workout-content-offset) + var(--live-rest-height) + var(--banner-height)); }
-.rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; left: 0; z-index: 39; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--live-rest-height); border-bottom: 1px solid rgba(var(--theme-accent-rgb),.1); background: rgba(21,24,19,.96); padding: 10px max(14px,calc((100vw - 896px)/2)); padding-inline: max(14px, env(safe-area-inset-left, 0px)); box-shadow: 0 10px 30px rgba(0,0,0,.22); backdrop-filter: blur(20px); }
+.rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; left: 0; z-index: 39; min-height: var(--live-rest-height); border-bottom: 1px solid rgba(var(--theme-accent-rgb),.1); background: rgba(21,24,19,.96); padding-block: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.22); backdrop-filter: blur(20px); }
+/* The bar is full-width; this inner container shares .workout-main's centered
+   896px column (px-3, sm:px-6) so the timer text aligns with exercise titles
+   and Skip aligns with the card right edge on every viewport, including past
+   the 242px desktop rail (margin auto centres inside the bar itself). */
+.rest-timer-inner { margin-inline: auto; display: flex; width: 100%; max-width: 56rem; align-items: center; justify-content: space-between; gap: 12px; padding-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 640px) { .rest-timer-inner { padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px)); } }
 .workout-shell.in-demo .rest-timer { top: calc(var(--workout-content-offset) + var(--banner-height)); }
 .exercise-card [data-slot="card-header"] { grid-template-columns: minmax(0,1fr) auto; }
 .activity-card.is-complete { border-color: rgba(var(--theme-accent-rgb),.30); background: linear-gradient(125deg, rgba(var(--theme-accent-rgb),.09), rgba(23,25,22,.96) 45%); box-shadow: inset 4px 0 0 var(--lime); }
@@ -435,7 +441,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
   .workout-shell.has-rest-timer { --live-rest-height: 60px; }
   .workout-shell input, .workout-shell textarea, .workout-shell select { scroll-margin-block-start: calc(var(--workout-content-offset) + var(--live-rest-height) + 12px); scroll-margin-block-end: 24px; }
   .workout-header { height: var(--live-header-height); min-height: var(--live-header-height); padding: calc(10px + var(--app-safe-top) + var(--workout-header-clearance)) 10px 10px; gap: 9px; }
-  .rest-timer { top: var(--workout-content-offset); padding: 6px 12px; }
+  .rest-timer { top: var(--workout-content-offset); padding-block: 6px; }
   .workout-shell button[data-slot="button"], .workout-shell select, .workout-shell input { min-height: 44px; }
   .workout-header input { min-height: 24px; }
   .workout-header [data-slot="badge"] { display: none; }
@@ -494,8 +500,8 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
   .set-number { width: 44px; }
   .set-input span { font-size: .75rem; letter-spacing: .02em; }
   .activity-basics .field-label { font-size: .75rem; }
-  .rest-timer > div { min-width: 0; }
-  .rest-timer > div:last-child { flex-shrink: 0; }
+  .rest-timer-inner > div { min-width: 0; }
+  .rest-timer-inner > :last-child { flex-shrink: 0; }
 }
 
 /* Phone workout flow: keep attention on the next action. */
@@ -524,7 +530,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .finish-effort-chip small { font-size: .62rem; color: #9ea796; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .finish-effort-chip.is-active, .finish-effort-chip[aria-pressed="true"] { border-color: var(--lime); background: rgba(var(--theme-accent-rgb),.18); color: var(--lime); }
 .finish-effort-chip.is-active small, .finish-effort-chip[aria-pressed="true"] small { color: #f4f6f0; }
-.rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; bottom: auto; left: 0; border: 0; border-bottom: 1px solid rgba(var(--theme-accent-rgb),.13); border-radius: 0; z-index: 39; gap: 8px; padding: 6px max(12px,calc((100vw - 864px)/2)); }
+.rest-timer { position: fixed; top: var(--workout-content-offset); right: 0; bottom: auto; border: 0; border-bottom: 1px solid rgba(var(--theme-accent-rgb),.13); border-radius: 0; z-index: 39; }
 .rest-timer-copy { flex: 1; min-width: 0; }
 .rest-timer-copy > p:first-child { display: flex; align-items: baseline; gap: 8px; }
 .rest-next { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,.55); font-size: .75rem; }
@@ -565,7 +571,7 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .exercise-card .plate-visualizer { min-height: 24px; }
 @media (max-width: 640px) {
   .mobile-nav { bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 8px); }
-  .rest-timer { top: var(--workout-content-offset); bottom: auto; left: 0; right: 0; padding-inline: 12px; }
+  .rest-timer { top: var(--workout-content-offset); bottom: auto; left: 0; right: 0; }
 }
 
 /* Keep circuit/mobility content inside its activity card on narrow or zoomed screens. */
@@ -1087,7 +1093,7 @@ html[data-coach-theme] { --primary:var(--lime); --ring:var(--lime); --chart-1:va
   }
   .workout-shell.has-rest-timer .rest-timer {
     min-height: 48px;
-    padding: 4px 12px;
+    padding-block: 4px;
   }
 }
 html[data-app-standalone="true"] body::before {

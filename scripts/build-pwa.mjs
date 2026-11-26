@@ -13,6 +13,10 @@ const assets = files.map(path => relative(dist, path).replaceAll("\\", "/")).fil
 const html = await readFile(join(dist, "index.html"), "utf8");
 const entry = /<script[^>]+src="([^"]+)"/.exec(html)?.[1];
 if (!entry) throw new Error("Build is missing its entry script");
+const releaseSource = await readFile(join(root, "app/app-release.ts"), "utf8");
+const releaseNumber = releaseSource.match(/APP_RELEASE\s*=\s*"v(\d+)"/)?.[1];
+if (!releaseNumber) throw new Error("app/app-release.ts must declare APP_RELEASE as \"v<number>\"");
+const releaseTag = releaseNumber.padStart(5, "0");
 const digest = createHash("sha256");
 const assetHashes = {};
 for (const file of files) {
@@ -25,7 +29,7 @@ digest.update(await readFile(fileURLToPath(import.meta.url)));
 const release = digest.digest("hex").slice(0, 20);
 const worker = `const ROOT = new URL("./", self.registration.scope);
 const PREFIX = "coach-loop-pages:" + encodeURIComponent(ROOT.pathname) + ":";
-const CACHE = PREFIX + String(Date.now()).padStart(13, "0") + ":" + ${JSON.stringify(release)};
+const CACHE = PREFIX + ${JSON.stringify(`${releaseTag}:`)} + ${JSON.stringify(release)};
 const ASSETS = ${JSON.stringify(["./", ...assets.map(path => `./${path}`)])};
 const HASHES = ${JSON.stringify(assetHashes)};
 const ENTRY = ${JSON.stringify(entry)};
@@ -45,7 +49,12 @@ self.addEventListener("install", event => event.waitUntil((async () => {
 self.addEventListener("activate", event => event.waitUntil((async () => {
   const names = (await caches.keys()).filter(name => name.startsWith(PREFIX)).sort();
   // Retain one preceding release during the deliberate controller-swap/reload.
-  const keep = new Set([CACHE, ...names.filter(name => name !== CACHE).slice(-1)]);
+  // Prefer a version-tagged cache (":00124:<digest>"): timestamp-tagged caches
+  // from v123 and earlier sort after them lexicographically ("1..." > "0..."),
+  // so without this the oldest pre-v124 cache would be retained forever.
+  const tagged = names.filter(name => name !== CACHE && /:\d{5}:[0-9a-f]{20}$/.test(name));
+  const prior = tagged.length ? tagged.at(-1) : names.filter(name => name !== CACHE).at(-1);
+  const keep = new Set([CACHE, ...(prior ? [prior] : [])]);
   await Promise.all(names.filter(name => !keep.has(name)).map(name => caches.delete(name)));
   await self.clients.claim();
 })()));

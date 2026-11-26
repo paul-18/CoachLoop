@@ -7,8 +7,8 @@ import { APP_RELEASE } from "../app/app-release";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("v123: APP_RELEASE is v123", () => {
-  assert.equal(APP_RELEASE, "v123");
+test("v124: APP_RELEASE is v124", () => {
+  assert.equal(APP_RELEASE, "v124");
 });
 
 test("v116: dialog styling enforces screen margin gutters", () => {
