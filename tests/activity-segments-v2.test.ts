@@ -4,6 +4,7 @@ import { defaultState, localDate, makeCardio, makeWorkout } from "../app/domain/
 import { canCompleteAsPrescribed, completeActivity, completeSegmentGroup, formatSegmentMeasure, repeatedSegments, segmentCounts, segmentGroupProgress, segmentMeasure, segmentMismatch } from "../app/domain/activity-segments";
 import { parseFitlog } from "../app/interchange/fitlog";
 import { activityBreakdownForLastDays } from "../app/domain/training-coverage";
+import { activityRows, activityTotals } from "../app/domain/training-workflow";
 import { unusualActivityWarning } from "../app/domain/activity-plausibility";
 import { validateSyncedState } from "../app/persistence/training-validation";
 
@@ -75,7 +76,7 @@ test("mismatch warning is over 30 seconds and leaves summary and segment values 
   assert.equal(within.segments?.[0].plannedDurationSec, 300);
 });
 
-test("running totals count one run session and exclude walk segments", () => {
+test("running totals agree with History: one run session, every segment counted", () => {
   const workout = makeWorkout("lb", 120);
   workout.date = localDate();
   workout.status = "completed";
@@ -88,8 +89,57 @@ test("running totals count one run session and exclude walk segments", () => {
   workout.blockOrder = [{ type: "activity", id: activity.id }];
   const totals = activityBreakdownForLastDays({ ...defaultState(), workouts: [workout] }, "lb").runs;
   assert.equal(totals.sessions, 1);
-  assert.equal(totals.minutes, 4);
-  assert.equal(totals.distanceKm, 1);
+  assert.equal(totals.minutes, 14);
+  assert.equal(totals.distanceKm, 1.5);
+});
+
+test("summary wins over segments in the Progress card and Monthly review", () => {
+  const activity = { ...makeCardio("run"), completed: true, actualDurationMin: 20, actualDistanceKm: 3, segments: [
+    { ...unknown("r", "run", 600), status: "completed" as const, plannedDistanceM: 1500 },
+  ] };
+  const workout = makeWorkout("lb", 120);
+  workout.date = localDate();
+  workout.status = "completed";
+  workout.completedAt = new Date().toISOString();
+  workout.cardio = [activity];
+  workout.blockOrder = [{ type: "activity", id: activity.id }];
+  const state = { ...defaultState(), workouts: [workout] };
+  const card = activityBreakdownForLastDays(state, "lb").runs;
+  assert.equal(card.sessions, 1);
+  assert.equal(card.minutes, 20);
+  assert.equal(card.distanceKm, 3);
+  assert.equal(card.minutesIncomplete, false);
+  assert.equal(card.distanceIncomplete, false);
+  const review = activityTotals(activityRows(state));
+  assert.equal(review.minutes, 20);
+  assert.equal(review.distance, 3);
+  assert.equal(review.minutesIncomplete, false);
+  assert.equal(review.distanceIncomplete, false);
+});
+
+test("partly recorded segments with no summary contribute nothing and flag both views incomplete", () => {
+  const activity = { ...makeCardio("run"), completed: true, segments: [
+    { ...unknown("done", "run", 600), status: "completed" as const, plannedDistanceM: 1500 },
+    { ...unknown("missing", "run", 600), status: "modified" as const },
+  ] };
+  const workout = makeWorkout("lb", 120);
+  workout.date = localDate();
+  workout.status = "completed";
+  workout.completedAt = new Date().toISOString();
+  workout.cardio = [activity];
+  workout.blockOrder = [{ type: "activity", id: activity.id }];
+  const state = { ...defaultState(), workouts: [workout] };
+  const card = activityBreakdownForLastDays(state, "lb").runs;
+  assert.equal(card.sessions, 1);
+  assert.equal(card.minutes, 0);
+  assert.equal(card.distanceKm, 0);
+  assert.equal(card.minutesIncomplete, true);
+  assert.equal(card.distanceIncomplete, true);
+  const review = activityTotals(activityRows(state));
+  assert.equal(review.minutes, 0);
+  assert.equal(review.distance, 0);
+  assert.equal(review.minutesIncomplete, true);
+  assert.equal(review.distanceIncomplete, true);
 });
 
 test("segment plausibility checks run and walk by their own kind and ignores duration-only parts", () => {

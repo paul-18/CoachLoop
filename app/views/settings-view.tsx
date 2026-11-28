@@ -2,7 +2,7 @@ import { orderedQuickLogOptions } from "../domain/quick-log-order";
 import { GoalExamples, goalListKey, goalsAreStarter } from "./goal-examples";
 import { BackupVerification } from "./backup-verification";
 import { useStorageHealth } from "../pwa/use-storage-health";
-import { parseBackupReview, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
+import { parseBackupReview, parseBackupReviewLarge, serializeBackup, backupChanges, MAX_BACKUP_BYTES, LARGE_BACKUP_BYTES, type RestoreMode } from "../persistence/backup-tools";
 import { reviewRestore, restoreDetails, sharedProvenance, type ReviewedRestore } from "../persistence/backup-review";
 import { exportTrainingCsv } from "../interchange/training-csv";
 /* External persistence, timers, and controlled-dialog hydration intentionally update state in effects. */
@@ -91,6 +91,11 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
   const [restoreCandidate, setRestoreCandidate] = useState<TrainingState | null>(null);
   const [restoreWarning, setRestoreWarning] = useState<string | null>(null);
   const [restoreWarningAcknowledged, setRestoreWarningAcknowledged] = useState(false);
+  const lastBackupAt = state.settings.lastBackupAt;
+  const sessionsSinceBackup = state.workouts.filter((workout) => {
+    if (workout.status !== "completed" || !lastBackupAt) return false;
+    return (workout.completedAt ?? workout.updatedAt ?? workout.createdAt) > lastBackupAt;
+  }).length;
 
   useEffect(() => { setInstalled(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true); }, []);
   const [scheduleDate, setScheduleDate] = useState(localDate());
@@ -141,7 +146,8 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
     if (demoActive) { toast.error("Exit demo before restoring a backup"); return; }
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Backup exceeds the 50 MB limit; keep the file and your existing log");
-      const review = parseBackupReview(await file.text());
+      if (file.size > LARGE_BACKUP_BYTES) toast("Reading large backup…");
+      const review = file.size > LARGE_BACKUP_BYTES ? await parseBackupReviewLarge(file) : parseBackupReview(await file.text());
       setRestoreMode("merge"); setRecover(false); setRestoreNotices(review.notices); setRestoreWarning(review.newerReleaseWarning); setRestoreWarningAcknowledged(!review.newerReleaseWarning); setRestoreCandidate(review.state);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "That file is not a valid Coach Loop backup");
@@ -192,7 +198,7 @@ export function SettingsView({ openSection, onSectionOpened, state, canonicalSta
       <section id="backup" className="settings-panel">
         <div className="settings-title"><div><h2>Backup & export</h2><p>{demoActive ? "Backup, restore, and export are off in demo mode. Exit demo to use your real log." : "Save a backup file for recovery. Merge keeps newer revisions; Complete restore replaces the current log with the backup. Backup export and restore support up to 50 MB. The file is structured workout data this app can read back. Export CSV to view your training in a spreadsheet."}</p></div><DatabaseBackup className="text-[var(--lime)]" /></div>
         <div className="grid gap-3 sm:grid-cols-2"><Button disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onClick={exportBackup} className={cn("h-12 font-black", demoActive ? "border border-white/10 bg-white/5 text-white/40" : "bg-[var(--lime)] text-[#11140d] hover:bg-[var(--lime)]/90")}><FileJson /> Download full backup</Button><Button variant="outline" disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onClick={exportCsv} className="h-12 border-white/10 bg-white/[0.025] text-white"><Download /> Export CSV</Button><Button variant="outline" disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onClick={() => { toast("Opening file chooser…"); fileRef.current?.click(); }} className="h-12 border-white/10 bg-white/[0.025] text-white sm:col-span-2"><Import /> Restore backup</Button><input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></div>
-        <div className="flex flex-wrap gap-3"><Button variant="outline" className="mt-3 min-h-11" disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onClick={() => void shareBackup()}>Share backup / Save to Files</Button><BackupVerification /></div><p className="mt-4 text-xs leading-5 text-white/60">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}. Save that file somewhere you control. On an iPhone, Files or iCloud Drive works. On another phone or a computer, use that device’s files or a drive you trust. iCloud Drive is not on every device. Verify saved backup lets you inspect the file without restoring it.</p>
+        <div className="flex flex-wrap gap-3"><Button variant="outline" className="mt-3 min-h-11" disabled={demoActive} title={demoActive ? "Disabled in demo mode" : undefined} onClick={() => void shareBackup()}>Share backup / Save to Files</Button><BackupVerification /></div><p className="mt-4 text-xs leading-5 text-white/60">Last backup requested: {state.settings.lastBackupAt ? new Date(state.settings.lastBackupAt).toLocaleString() : "Never"}.{sessionsSinceBackup > 0 ? ` ${sessionsSinceBackup} completed session${sessionsSinceBackup === 1 ? "" : "s"} since that backup — worth saving a fresh copy.` : ""} Save that file somewhere you control. On an iPhone, Files or iCloud Drive works. On another phone or a computer, use that device’s files or a drive you trust. iCloud Drive is not on every device. Verify saved backup lets you inspect the file without restoring it.</p>
       </section>
       <details className="page-disclosure" onToggle={event => { if (!demoActive && event.currentTarget.open) void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read")); }}><summary><span>Recovery copies<small>{demoActive ? "Downloads are off in demo mode" : "Automatic copies saved on this device"}</small></span><ChevronDown /></summary><div className="settings-panel space-y-3"><Button variant="outline" size="sm" disabled={demoActive} onClick={() => void listSnapshots().then(setSnapshots).catch(() => toast.error("Recovery copies could not be read"))}>Refresh copies</Button>{snapshots.length ? snapshots.map((snapshot) => <div key={snapshot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 p-3"><p className="text-sm">{new Date(snapshot.createdAt).toLocaleString()} · {({ "workout-complete": "Workout saved", "before-start": "Before starting a workout", "before-restore": "Before restoring a backup", "before-reset": "Before resetting data" } as Record<string, string>)[snapshot.reason] ?? "Saved checkpoint"}</p><Button size="sm" variant="outline" disabled={demoActive} onClick={() => void loadSnapshot(snapshot.id).then((copy) => { if (copy) downloadText(JSON.stringify(copy.state, null, 2), `coach-loop-recovery-${copy.id}.json`, "application/json"); }).catch(() => toast.error("Copy could not be downloaded"))}>Download copy</Button></div>) : <p className="text-sm text-white/50">{demoActive ? "Exit demo to download a recovery copy." : "No recovery copies yet."}</p>}</div></details>
       <details id="training-goals" className="settings-panel profile-editor">

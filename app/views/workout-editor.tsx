@@ -32,7 +32,7 @@ import { insertExerciseSet } from "../domain/exercise-sets";
 import { editedSet, setEvidenceError } from "../domain/completion";
 import { normalizedBlockOrder } from "../domain/block-order";
 import { WorkoutDateDialog } from "./workout-date-dialog";
-import { activityStillOpen, exerciseProgressCopy, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, supersetGroupExercises, supersetLabels, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
+import { activityStillOpen, duplicateExerciseNames, exerciseProgressCopy, hasTrainingEvidence, markTypedActivitiesComplete, nextOpenBlock, nextRestTarget, setDisplayNumbers, shouldPromptForUnconfirmedActuals, supersetGroupExercises, supersetLabels, unconfirmedActualActivities, unconfirmedActualKey, workoutCompletionSummary, workoutProgressCopy } from "../domain/completion";
 import { unusualActivityWarning, unusualSaveLabel, unusualWorkoutWarning } from "../domain/activity-plausibility";
 import { planDifferences } from "../domain/plan-review";
 import { RunPlan } from "./run-plan";
@@ -1344,6 +1344,7 @@ export function WorkoutEditor({
   onIncrement,
   demoMode = false,
   quickLogActivityId = null,
+  backLabel = "Back to today",
 }: {
   workout: WorkoutSession;
   state: TrainingState;
@@ -1356,6 +1357,7 @@ export function WorkoutEditor({
   onIncrement: (key: string, value: number) => void;
   demoMode?: boolean;
   quickLogActivityId?: string | null;
+  backLabel?: string;
 }) {
   const [substitutionId, setSubstitutionId] = useState<string|null>(null);
   const substitutionAnchor = useRef<HTMLButtonElement | null>(null);
@@ -1498,6 +1500,13 @@ export function WorkoutEditor({
     const next = { ...current, exercises: current.exercises.map((item) => item.id === exercise.id ? exercise : item) };
     latestWorkout.current = next;
     onUpdate(next);
+    const prevName = prevExercise?.name.trim() ?? "";
+    const newName = exercise.name.trim();
+    if (newName && exerciseIdentity(newName, state.exerciseAliases) !== exerciseIdentity(prevName, state.exerciseAliases)
+      && exerciseIdentity(newName, state.exerciseAliases) !== "new exercise"
+      && next.exercises.some((item) => item.id !== exercise.id && exerciseIdentity(item.name, state.exerciseAliases) === exerciseIdentity(newName, state.exerciseAliases))) {
+      toast(`“${newName}” is already in this workout — the sets stay separate.`);
+    }
     if (restFrom?.blockId === exercise.id) {
       const activeSet = exercise.sets.find((s) => s.id === restFrom.setId);
       if (!activeSet || !activeSet.completed) {
@@ -1592,6 +1601,7 @@ export function WorkoutEditor({
 
   const progress = workoutProgressCopy(workout);
   const reviewWorkout = finishCandidate ?? workout;
+  const duplicateNames = duplicateExerciseNames(reviewWorkout, state.exerciseAliases);
   const personalRecords = useMemo(() => workoutPersonalRecords(state, reviewWorkout), [state, reviewWorkout]);
   const supersets = useMemo(() => supersetLabels(workout), [workout]);
   const unusual = unusualWorkoutWarning(reviewWorkout);
@@ -1612,10 +1622,20 @@ export function WorkoutEditor({
       setActualsPromptOpen(true);
       return;
     }
+    if (!hasTrainingEvidence(workout)) {
+      toast.error(isEditingHistory
+        ? "Nothing is marked complete yet — this edit would leave an empty session. Complete at least one set or activity, or delete the workout from History."
+        : "Nothing is marked complete yet — complete at least one set or activity, or discard this workout from the menu.");
+      return;
+    }
     setFinishOpen(true);
   };
   const finishFromActualsPrompt = (markComplete: boolean) => {
     const next = markComplete ? markTypedActivitiesComplete(workout, pendingActuals.map((activity) => activity.id)) : workout;
+    if (!markComplete && !hasTrainingEvidence(next)) {
+      toast.error("Nothing is marked complete yet — mark these results complete to finish this workout.");
+      return;
+    }
     acknowledgedActuals.current = markComplete ? null : unconfirmedActualKey(workout);
     setFinishCandidate(next);
     setActualsPromptOpen(false);
@@ -1626,7 +1646,7 @@ export function WorkoutEditor({
   return (
     <div ref={shellRef} className={`workout-shell ${restUntil ? "has-rest-timer" : ""} ${demoMode ? "in-demo" : ""}`}>
       <header ref={headerRef} className="workout-header">
-        <Button variant="ghost" size="icon" onClick={() => { onUpdate(latestWorkout.current); onBack(); }} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label="Back to today"><ArrowLeft /></Button>
+        <Button variant="ghost" size="icon" onClick={() => { onUpdate(latestWorkout.current); onBack(); }} className="min-h-11 min-w-11 text-white/65 hover:bg-white/8 hover:text-white" aria-label={backLabel}><ArrowLeft /></Button>
         <div className="workout-header-title min-w-0 flex-1 overflow-hidden">
           {renaming ? <Input autoFocus value={workout.name} onChange={(event) => onUpdate({ ...workout, name: event.target.value })} onBlur={() => setRenaming(false)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === "Escape") setRenaming(false); }} aria-label="Workout name" className="h-auto border-0 bg-transparent px-0 py-0 text-lg font-black tracking-[-0.04em] shadow-none focus-visible:ring-2" /> : <h1 className="truncate text-lg font-black tracking-[-0.04em]">{workout.name}</h1>}
           <p className="workout-header-progress mt-1 text-xs text-white/55" title={progress}>{progress || "Nothing to log"} · <span role={saveStatus === "error" ? "alert" : "status"} aria-live="polite">{demoMode ? "Demo · not saved" : saveStatus === "error" ? "Not saved · retry" : saveStatus === "saving" ? "Saving…" : "Saved"}</span></p>
@@ -1755,7 +1775,7 @@ export function WorkoutEditor({
           <AlertDialog open={finishOpen} onOpenChange={open => { if (!finishing) setFinishOpen(open); if (!open) { setFinishCandidate(null); acknowledgedActuals.current = null; } if (!open && finishFromMenu.current) queueMicrotask(() => { workoutOptionsRef.current?.focus(); finishFromMenu.current = false; }); }}>
             <Button onClick={() => openFinish(false)} className="h-12 bg-[var(--lime)] px-6 font-black text-[#11140d] hover:bg-[var(--lime)]/90"><Check /> {finishLabel}</Button>
             <AlertDialogContent onCloseAutoFocus={(event) => { if (!finishFromMenu.current) return; event.preventDefault(); workoutOptionsRef.current?.focus(); }} className="max-h-[85dvh] overflow-y-auto border-white/10 bg-[#171916] text-white">
-              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} ${skippedSets === 1 ? "set" : "sets"} explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogHeader><AlertDialogTitle>{finishLabel}</AlertDialogTitle><AlertDialogDescription className="text-white/60">{workoutCompletionSummary(reviewWorkout)}{duplicateNames.length ? ` ${duplicateNames.map((name) => `“${name}” appears twice`).join("; ")} — the sets stay separate.` : ""}{unfinishedSets + unfinishedActivities > 0 ? ` ${unfinishedSets ? `${unfinishedSets} unfinished set${unfinishedSets === 1 ? "" : "s"}` : ""}${unfinishedSets && unfinishedActivities ? " and " : ""}${unfinishedActivities ? `${unfinishedActivities} unfinished activit${unfinishedActivities === 1 ? "y" : "ies"}` : ""} will remain marked incomplete in history.` : skippedSets ? ` ${skippedSets} ${skippedSets === 1 ? "set" : "sets"} explicitly skipped.` : " Everything is complete."}</AlertDialogDescription></AlertDialogHeader>
               {unusual && <p role="status" className="activity-warning">{unusual}</p>}
               {reviewWorkout.cardio.flatMap(activity => { const mismatch = segmentMismatch(activity); return mismatch ? [{ activity, mismatch }] : []; }).map(({ activity, mismatch }) => <p key={activity.id} role="note" className="activity-warning">{activity.name}: {mismatch.message}</p>)}
               <div className="finish-review">

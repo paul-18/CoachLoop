@@ -7,6 +7,7 @@ import { repeatWorkoutDraft, replanWorkoutDraft, templateWorkoutDraft } from "..
 import { makeHyroxWorkout } from "../domain/hyrox";
 import { makeCardio, makeWorkout, type CardioEntry, type WorkoutSession } from "../domain/training-types";
 import { formatDate, type MainView } from "../views/shared";
+import { hasTrainingEvidence } from "../domain/completion";
 import type { useTrainingPersistence } from "../persistence/use-training-persistence";
 
 export function useWorkoutController(persistence: ReturnType<typeof useTrainingPersistence>, navigateTab: (value: MainView) => void) {
@@ -124,6 +125,10 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   const finishWorkout = async (updatedWorkout?: WorkoutSession) => {
     const finishingWorkout = updatedWorkout ?? selectedActiveWorkout(liveStateRef.current);
     if (!finishingWorkout) return;
+    if (!hasTrainingEvidence(finishingWorkout)) {
+      toast.error("Nothing is marked complete yet — complete at least one set or activity, or discard this workout.");
+      return;
+    }
     const next = await commitState(current => finishWorkoutState(current, finishingWorkout));
     saveRecoveryCopy(next, "workout-complete");
     setWorkoutOpen(false);
@@ -174,6 +179,10 @@ export function useWorkoutController(persistence: ReturnType<typeof useTrainingP
   };
   const finishEditor = async (updated?: WorkoutSession) => {
     if (editingWorkoutId) {
+      if (updated && !hasTrainingEvidence(updated)) {
+        toast.error("Nothing is marked complete yet — this edit would leave an empty session. Complete at least one set or activity, or delete the workout from History.");
+        return;
+      }
       await commitState(current => updated ? { ...current, workouts: current.workouts.map(item => item.id === updated.id ? { ...updated, updatedAt: new Date().toISOString() } : item) } : current);
       leaveEditor();
       toast("History edit complete");

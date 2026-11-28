@@ -116,8 +116,7 @@ export const exerciseMappingEntries = (state: TrainingState) => {
 
 export const coverageExerciseKey = exerciseKey;
 
-import { hasCompletedActivityWork, performedDuration, performedDistance } from "./completion";
-import { segmentMeasure } from "./activity-segments";
+import { hasCompletedActivityWork, performedActivityMeasure } from "./completion";
 type ActivityTotals = { sessions: number; minutes: number; distanceKm: number; dates: string[]; minutesIncomplete: boolean; distanceIncomplete: boolean };
 const emptyActivityTotals = (): ActivityTotals => ({ sessions: 0, minutes: 0, distanceKm: 0, dates: [], minutesIncomplete: false, distanceIncomplete: false });
 
@@ -129,16 +128,11 @@ export const activityBreakdownForLastDays = (state: TrainingState, unit: Unit, d
       if (!hasCompletedActivityWork(item)) return;
       const totals = item.activityType === "run" ? result.runs : item.activityType === "water_polo" ? result.waterPolo : item.activityType === "ruck" ? result.rucks : item.activityType === "circuit" ? result.circuits : null;
       if (!totals) return;
-      const segmentDuration = item.segments?.length ? segmentMeasure(item, "duration", item.activityType === "run" ? "run" : undefined) : null;
-      const segmentDistance = item.segments?.length ? segmentMeasure(item, "distance", item.activityType === "run" ? "run" : undefined) : null;
-      const runningDuration = item.activityType === "run" ? segmentDuration : null;
-      const runningDistance = item.activityType === "run" ? segmentDistance : null;
-      const minutes = runningDuration ? runningDuration.value === null ? 0 : runningDuration.value / 60 : performedDuration(item) ?? 0;
-      const distance = runningDistance ? runningDistance.value === null ? 0 : runningDistance.value / 1000 : performedDistance(item) ?? 0;
-      if (segmentDuration && segmentDuration.done && !segmentDuration.fullyRecorded) totals.minutesIncomplete = true;
-      else if (!segmentDuration && performedDuration(item) === null) totals.minutesIncomplete = true;
-      if (segmentDistance && segmentDistance.done && !segmentDistance.fullyRecorded) totals.distanceIncomplete = true;
-      else if (!segmentDistance && performedDistance(item) === null) totals.distanceIncomplete = true;
+      const measure = performedActivityMeasure(item);
+      const minutes = measure.minutes ?? 0;
+      const distance = measure.distanceKm ?? 0;
+      if (measure.minutesIncomplete) totals.minutesIncomplete = true;
+      if (measure.distanceIncomplete) totals.distanceIncomplete = true;
       totals.sessions += 1;
       totals.minutes += minutes;
       totals.distanceKm += distance;

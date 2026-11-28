@@ -15,6 +15,41 @@ export function serializeBackup(state: TrainingState): string {
   return text;
 }
 export function parseBackup(text: string): TrainingState { return parseBackupReview(text).state; }
+
+/** Parse a large backup in a worker so the page stays responsive. Falls back to the main thread when workers cannot start. */
+export async function parseBackupReviewLarge(file: File): Promise<ReturnType<typeof parseBackupReview>> {
+  try {
+    return await parseBackupReviewInWorker(file);
+  } catch (error) {
+    if (error instanceof Error && /worker/i.test(error.message)) return parseBackupReview(await file.text());
+    throw error;
+  }
+}
+
+function parseBackupReviewInWorker(file: File): Promise<ReturnType<typeof parseBackupReview>> {
+  return new Promise((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL("./backup-worker.ts", import.meta.url), { type: "module" });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error("Backup worker failed to start"));
+      return;
+    }
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; review?: ReturnType<typeof parseBackupReview>; message?: string }>) => {
+      worker.terminate();
+      if (event.data.ok && event.data.review) resolve(event.data.review);
+      else reject(new Error(event.data.message ?? "That file is not a valid Coach Loop backup"));
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      reject(new Error("Backup worker failed to start"));
+    };
+    file.arrayBuffer().then(
+      (buffer) => worker.postMessage({ buffer }, [buffer]),
+      (error) => { worker.terminate(); reject(error instanceof Error ? error : new Error("Could not read the backup file")); },
+    );
+  });
+}
 /** Returns migration disclosures without writing or mutating the selected file. */
 export function parseBackupReview(text: string): { state: TrainingState; notices: string[]; writtenByRelease: string | null; newerReleaseWarning: string | null } {
   checkBackupSize(text);

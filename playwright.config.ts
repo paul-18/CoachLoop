@@ -14,7 +14,7 @@ export default defineConfig({
   projects: [
     {
       name: "webkit",
-      testMatch: ["**/mobile-navigation.spec.ts", "**/dialog-escape.spec.ts"],
+      testMatch: ["**/mobile-navigation.spec.ts", "**/dialog-escape.spec.ts", "**/date-picker.spec.ts", "**/modal-close.spec.ts", "**/finish-empty.spec.ts", "**/toast-offset.spec.ts", "**/large-backup.spec.ts"],
       use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
     {

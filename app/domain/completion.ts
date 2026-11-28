@@ -1,6 +1,7 @@
 import type { ActivityEffort, CardioEntry, ExerciseBlock, TrainingSet, WorkoutSession } from "./training-types";
 import { normalizedBlockOrder } from "./block-order";
 import { segmentCounts, segmentHasTypedActual, segmentMeasure } from "./activity-segments";
+import { canonicalExerciseName, exerciseIdentity } from "./exercise-identity";
 export const hasCompletedActivityWork = (activity: CardioEntry) => !activity.skipped && (activity.segments?.length
   ? segmentCounts(activity.segments).done > 0
   : activity.completed || !!activity.efforts?.some((e) => e.completed) || (activity.roundsDone ?? 0) > 0);
@@ -31,6 +32,24 @@ export const performedDistance = (activity: CardioEntry) => {
     return completedEfforts.reduce((sum, e) => sum + e.actualDistanceM! / 1000, 0);
   }
   return null;
+};
+
+/** One shared performed measure for an activity, used by every view that
+ * totals it (History, Progress cards, Activity histories, Monthly review,
+ * coach export): the summary wins and the segments are the breakdown. An
+ * activity is "not fully recorded" only when it has completed work whose
+ * segments are partly recorded and there is no summary to stand in. */
+export const performedActivityMeasure = (activity: CardioEntry) => {
+  const minutes = performedDuration(activity);
+  const distanceKm = performedDistance(activity);
+  const durationMeasure = activity.segments?.length ? segmentMeasure(activity, "duration") : null;
+  const distanceMeasure = activity.segments?.length ? segmentMeasure(activity, "distance") : null;
+  return {
+    minutes,
+    distanceKm,
+    minutesIncomplete: minutes === null && ((durationMeasure !== null && durationMeasure.done > 0 && !durationMeasure.fullyRecorded) || durationMeasure === null),
+    distanceIncomplete: distanceKm === null && ((distanceMeasure !== null && distanceMeasure.done > 0 && !distanceMeasure.fullyRecorded) || distanceMeasure === null),
+  };
 };
 
 /** Print a measured total. Does not change stored metres, seconds or sums. */
@@ -70,6 +89,7 @@ export const parseExactReps = (value: string) => {
  * records remain readable; an invalid new edit becomes an incomplete draft. */
 export function setEvidenceError(set: TrainingSet): string | null {
   if (!/^[1-9]\d*$/.test(set.actualReps.trim())) return "Enter actual reps as a positive whole number";
+  if (Number(set.actualReps) > 5000) return "Actual reps must not exceed 5,000";
   if (set.actualWeight !== null && (set.actualWeight < 0 || set.actualWeight > 5000 || Number.isNaN(set.actualWeight))) return "Actual load must be between 0 and 5,000";
   if (set.rpe.trim() && set.rir.trim()) return "Use either RPE or RIR, not both";
   const effort = (text: string, min: number, max: number) => !text.trim() || (/^\d+(?:\.\d+)?$/.test(text.trim()) && Number(text) >= min && Number(text) <= max);
@@ -284,9 +304,24 @@ export function workoutProgressCopy(workout: WorkoutSession): string {
 export function workoutCompletionSummary(workout: WorkoutSession): string {
   const progress = workoutProgressCopy(workout);
   const anyDone = progress.split(" · ").some(part => Number(/(\d+)\s*\//.exec(part)?.[1] ?? 0) > 0);
-  if (!anyDone) return "Nothing is marked complete yet, but you can still save the session.";
+  if (!anyDone) return "Nothing is marked complete yet.";
   return `${progress} complete.`;
 }
+
+/** Names used by more than one exercise in a workout, by canonical identity. Blank names and the "New exercise" placeholder are not counted. */
+export const duplicateExerciseNames = (workout: WorkoutSession, aliases: Record<string, string> = {}): string[] => {
+  const counts = new Map<string, { name: string; count: number }>();
+  workout.exercises.forEach((exercise) => {
+    const name = exercise.name.trim();
+    if (!name) return;
+    const identity = exerciseIdentity(name, aliases);
+    if (identity === "new exercise") return;
+    const entry = counts.get(identity);
+    if (entry) entry.count += 1;
+    else counts.set(identity, { name: canonicalExerciseName(name, aliases), count: 1 });
+  });
+  return [...counts.values()].filter((entry) => entry.count > 1).map((entry) => entry.name);
+};
 
 export function hasGenuineTraining(workout: WorkoutSession) {
   const workingSet = workout.exercises.some(exercise => exercise.sets.some(set => set.completed && !set.skipped && !set.warmup));

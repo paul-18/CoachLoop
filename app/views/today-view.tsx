@@ -24,7 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { buildCoachPrompt } from "../interchange/coach-export";
 
 import { type SyncStatus } from "../persistence/cloud-sync";
-import { exampleSafeImportFitlog, parseFitlog } from "../interchange/fitlog";
+import { exampleSafeImportFitlog, parseFitlog, suggestFitlogFix } from "../interchange/fitlog";
 
 import { formatLoad, formatMeasure } from "../domain/training-metrics";
 import { previewSegmentRows } from "../domain/activity-segments";
@@ -122,6 +122,7 @@ export function ImportWorkoutDialog({
     : [];
   const duplicate = duplicates[0];
   const needsWarningReview = Boolean(preview?.importWarnings?.length) && !warningsReviewed;
+  const fixHint = error ? suggestFitlogFix(error) : null;
   const apply = async (start: boolean) => {
     if (!preview || saving) return;
     setSaving(true); setSaveError("");
@@ -155,6 +156,7 @@ export function ImportWorkoutDialog({
               {error && (
                 <div className="rounded-xl border border-red-400/20 bg-red-400/8 p-4 text-sm leading-6 text-red-100">
                   {error} Use the Coach screen first so your AI chat receives the exact format.
+                  {fixHint && <p className="mt-2 font-semibold">Fix: {fixHint}</p>}
                 </div>
               )}
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">

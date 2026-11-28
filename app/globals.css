@@ -8,6 +8,7 @@
 :root {
   --app-safe-top: env(safe-area-inset-top, 0px);
   --banner-height: 0px;
+  --reliability-bar-height: 0px;
   --workout-header-clearance: 0px;
   --background: #10120f; --foreground: #f5f7ef; --card: #171916; --card-foreground: #f5f7ef;
   --popover: #171916; --popover-foreground: #f5f7ef; --primary: #c6ff4a; --primary-foreground: #11140d;
@@ -688,7 +689,8 @@ input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.4); opa
 .demo-bar strong { font-size: .84rem; }
 .demo-bar span { flex: 1; min-width: 12rem; font-size: .82rem; line-height: 1.4; }
 .demo-bar button { min-height: 44px; }
-body:has(.demo-bar) [data-sonner-toaster][data-y-position="top"] { top: calc(var(--banner-height) + env(safe-area-inset-top, 0px)) !important; z-index: 100; }
+/* Top toasts sit below the demo bar and the Undo-import bar instead of covering them. */
+[data-sonner-toaster][data-y-position="top"] { top: calc(var(--banner-height, 0px) + var(--reliability-bar-height, 0px) + env(safe-area-inset-top, 0px) + 16px) !important; z-index: 100; }
 .activity-warning { margin: 8px 0 0; color: #f3d48a; font-size: .82rem; line-height: 1.45; }
 .goal-text-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 420px; gap: 14px; border-color: rgba(255,255,255,.56); background: #151713; color: white; }
 .goal-text-dialog [data-slot="dialog-description"] { color: rgba(255,255,255,.65); }

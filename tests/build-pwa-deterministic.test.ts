@@ -22,8 +22,8 @@ test("build-pwa produces byte-identical sw.js across two runs", { timeout: 180_0
   // The cache name carries a zero-padded release number, not a timestamp.
   const match = /const CACHE = PREFIX \+ "(\d{5}):" \+ "([0-9a-f]{20})";/.exec(first);
   assert.ok(match, "CACHE carries a version tag and digest");
-  assert.equal(match[1], "00125");
+  assert.equal(match[1], "00126");
   assert.equal(match[2].length, 20);
   // Version tags sort chronologically, so activate keeps the true previous release.
-  assert.ok("coach-loop-pages:%2FCoachLoop%2F:00124:aaaaaaaaaaaaaaaaaaaa" < "coach-loop-pages:%2FCoachLoop%2F:00125:aaaaaaaaaaaaaaaaaaaa");
+  assert.ok("coach-loop-pages:%2FCoachLoop%2F:00125:aaaaaaaaaaaaaaaaaaaa" < "coach-loop-pages:%2FCoachLoop%2F:00126:aaaaaaaaaaaaaaaaaaaa");
 });

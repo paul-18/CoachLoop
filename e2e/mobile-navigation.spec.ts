@@ -163,7 +163,8 @@ test("History edit back arrow returns to History with URL and scroll position re
     (window as Window & { __historyEditScroll?: number }).__historyEditScroll ?? window.scrollY
   );
   await expect(page.locator(".workout-header")).toBeVisible();
-  await page.getByRole("button", { name: "Back to today", exact: true }).click();
+  // v126 P1-3: editing from History relabels the button "Back to History".
+  await page.getByRole("button", { name: "Back to History", exact: true }).click();
   await expect(page.getByRole("tab", { name: "History", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("heading", { name: "History", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => new URL(location.href).searchParams.get("view"))).toBe("history");

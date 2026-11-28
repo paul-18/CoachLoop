@@ -1,8 +1,7 @@
 import { makeExercise, makeSet, uid, type WorkoutSession, type TrainingState, type TrainingSet, type Unit } from './training-types';
 import { normalizedBlockOrder } from "./block-order";
-import { segmentMeasure } from "./activity-segments";
-import { hasCompletedActivityWork } from "./completion";
-import { exerciseIdentity, performedDistance, performedDuration, convertWeight } from './training-metrics';
+import { hasCompletedActivityWork, performedActivityMeasure } from "./completion";
+import { exerciseIdentity, convertWeight } from './training-metrics';
 
 /** Copy a result while retaining the destination set's displayed unit. */
 export function matchedPreviousSetValues(previous: TrainingSet, target: TrainingSet): Partial<TrainingSet> {
@@ -116,12 +115,11 @@ export function activityRows(state:TrainingState, type?:string, from='', to='999
 }
 export function activityTotals(rows:ReturnType<typeof activityRows>) {
   return rows.reduce((sum, {activity:a}) => {
-    const duration = a.segments?.length ? segmentMeasure(a, "duration") : null;
-    const distance = a.segments?.length ? segmentMeasure(a, "distance") : null;
-    return {minutes:sum.minutes+(performedDuration(a)??0),distance:sum.distance+(performedDistance(a)??0),
-      ascent:sum.ascent+(a.elevationM??0),ruckKgKm:sum.ruckKgKm+(a.activityType==='ruck' && a.ruckLoad!==null ? convertWeight(a.ruckLoad,a.ruckLoadUnit,'kg')*(performedDistance(a)??0):0),
-      minutesIncomplete: sum.minutesIncomplete || (duration !== null && duration.done > 0 && !duration.fullyRecorded) || (duration === null && performedDuration(a) === null),
-      distanceIncomplete: sum.distanceIncomplete || (distance !== null && distance.done > 0 && !distance.fullyRecorded) || (distance === null && performedDistance(a) === null)};
+    const measure = performedActivityMeasure(a);
+    return {minutes:sum.minutes+(measure.minutes??0),distance:sum.distance+(measure.distanceKm??0),
+      ascent:sum.ascent+(a.elevationM??0),ruckKgKm:sum.ruckKgKm+(a.activityType==='ruck' && a.ruckLoad!==null ? convertWeight(a.ruckLoad,a.ruckLoadUnit,'kg')*(measure.distanceKm??0):0),
+      minutesIncomplete: sum.minutesIncomplete || measure.minutesIncomplete,
+      distanceIncomplete: sum.distanceIncomplete || measure.distanceIncomplete};
   },{minutes:0,distance:0,ascent:0,ruckKgKm:0,minutesIncomplete:false,distanceIncomplete:false});
 }
 export const validMeasurementDate = (date:string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date+'T12:00:00Z')) && new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date;

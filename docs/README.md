@@ -5,7 +5,7 @@ The app README and changelog stay in the repository root.
 - [User README](../README.md)
 - [Changelog](../CHANGELOG.md)
 - [Current upload instructions](../UPDATE-INSTRUCTIONS.txt)
-- [Latest v125 notes](releases/V125-UPDATE-NOTES.md)
+- [Latest v126 notes](releases/V126-UPDATE-NOTES.md)
 - [v124 changelog](../CHANGELOG.md#v124--published)
 - [v123 changelog](../CHANGELOG.md#v123--published)
 - [v122 notes](releases/V122-UPDATE-NOTES.md)

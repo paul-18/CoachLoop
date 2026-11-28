@@ -47,6 +47,13 @@ function DialogOverlay({
   )
 }
 
+const isDateOrTimeInput = (target: EventTarget | null): target is HTMLInputElement =>
+  target instanceof HTMLInputElement && (target.type === "date" || target.type === "time");
+// Focus falling back to the body (or nowhere) is what a native picker does
+// when it takes over; focus landing on a real element is a genuine move.
+const focusLeftForNowhere = (relatedTarget: EventTarget | null) =>
+  !(relatedTarget instanceof HTMLElement) || relatedTarget === document.body || relatedTarget === document.documentElement;
+
 function DialogContent({
   className,
   children,
@@ -58,10 +65,67 @@ function DialogContent({
   showCloseButton?: boolean
 }) {
   const returnFocus = React.useRef<HTMLElement | null>(null);
+  // A native date/time picker lives outside the DOM: when it opens, focus can
+  // leave the input for nowhere and a click on a day can arrive as an outside
+  // pointerdown/click. Track whether a date/time input in this dialog is the
+  // focused one (or just lost focus to nowhere, i.e. the picker took over)
+  // so those interactions never dismiss the dialog. The flag clears when a
+  // value is picked, or when focus lands on a real element.
+  const datePickerActive = React.useRef(false);
+  const suppressForDatePicker = (event: { target: EventTarget | null }, consume: boolean) => {
+    if (datePickerActive.current) {
+      // A suppressed outside pointer interaction is the picker's own click;
+      // consume the guard so the next genuine outside click still closes.
+      if (consume) datePickerActive.current = false;
+      return true;
+    }
+    const isDateOrTime = document.activeElement instanceof HTMLInputElement && (document.activeElement.type === "date" || document.activeElement.type === "time");
+    return isDateOrTime || (event.target instanceof HTMLElement && event.target.closest('input[type="date"], input[type="time"]') !== null);
+  };
+  // Native listeners attached via a callback ref, not React synthetic ones
+  // and not a mount effect: the dialog content mounts only while the dialog
+  // is open, so a mount effect runs while there is no node yet, and React's
+  // focus capture did not fire for a programmatic focus on the date input.
+  // A focusin/focusout listener on the content node itself sees every
+  // descendant focus change.
+  const datePickerCleanup = React.useRef<(() => void) | null>(null);
+  const contentRef = React.useCallback((node: HTMLDivElement | null) => {
+    datePickerCleanup.current?.();
+    datePickerCleanup.current = null;
+    if (!node) return;
+    const onFocusIn = (event: FocusEvent) => {
+      if (isDateOrTimeInput(event.target)) datePickerActive.current = true;
+      else if (event.target instanceof HTMLElement) datePickerActive.current = false;
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      if (!isDateOrTimeInput(event.target)) return;
+      if (!focusLeftForNowhere(event.relatedTarget)) datePickerActive.current = false;
+    };
+    const onChange = (event: Event) => {
+      if (isDateOrTimeInput(event.target)) datePickerActive.current = false;
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      // The tap that opens the picker: focusin does not reliably fire for a
+      // date input in WebKit, so the pointerdown on the input itself is the
+      // dependable signal that the picker is about to open.
+      if (isDateOrTimeInput(event.target)) datePickerActive.current = true;
+    };
+    node.addEventListener("focusin", onFocusIn);
+    node.addEventListener("focusout", onFocusOut);
+    node.addEventListener("change", onChange);
+    node.addEventListener("pointerdown", onPointerDown);
+    datePickerCleanup.current = () => {
+      node.removeEventListener("focusin", onFocusIn);
+      node.removeEventListener("focusout", onFocusOut);
+      node.removeEventListener("change", onChange);
+      node.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, []);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={contentRef}
         data-slot="dialog-content"
         className={cn(
           "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:zoom-in-95 sm:max-w-lg",
@@ -74,16 +138,14 @@ function DialogContent({
           onOpenAutoFocus?.(event);
         }}
         onPointerDownOutside={event => {
-          const isDateOrTime = document.activeElement instanceof HTMLInputElement && (document.activeElement.type === "date" || document.activeElement.type === "time");
-          if (isDateOrTime || (event.target instanceof HTMLElement && event.target.closest('input[type="date"], input[type="time"]'))) {
+          if (suppressForDatePicker(event, true)) {
             event.preventDefault();
             return;
           }
           props.onPointerDownOutside?.(event);
         }}
         onInteractOutside={event => {
-          const isDateOrTime = document.activeElement instanceof HTMLInputElement && (document.activeElement.type === "date" || document.activeElement.type === "time");
-          if (isDateOrTime || (event.target instanceof HTMLElement && event.target.closest('input[type="date"], input[type="time"]'))) {
+          if (suppressForDatePicker(event, false)) {
             event.preventDefault();
             return;
           }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { exampleFitlogV3, FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER, parseFitlog } from "../app/interchange/fitlog";
+import { exampleFitlogV3, FITLOG_V3_INSTRUCTIONS, FITLOG_V3_REMINDER, parseFitlog, suggestFitlogFix } from "../app/interchange/fitlog";
 import { buildCoachPrompt, DEFAULT_COACH_PROFILE, NEW_COACH_PROFILE_PARAGRAPH, workoutToText } from "../app/interchange/coach-export";
 import { defaultState } from "../app/domain/training-types";
 
@@ -149,4 +149,34 @@ test("v110: profile paragraph scopes INTERVALS to summary-mode runs and lives in
   assert.match(NEW_COACH_PROFILE_PARAGRAPH, /MODE\|segments with REPEAT for segmented runs/);
   assert.match(NEW_COACH_PROFILE_PARAGRAPH, /post-session only: MODE\|summary with DURATION and NOTES, never SEGMENT lines/);
   assert.ok(DEFAULT_COACH_PROFILE.includes(NEW_COACH_PROFILE_PARAGRAPH));
+});
+
+test("v126: MODE with extra duration/distance values imports the valid parts and warns instead of rejecting the block", () => {
+  const workout = parseFitlog(v3(`EXERCISE|Bench Press\nSET|6|195 lb|RPE 8\nCARDIO|Run\nTYPE|run\nMODE|summary|20 min|3 km\nDURATION|20\nDISTANCE|3`), "lb", {});
+  assert.equal(workout.exercises.length, 1);
+  assert.equal(workout.exercises[0].sets.length, 1);
+  assert.equal(workout.cardio.length, 1);
+  assert.equal(workout.cardio[0].plannedDurationMin, 20);
+  assert.equal(workout.cardio[0].plannedDistanceKm, 3);
+  assert.ok(workout.importWarnings?.some((warning) => /MODE\|summary had extra values \(20 min, 3 km\)/.test(warning)));
+});
+
+test("v126: MODE extras with no DURATION lines still import the bench sets and the run, with a warning", () => {
+  const workout = parseFitlog(v2(`EXERCISE|Bench Press\nSET|6|195 lb|RPE 8\nCARDIO|Run\nTYPE|run\nMODE|summary|20 min|3 km`), "lb", {});
+  assert.equal(workout.exercises.length, 1);
+  assert.equal(workout.cardio.length, 1);
+  assert.equal(workout.cardio[0].plannedDurationMin, null);
+  assert.ok(workout.importWarnings?.some((warning) => /DURATION and DISTANCE/.test(warning)));
+});
+
+test("v126: MODE with an unknown mode word still rejects the block", () => {
+  assert.throws(() => parseFitlog(v2(`CARDIO|Run\nTYPE|run\nMODE|totals|20 min`), "lb", {}), /MODE must be summary or segments/);
+});
+
+test("v126: import errors carry a one-line fix for the common AI mistakes", () => {
+  assert.equal(suggestFitlogFix("Incomplete FITLOG block: missing closing [/FITLOG] tag."), "Add [/FITLOG] on its own last line — the reply may have been cut off.");
+  assert.match(suggestFitlogFix("Line 5: SET: expected 4 pipe-separated fields. Do not put pipe characters inside text.") ?? "", /Remove the \| inside/);
+  assert.match(suggestFitlogFix("Line 4: MODE must be summary or segments.") ?? "", /DURATION and DISTANCE/);
+  assert.match(suggestFitlogFix("Line 3: SET: enter a rep target with positive whole reps or an increasing range, such as 6 or 6-8.") ?? "", /each side/);
+  assert.equal(suggestFitlogFix("Each FITLOG block must contain exactly one WORKOUT line."), null);
 });

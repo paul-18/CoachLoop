@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { completeActivity } from "../app/domain/activity-segments";
-import { performedDistance, performedDuration, setEvidenceError, formatMeasure } from "../app/domain/completion";
+import { performedDistance, performedDuration, setEvidenceError, formatMeasure, duplicateExerciseNames, workoutCompletionSummary } from "../app/domain/completion";
 import { defaultState, localDate, makeCardio, makeExercise, makeSet, makeWorkout, type CardioEntry, type WorkoutSession } from "../app/domain/training-types";
 import { summarizeWorkout } from "../app/views/shared";
 import { HistoryView } from "../app/views/history-view";
@@ -109,6 +109,13 @@ test("v120 M4: setEvidenceError rejects negative, over 5,000, or NaN loads", () 
   assert.equal(setEvidenceError(nanSet), "Actual load must be between 0 and 5,000");
 });
 
+test("v126 P1-7: setEvidenceError caps manual actual reps at 5,000 like FITLOG", () => {
+  const validSet = { ...makeSet("lb", { plannedReps: "5", plannedWeight: 100 }), actualReps: "5", actualWeight: 100 };
+  assert.equal(setEvidenceError({ ...validSet, actualReps: "5000" }), null);
+  assert.equal(setEvidenceError({ ...validSet, actualReps: "5001" }), "Actual reps must not exceed 5,000");
+  assert.equal(setEvidenceError({ ...validSet, actualReps: "99999" }), "Actual reps must not exceed 5,000");
+});
+
 test("v120 M6: distance format is clean and consistent across views without trailing zeros", () => {
   assert.equal(formatMeasure(6.2), "6.2");
   assert.equal(formatMeasure(5), "5");
@@ -172,4 +179,29 @@ test("v120 C3: exampleFitlogV3 uses current local date", () => {
   const v3 = exampleFitlogV3();
   assert.match(v3, new RegExp(`WORKOUT\\|Squats and an easy run\\|${localDate()}`));
   assert.doesNotMatch(v3, /2026-01-15/);
+});
+
+test("v126 P1-4: duplicate exercise names are detected by canonical identity", () => {
+  const workout = makeWorkout("lb", 60);
+  workout.exercises = [
+    makeExercise("lb", 120, "Bench Press"),
+    makeExercise("lb", 120, "bench press"),
+    makeExercise("lb", 120, "Squat"),
+    makeExercise("lb", 120, "New exercise"),
+    makeExercise("lb", 120, "New exercise"),
+  ];
+  assert.deepEqual(duplicateExerciseNames(workout), ["Bench Press"]);
+  const aliased = makeWorkout("lb", 60);
+  aliased.exercises = [
+    makeExercise("lb", 120, "Bench"),
+    makeExercise("lb", 120, "BB Bench"),
+    makeExercise("lb", 120, "Squat"),
+  ];
+  assert.deepEqual(duplicateExerciseNames(aliased, { bench: "Barbell Bench Press", "bb bench": "Barbell Bench Press" }), ["Barbell Bench Press"]);
+  assert.deepEqual(duplicateExerciseNames(aliased), []);
+});
+
+test("v126 P1-4: empty workout summary no longer says it can still be saved", () => {
+  const workout = makeWorkout("lb", 60);
+  assert.equal(workoutCompletionSummary(workout), "Nothing is marked complete yet.");
 });

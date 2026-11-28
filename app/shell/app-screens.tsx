@@ -10,6 +10,7 @@ import { ProgressView } from "../views/progress-view";
 import { SettingsView } from "../views/settings-view";
 import { FirstSteps } from "../views/first-steps";
 import { DemoBar } from "../views/demo-bar";
+import { ReliabilityBar } from "../views/reliability-bar";
 import { SampleWorkoutPreview } from "../views/sample-workout";
 import { addSamplePlan, blankStartState, dismissCoachingPrompt, exampleSetupState, removeStarterState, undoBlankStart } from "../views/starter-plan";
 import { ViewErrorBoundary } from "./view-error-boundary";
@@ -115,7 +116,7 @@ export function AppScreens({ model }: { model: ShellModel }) {
 
         <main id="main-content" tabIndex={-1} className="app-main">
           {demoActive && <DemoBar onExit={leaveDemo} />}
-          {lastImportId && displayedState.workouts.some(w => w.id === lastImportId && w.status === "planned" && !w.exercises.some(e => e.sets.some(set => set.completed)) && !w.cardio.some(c => c.completed || c.efforts?.some(e => e.completed))) && <div className="reliability-bar"><span>Last imported plan</span><Button size="sm" variant="outline" disabled={demoActive} onClick={() => { deleteWorkout(lastImportId); setLastImportId(null); toast("Unstarted import undone"); }}>Undo import</Button></div>}
+          {lastImportId && displayedState.workouts.some(w => w.id === lastImportId && w.status === "planned" && !w.exercises.some(e => e.sets.some(set => set.completed)) && !w.cardio.some(c => c.completed || c.efforts?.some(e => e.completed))) && <ReliabilityBar disabled={demoActive} onUndo={() => { deleteWorkout(lastImportId); setLastImportId(null); toast("Unstarted import undone"); }} />}
 
 
           {!sampleOpen && !workoutOpen && !displayedState.activeWorkoutId && <FirstSteps state={displayedState} view={view} onStarter={() => applyProjectedUpdate(exampleSetupState)} onBlank={() => applyProjectedUpdate(blankStartState)} onRestore={() => openSettingsSection("backup")} onDemo={enterDemo} onSample={() => { navigateTab("today"); setSampleOpen(true); }} />}

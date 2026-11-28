@@ -8,6 +8,10 @@ async function openEditor() {
   const storage = require("../app/persistence/training-storage.ts");
   const state = defaultState(), workout = makeWorkout("lb", 0, "Focus QC");
   workout.exercises[0].name = "Barbell Bench Press";
+  // v126 P1-4: finishing is blocked with no completed work, so the fixture
+  // completes one set — this test is about focus return, not the empty guard.
+  workout.exercises[0].sets[0].completed = true;
+  workout.exercises[0].sets[0].actualReps = "8";
   state.workouts = [workout]; state.activeWorkoutId = workout.id;
   await storage.saveTrainingState(state);
   const root = createRoot(document.getElementById("root"));

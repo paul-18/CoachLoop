@@ -368,6 +368,15 @@ export const parseFitlog = (source: string, defaultUnit: Unit = "lb", aliases: R
   return parseFitlogV1(source, defaultUnit, aliases);
 };
 
+/** One-line fix for the most common AI mistakes, shown under an import error. Returns null when the error already says what to do. */
+export const suggestFitlogFix = (message: string): string | null => {
+  if (/missing closing \[\/FITLOG\]/i.test(message)) return "Add [/FITLOG] on its own last line — the reply may have been cut off.";
+  if (/pipe-separated|pipe characters/i.test(message)) return "Remove the | inside a name or note — use a comma instead, and keep one command per line.";
+  if (/MODE/.test(message)) return "The MODE line takes only summary or segments — put duration and distance on DURATION and DISTANCE lines as bare numbers (minutes, km).";
+  if (/SET:.*rep target/i.test(message)) return "Reps take only a number or range (6 or 6-8); put “each side” in the load, e.g. 40 lb each.";
+  return null;
+};
+
 const parseFitlogV1 = (
   source: string,
   defaultUnit: Unit,
@@ -690,6 +699,7 @@ function parseFitlogSegmented(source: string, defaultUnit: Unit, aliases: Record
   const firstLine = cleaned.slice(0, block.index! + `[FITLOG:${version}]`.length).split(/\r?\n/).length;
   const rawLines = block[1].split(/\r?\n/).map((text, index) => ({ raw: text, text: text.trim(), number: firstLine + index }));
   const specs: FitlogV2Activity[] = [];
+  const segmentWarnings: string[] = [];
   let current: FitlogV2Activity | null = null;
   let repeat: RepeatPattern | null = null;
   const expansionLimit = 100;
@@ -709,8 +719,14 @@ function parseFitlogSegmented(source: string, defaultUnit: Unit, aliases: Record
       current.explicitType = true;
     } else if (command === "MODE") {
       if (!current) throw new Error(`Line ${line.number}: MODE must follow a CARDIO or MOBILITY line.`);
-      if (fields.length !== 2 || (fields[1] !== "summary" && fields[1] !== "segments")) throw new Error(`Line ${line.number}: MODE must be summary or segments.`);
+      if (fields[1] !== "summary" && fields[1] !== "segments") throw new Error(`Line ${line.number}: MODE must be summary or segments.`);
       if (current.mode !== null) throw new Error(`Line ${line.number}: each activity may have only one MODE line.`);
+      if (fields.length > 2) {
+        const extras = fields.slice(2).filter(Boolean).join(", ");
+        segmentWarnings.push(fields[1] === "summary"
+          ? `Line ${line.number}: MODE|summary had extra values (${extras}) that were ignored — put them on DURATION and DISTANCE lines instead (bare numbers: minutes and kilometres).`
+          : `Line ${line.number}: MODE|segments had extra values (${extras}) that were ignored — the MODE line takes only the mode word; each SEGMENT line carries its own duration and distance.`);
+      }
       current.mode = fields[1];
       current.modeLine = line.number;
     } else if (command === "SEGMENT") {
@@ -763,6 +779,7 @@ function parseFitlogSegmented(source: string, defaultUnit: Unit, aliases: Record
   const v1Source = `${cleaned.slice(0, bodyStart).replace(new RegExp(`\\[FITLOG:${version}\\]`, "i"), "[FITLOG:1]")}${v1Body}${cleaned.slice(bodyEnd)}`;
   const workout = parseFitlogV1(v1Source, defaultUnit, aliases);
   workout.importFingerprint = fitlogFingerprint(cleaned);
+  if (segmentWarnings.length) workout.importWarnings = [...(workout.importWarnings ?? []), ...segmentWarnings];
   if (workout.cardio.length !== specs.length) throw new Error(`FITLOG version ${version} activity modes do not match its CARDIO and MOBILITY blocks.`);
   workout.cardio = workout.cardio.map((activity, index) => specs[index]?.mode === "segments" ? { ...activity, segments: specs[index].segments } : activity);
   if (workout.cardio.some(activity => activity.activityType === "yoga" && (activity.segments?.length ?? 0) > 0)) throw new Error("Yoga is recorded after the session: use MODE|summary with DURATION and NOTES, not SEGMENT lines.");

@@ -53,10 +53,10 @@ export type StrengthRecord = {
   display: string;
 };
 
-export const strengthRecords = (state: TrainingState, targetUnit: Unit, sinceDate?: string) => {
+export const strengthRecords = (state: TrainingState, targetUnit: Unit, sinceDate?: string, throughDate = localDate()) => {
   const records = new Map<string, StrengthRecord>();
   state.workouts
-    .filter((workout) => workout.status === "completed" && workout.date <= localDate() && (!sinceDate || workout.date >= sinceDate))
+    .filter((workout) => workout.status === "completed" && workout.date <= throughDate && (!sinceDate || workout.date >= sinceDate))
     .forEach((workout) => workout.exercises.forEach((exercise) => exercise.sets.forEach((set) => {
       const name = canonicalExerciseName(exercise.name, state.exerciseAliases);
       if (!isPrimaryStrengthExercise(name) || !set.completed || set.warmup || set.loadType !== "weighted" || set.weightMode !== "total") return;

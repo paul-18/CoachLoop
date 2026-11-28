@@ -219,8 +219,8 @@ export const buildQuickTrainingExtract = (
   return `${heading}\n${workouts.length ? workouts.map((workout) => workoutToText(workout, false)).join("\n\n") : "No completed workouts recorded in this period."}`;
 };
 
-const personalRecords = (state: TrainingState) =>
-  [...strengthRecords(state, state.settings.defaultUnit).entries()]
+const personalRecords = (state: TrainingState, today = localDate()) =>
+  [...strengthRecords(state, state.settings.defaultUnit, undefined, today).entries()]
     .sort((a, b) => b[1].e1rm - a[1].e1rm)
     .slice(0, 8)
     .map(([name, record]) => `- ${name}: ${record.display} (estimated 1RM ${Math.round(record.e1rm)} ${state.settings.defaultUnit})`);
@@ -235,7 +235,7 @@ export const buildCoachPrompt = (
   const cutoffDate = options.since ?? localDate(cutoff);
   const sinceAt = options.sinceAt ?? null;
   const completed = state.workouts
-    .filter((workout) => workout.status === "completed" && workout.date <= localDate())
+    .filter((workout) => workout.status === "completed" && workout.date <= today)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.completedAt ?? "").localeCompare(b.completedAt ?? ""));
   const workouts = options.since
     ? completed.filter((workout) => workout.date >= cutoffDate || Boolean(sinceAt && (workout.updatedAt ?? workout.completedAt ?? workout.createdAt) >= sinceAt))
@@ -255,12 +255,12 @@ export const buildCoachPrompt = (
     ? state.workouts.find((workout) => workout.id === state.activeWorkoutId && workout.status === "active")
     : undefined;
 
-  const records = personalRecords(state);
-  const bodyweight = [...state.bodyweightEntries].filter((entry) => entry.date <= localDate()).sort((a, b) => b.date.localeCompare(a.date))[0];
-  const waist = [...(state.waistEntries ?? [])].filter(e=>!e.deletedAt && e.date<=localDate()).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const records = personalRecords(state, today);
+  const bodyweight = [...state.bodyweightEntries].filter((entry) => entry.date <= today).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const waist = [...(state.waistEntries ?? [])].filter(e=>!e.deletedAt && e.date<=today).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const schedule = [
-    ...state.scheduleContext.events.filter((entry) => !entry.deletedAt && entry.date >= localDate()).sort((a, b) => a.date.localeCompare(b.date)).map((entry) => `- ${entry.date}: ${entry.label}`),
-    ...state.scheduleContext.phases.filter((phase) => !phase.deletedAt && phase.end >= localDate()).sort((a, b) => a.start.localeCompare(b.start)).map((phase) => `- ${phase.start} to ${phase.end}: ${phase.label}`),
+    ...state.scheduleContext.events.filter((entry) => !entry.deletedAt && entry.date >= today).sort((a, b) => a.date.localeCompare(b.date)).map((entry) => `- ${entry.date}: ${entry.label}`),
+    ...state.scheduleContext.phases.filter((phase) => !phase.deletedAt && phase.end >= today).sort((a, b) => a.start.localeCompare(b.start)).map((phase) => `- ${phase.start} to ${phase.end}: ${phase.label}`),
   ];
   const recentTestCutoff = new Date(`${today}T12:00:00Z`);
   recentTestCutoff.setUTCDate(recentTestCutoff.getUTCDate() - 28);

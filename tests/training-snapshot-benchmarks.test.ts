@@ -70,3 +70,34 @@ test("coach brief mentions recently due benchmark results without treating them 
   assert.match(prompt, /PINNED BENCHMARKS/);
   assert.match(prompt, /5K \(same route\): 24:30 on 2026-09-01; re-test 2026-10-01/);
 });
+
+test("v126 P1-8: coach brief is as-of the passed today, not the device date", () => {
+  const state = defaultState();
+  const past = makeWorkout("lb", 90, "Past bench");
+  past.date = "2026-11-18"; past.status = "completed";
+  past.exercises[0].name = "Barbell Bench Press";
+  past.exercises[0].sets = [{ ...makeSet("lb"), completed: true, actualReps: "5", actualWeight: 195, plannedWeight: 195, loadType: "weighted", weightMode: "total" }];
+  const future = makeWorkout("lb", 90, "Future bench");
+  future.date = "2026-11-27"; future.status = "completed";
+  future.exercises[0].name = "Barbell Bench Press";
+  future.exercises[0].sets = [{ ...makeSet("lb"), completed: true, actualReps: "5", actualWeight: 225, plannedWeight: 225, loadType: "weighted", weightMode: "total" }];
+  state.workouts = [past, future];
+  state.bodyweightEntries = [
+    { id: "bw-past", date: "2026-11-19", weight: 180, unit: "lb", updatedAt: "2026-11-19T12:00:00Z" },
+    { id: "bw-future", date: "2026-11-25", weight: 182, unit: "lb", updatedAt: "2026-11-25T12:00:00Z" },
+  ];
+  state.scheduleContext.events = [
+    { id: "ev-past", date: "2026-11-19", label: "Past event" },
+    { id: "ev-future", date: "2026-11-22", label: "Field departure" },
+  ];
+  const prompt = buildCoachPrompt(state, { mode: "continue", days: 30, energy: "", sleep: "", soreness: "", timeAvailable: "", equipment: "", restrictions: "", schedule: "", request: "" }, "2026-11-20");
+  assert.match(prompt, /CURRENT DATE\n2026-11-20/);
+  assert.match(prompt, /Past bench/);
+  assert.doesNotMatch(prompt, /Future bench/);
+  assert.match(prompt, /195 lb/);
+  assert.doesNotMatch(prompt, /225 lb/);
+  assert.match(prompt, /2026-11-19: 180 lb/);
+  assert.doesNotMatch(prompt, /182 lb/);
+  assert.match(prompt, /Field departure/);
+  assert.doesNotMatch(prompt, /Past event/);
+});
